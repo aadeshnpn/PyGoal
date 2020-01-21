@@ -26,8 +26,8 @@ PonyGE2
 
 ```
 git clone https://github.com/aadeshnpn/flloat.git
-git checkout predicate
 cd flloat
+git checkout predicate
 pip install .
 ```
 
