@@ -6,7 +6,6 @@ from py_trees.trees import BehaviourTree
 
 from pygoal.lib.mdp import GridMDP, create_policy
 from pygoal.lib.genrecprop import GenRecPropMDP, GenRecPropMDPNear
-from pygoal.lib.planner import Planner
 from pygoal.utils.bt import goalspec2BT
 
 
@@ -84,7 +83,7 @@ def find_cheese_return(seed):
     print(gmdp.run_policy(policy))
 
 
-def find_cheese_return_old(seed):
+def find_cheese_bt(seed):
     # Define the environment for the experiment
     # goalspec = 'F P_[IC][True,none,==] U F P_[L][13,none,==]'
     goalspec = 'F P_[IC][True,none,==]'
@@ -96,22 +95,24 @@ def find_cheese_return_old(seed):
         env, keys, goalspec, dict(), actions=actions, max_trace=10)
     root = goalspec2BT(goalspec, planner=planner)
     behaviour_tree = BehaviourTree(root)
-    print(behaviour_tree)
+    # print(behaviour_tree)
     for i in range(1):
-         behaviour_tree.tick()
-         print(behaviour_tree.root.status)
-    # gmdp = GenRecPropMDP(env2, keys, goalspec, dict(), 30, actions, False)
-    # gmdp.gen_rec_prop(100)
-
-    # policy = create_policy(gmdp.gtable)
-
-    # print(gmdp.run_policy(policy))
+        behaviour_tree.tick()
+        print(behaviour_tree.root.status)
+    # print(type(behaviour_tree.root), dir(behaviour_tree.root))
+    # print(behaviour_tree.root.train)
+    behaviour_tree.root.train = False
+    # print(behaviour_tree.root.train)
+    behaviour_tree.root.planner.env.restart()
+    for i in range(1):
+        behaviour_tree.tick()
+        print(behaviour_tree.root.status)
 
 
 def main():
     # find_cheese(1234)
     # get_near_trap(123)
-    find_cheese_return_old(12)
+    find_cheese_bt(12)
 
 
 main()
