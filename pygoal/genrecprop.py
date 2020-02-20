@@ -6,6 +6,14 @@ from abc import abstractmethod
 from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
 
+from flloat.syntax.ltlfg import (
+    LTLfgAtomic, LTLfEventually, LTLfAlways
+)
+# from py_trees import Behaviour, Blackboard
+from py_trees.composites import Sequence, Selector, Parallel
+
+from pygoal.bt import DummyNode
+
 
 # GenRecProp algorithm
 class GenRecProp:
@@ -44,6 +52,63 @@ class GenRecProp:
     @abstractmethod
     def get_action_policy(self, policy, state):
         raise NotImplementedError
+
+    def rparser(self, formula, root):
+        if len(formula) > 2:
+            for i in range(len(formula)):
+                root.add_children([DummyNode(str(formula[i]))])
+        elif len(formula) == 2:
+            if type(formula[0]) not in [
+                    LTLfEventually, LTLfAlways, LTLfgAtomic]:
+                op = self.find_control_node(formula[0].operator_symbol)
+                root.add_children([self.rparser(formula[0].formulas, op)])
+            else:
+                # Creat BT execution node
+                root.add_children([DummyNode(str(formula[0]))])
+            if type(formula[1]) not in [
+                    LTLfEventually, LTLfAlways, LTLfgAtomic]:
+                op = self.find_control_node(formula[1].operator_symbol)
+                root.add_children([self.rparser(formula[0].formulas, op)])
+            else:
+                root.add_children([DummyNode(str(formula[1]))])
+
+        elif len(formula) == 1:
+            root.add_children([DummyNode(str(formula))])
+        return root
+
+    def goalspec2BT(self, goalspec):
+        parser = LTLfGParser()
+        ltlformula = parser(goalspec)
+        # If the specification is already atomic no need to call his
+        if type(ltlformula) in [LTLfgAtomic, LTLfEventually, LTLfAlways]:
+            root = DummyNode(str(ltlformula))
+            # print(type(root).__name__)
+            # print(root.name, len(root.children))
+            # return (type(root).__)
+        else:
+            # print(len(ltlformula.formulas), ltlformula)
+            rootnode = self.find_control_node(ltlformula.operator_symbol)
+            root = self.rparser(ltlformula.formulas, rootnode)
+            # print(type(root).__name__)
+            # print(root.name, len(root.children))
+
+        return root
+
+    def find_control_node(self, operator):
+        # print(operator, type(operator))
+        if operator in ['U']:
+            # sequence
+            control_node = Sequence(operator)
+        elif operator == '&':
+            # parallel
+            control_node = Parallel(operator)
+        elif operator == '|':
+            # Selector
+            control_node = Selector(operator)
+        else:
+            # decorator
+            control_node = Selector(operator)
+        return control_node
 
     def get_action(self, state):
         return self.nprandom.choice(
@@ -110,6 +175,11 @@ class GenRecProp:
             tracedict[k] = trace[k][i]
         tracedict['A'] = trace['A'][i]
         return tracedict
+
+    def parse_goalspec(self):
+        """This class will parse goal specification
+        and develope a BT structure. """
+        pass
 
     def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
@@ -250,3 +320,79 @@ class GenRecProp:
 
             # Progagrate the error generate from recognizer
             self.propagate(result, trace)
+
+
+class GenRecPropMDP(GenRecProp):
+    def __init__(
+        self, env, keys, goalspec, gtable=dict(), max_trace=40,
+            actions=[0, 1, 2, 3], bt_flag=False):
+        super().__init__(
+            env, keys, goalspec, gtable, max_trace, actions, bt_flag)
+
+    def get_curr_state(self, env):
+        # env.format_state(env.curr_loc)
+        curr_loc = env.curr_loc
+        is_cheese = curr_loc == env.cheese
+        is_trap = curr_loc == env.trap
+        # reward = env.curr_reward        # F841
+        # return (env.format_state(curr_loc), is_cheese, is_trap, reward)
+        return (env.format_state(curr_loc), is_cheese, is_trap)
+
+    def create_trace_skeleton(self, state):
+        # Create a skeleton for trace
+        trace = dict(zip(self.keys, [[list()] for i in range(len(self.keys))]))
+        j = 0
+        for k in self.keys:
+            trace[k][0].append(state[j])
+            j += 1
+        trace['A'] = [list()]
+        return trace
+
+    def get_action_policy(self, policy, state):
+        # action = policy[state[0]]
+        action = policy[tuple(state)]
+        return action
+
+    def gtable_key(self, state):
+        # ss = state[0]
+        ss = state
+        return tuple(ss)
+
+
+class GenRecPropMDPNear(GenRecProp):
+    def __init__(
+        self, env, keys, goalspec, gtable=dict(), max_trace=40,
+            actions=[0, 1, 2, 3], bt_flag=False):
+        super().__init__(
+            env, keys, goalspec, gtable, max_trace, actions, bt_flag)
+
+    def get_curr_state(self, env):
+        # env.format_state(env.curr_loc)
+        curr_loc = env.curr_loc
+        is_cheese = curr_loc == env.cheese
+        is_trap = curr_loc == env.trap
+        near_cheese = env.check_near_object(curr_loc, 'cheese')
+        near_trap = env.check_near_object(curr_loc, 'trap')
+        return (
+            env.format_state(curr_loc), is_cheese, is_trap,
+            near_cheese, near_trap)
+
+    def create_trace_skeleton(self, state):
+        # Create a skeleton for trace
+        trace = dict(zip(self.keys, [[list()] for i in range(len(self.keys))]))
+        j = 0
+        for k in self.keys:
+            trace[k][0].append(state[j])
+            j += 1
+        trace['A'] = [list()]
+        return trace
+
+    def get_action_policy(self, policy, state):
+        # action = policy[state[0]]
+        action = policy[tuple(state)]
+        return action
+
+    def gtable_key(self, state):
+        # ss = state[0]
+        ss = state
+        return tuple(ss)
