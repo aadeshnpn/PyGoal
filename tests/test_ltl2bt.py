@@ -17,7 +17,7 @@ def test_goal_1():
     root = goalspec2BT(goalspec0)
     rootname = type(root).__name__
     name, num_child = root.name, len(root.children)
-    assert rootname == 'DummyNode'
+    assert rootname == 'GoalNode'
     assert name == 'P_[IC][True,none,==]'
     assert num_child == 0
 
@@ -28,7 +28,7 @@ def test_goal_2():
     rootname = type(root).__name__
     name, num_child = root.name, len(root.children)
 
-    assert rootname == 'DummyNode'
+    assert rootname == 'GoalNode'
     assert name == 'F(P_[IC][True,none,==])'
     assert num_child == 0
 
@@ -39,7 +39,7 @@ def test_goal_3():
     rootname = type(root).__name__
     name, num_child = root.name, len(root.children)
 
-    assert rootname == 'DummyNode'
+    assert rootname == 'GoalNode'
     assert name == 'G(P_[IC][True,none,==])'
     assert num_child == 0
 
@@ -136,4 +136,3 @@ def test_goal_11():
     assert rootname == 'Parallel'
     assert name == '&'
     assert num_child == 2
-

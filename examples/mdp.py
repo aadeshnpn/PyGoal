@@ -1,13 +1,13 @@
 """Learn policy for MDP world using GenRecProp algorithm."""
 
 import numpy as np
-import py_trees
 from py_trees.trees import BehaviourTree
 
 
 from pygoal.lib.mdp import GridMDP, create_policy
 from pygoal.lib.genrecprop import GenRecPropMDP, GenRecPropMDPNear
-from pygoal.utils.bt import goalspec2BT, display_bt
+from pygoal.lib.planner import Planner
+from pygoal.utils.bt import goalspec2BT
 
 
 def init_mdp(sloc):
@@ -86,19 +86,20 @@ def find_cheese_return(seed):
 
 def find_cheese_return_old(seed):
     # Define the environment for the experiment
-    goalspec = 'F P_[IC][True,none,==] U F P_[L][13,none,==]'
-    # startpoc = (1, 3)
-    # env1 = init_mdp(startpoc)
-    # env2 = init_mdp(startpoc)
-    # keys = ['L', 'IC']
-    # actions = [0, 1, 2, 3]
-    root = goalspec2BT(goalspec)
+    # goalspec = 'F P_[IC][True,none,==] U F P_[L][13,none,==]'
+    goalspec = 'F P_[IC][True,none,==]'
+    startpoc = (1, 3)
+    env = init_mdp(startpoc)
+    keys = ['L', 'IC']
+    actions = [0, 1, 2, 3]
+    planner = GenRecPropMDP(
+        env, keys, goalspec, dict(), actions=actions, max_trace=10)
+    root = goalspec2BT(goalspec, planner=planner)
     behaviour_tree = BehaviourTree(root)
     print(behaviour_tree)
-    display_bt(behaviour_tree, True)
-    # py_trees.logging.level = py_trees.logging.Level.DEBUG
-    # output = py_trees.display.ascii_tree(behaviour_tree.root)
-    # print(output)
+    for i in range(1):
+         behaviour_tree.tick()
+         print(behaviour_tree.root.status)
     # gmdp = GenRecPropMDP(env2, keys, goalspec, dict(), 30, actions, False)
     # gmdp.gen_rec_prop(100)
 
