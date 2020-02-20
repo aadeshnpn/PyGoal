@@ -7,13 +7,13 @@ import datetime
 
 from .pygoal.lib.genrecprop import GenRecProp
 from .pygoal.lib.bt import Policy, PolicyNode, DummyNode
-from .pygoal.lib.mdplib import GridMDP
-from .pygoal.utils.bt import goalspec2BT
+from .pygoal.lib.mdp import GridMDP
+from .pygoal.utils.bt import goalspec2BT, display_bt
 
 
 __all__ = [
     "GenRecProp", "Policy", "PolicyNode", "DummyNode",
-    "GridMDP", "goalspec2BT"]
+    "GridMDP", "goalspec2BT", "display_bt"]
 
 __title__ = 'PyGoal'
 __version__ = '0.0.1'

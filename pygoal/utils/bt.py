@@ -4,6 +4,7 @@ from flloat.parser.ltlfg import LTLfGParser
 from flloat.syntax.ltlfg import (
     LTLfgAtomic, LTLfEventually, LTLfAlways
 )
+import py_trees
 from py_trees.composites import Sequence, Selector, Parallel
 
 from pygoal.lib.bt import DummyNode
@@ -62,3 +63,14 @@ def find_control_node(operator):
         # decorator
         control_node = Selector(operator)
     return control_node
+
+
+def display_bt(behaviour_tree, save=False):
+    py_trees.logging.level = py_trees.logging.Level.DEBUG
+    output = py_trees.display.ascii_tree(behaviour_tree.root)
+    print(output)
+    if save:
+        py_trees.display.render_dot_tree(
+            behaviour_tree.root,
+            py_trees.common.VisibilityLevel.DETAIL,
+            name='/tmp/'+behaviour_tree.root.name)
