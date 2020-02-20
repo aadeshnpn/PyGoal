@@ -5,13 +5,15 @@ LTL based Goal Framework
 """
 import datetime
 
-from .pygoal.genrecprop import GenRecProp
-from .pygoal.bt import Policy, PolicyNode, DummyNode
-from .pygoal.mdplib import GridMDP
+from .pygoal.lib.genrecprop import GenRecProp
+from .pygoal.lib.bt import Policy, PolicyNode, DummyNode
+from .pygoal.lib.mdplib import GridMDP
+from .pygoal.utils.bt import goalspec2BT
+
 
 __all__ = [
     "GenRecProp", "Policy", "PolicyNode", "DummyNode",
-    "GridMDP"]
+    "GridMDP", "goalspec2BT"]
 
 __title__ = 'PyGoal'
 __version__ = '0.0.1'
