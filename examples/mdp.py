@@ -146,6 +146,7 @@ def find_cheese_return_bt(seed):
             pre_tick_handler=reset_env(env)
         )
     print('inference', behaviour_tree.root.status)
+    print(env.curr_loc)
 
 
 def main():
