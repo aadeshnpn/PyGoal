@@ -18,6 +18,10 @@ class GoalNode(Behaviour):
         self.blackboard = Blackboard()
         self.planner = planner
         self.train = train
+        if 'env' not in self.blackboard.shared_content.keys():
+            self.blackboard.shared_content = dict()
+            self.blackboard.shared_content['env'] = self.planner.env
+            # self.blackboard.policies = dict()
 
     def setup(
             self, timeout, planner=Planner.DEFAULT,
