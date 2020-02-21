@@ -101,8 +101,9 @@ def find_cheese_bt(seed):
         print(behaviour_tree.root.status)
     # print(type(behaviour_tree.root), dir(behaviour_tree.root))
     # print(behaviour_tree.root.train)
+
     behaviour_tree.root.train = False
-    # print(behaviour_tree.root.train)
+    # # print(behaviour_tree.root.train)
     behaviour_tree.root.planner.env.restart()
     for i in range(1):
         behaviour_tree.tick()

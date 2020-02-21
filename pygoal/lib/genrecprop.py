@@ -74,11 +74,12 @@ class GenRecProp:
         # Test the prop algorithm
         parser = LTLfGParser()
         parsed_formula = parser(goalspec)
-
+        # Quick fix. create_trace_float requires action to be list of list
+        temp = trace['A']
+        trace['A'] = [temp]
         # Create a trace compatiable with Flloat library
         t = self.create_trace_flloat(self.list_to_trace(trace), 0)
         result = parsed_formula.truth(t)
-        print('evaluate trace', t['IC'], parsed_formula, result)
         return result
 
     def list_to_trace(self, trace):
@@ -122,14 +123,12 @@ class GenRecProp:
 
     def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
-        print('starting state', state)
         try:
             action = self.get_action_policy(policy, state)
         except KeyError:
             return False
-        print('action', action, self.goalspec)
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
-        trace['A'] = [list()]
+        trace['A'] = [action]
 
         def updateTrace(trace, state):
             j = 0
@@ -141,19 +140,16 @@ class GenRecProp:
         trace = updateTrace(trace, state)
         j = 0
         while True:
-            # print(j, trace)
             next_state, reward, done, info = self.env.step(
                 self.env.env_action_dict[action])
             next_state = self.get_curr_state(self.env)
             trace = updateTrace(trace, next_state)
             state = next_state
             action = self.get_action_policy(policy, state)
-            trace['A'].append(str(action))
-            print(trace['A'])
+            trace['A'].append(action)
             # Run the policy as long as the goal is not achieved or less than j
             traceset = trace.copy()
             if self.evaluate_trace(self.goalspec, traceset):
-                print('j', traceset)
                 return True
             if j > max_trace_len:
                 return False
@@ -328,7 +324,6 @@ class GenRecPropMDP(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        print(policy)
         return self.run_policy(policy, 5)
 
 
