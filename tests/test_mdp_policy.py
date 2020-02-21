@@ -46,7 +46,13 @@ class TestMDPTraining(TestCase):
             env, keys, goalspec, dict(), actions=actions, max_trace=10)
         root = goalspec2BT(goalspec, planner=planner)
         self.behaviour_tree = BehaviourTree(root)
-        for i in range(1):
+
+        for child in self.behaviour_tree.root.children:
+            print(child, child.name)
+            child.setup(0, planner, True, 10)
+            print(child.goalspec, child.planner.goalspec)
+
+        for i in range(10):
             self.behaviour_tree.tick()
 
     def test_training(self):
@@ -65,7 +71,13 @@ class TestMDPInference(TestCase):
             env, keys, goalspec, dict(), actions=actions, max_trace=10)
         root = goalspec2BT(goalspec, planner=planner)
         self.behaviour_tree = BehaviourTree(root)
-        for i in range(1):
+
+        for child in self.behaviour_tree.root.children:
+            print(child, child.name)
+            child.setup(0, planner, True, 10)
+            print(child.goalspec, child.planner.goalspec)
+
+        for i in range(10):
             self.behaviour_tree.tick()
 
         self.behaviour_tree.root.train = False

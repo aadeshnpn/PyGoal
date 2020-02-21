@@ -6,7 +6,7 @@ from py_trees.trees import BehaviourTree
 
 from pygoal.lib.mdp import GridMDP, create_policy
 from pygoal.lib.genrecprop import GenRecPropMDP, GenRecPropMDPNear
-from pygoal.utils.bt import goalspec2BT
+from pygoal.utils.bt import goalspec2BT, display_bt
 
 
 def init_mdp(sloc):
@@ -95,25 +95,50 @@ def find_cheese_bt(seed):
         env, keys, goalspec, dict(), actions=actions, max_trace=10)
     root = goalspec2BT(goalspec, planner=planner)
     behaviour_tree = BehaviourTree(root)
-    # print(behaviour_tree)
+
     for i in range(1):
         behaviour_tree.tick()
         print(behaviour_tree.root.status)
-    # print(type(behaviour_tree.root), dir(behaviour_tree.root))
-    # print(behaviour_tree.root.train)
 
+    # Changes the BT to inference
     behaviour_tree.root.train = False
-    # # print(behaviour_tree.root.train)
+
     behaviour_tree.root.planner.env.restart()
     for i in range(1):
         behaviour_tree.tick()
         print(behaviour_tree.root.status)
 
 
+def find_cheese_return_bt(seed):
+    # Define the environment for the experiment
+    goalspec = 'F P_[IC][True,none,==] U F P_[L][13,none,==]'
+    startpoc = (1, 3)
+    env = init_mdp(startpoc)
+    keys = ['L', 'IC']
+    actions = [0, 1, 2, 3]
+    planner = GenRecPropMDP(
+        env, keys, None, dict(), actions=actions, max_trace=10)
+    root = goalspec2BT(goalspec, planner=planner)
+    print(root)
+    behaviour_tree = BehaviourTree(root)
+    # display_bt(behaviour_tree, True)
+
+    # Need to udpate the planner parameters
+    for child in behaviour_tree.root.children:
+        print(child, child.name)
+        child.setup(0, planner)
+        print(child.goalspec, child.planner.goalspec)
+
+    # for i in range(1):
+    #    behaviour_tree.tick()
+    #     print(behaviour_tree.root.status)
+
+
 def main():
     # find_cheese(1234)
     # get_near_trap(123)
-    find_cheese_bt(12)
+    # find_cheese_bt(12)
+    find_cheese_return_bt(12)
 
 
 main()

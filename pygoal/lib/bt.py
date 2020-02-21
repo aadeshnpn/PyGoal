@@ -20,17 +20,20 @@ class GoalNode(Behaviour):
         self.train = train
 
     def setup(
-            self, timeout, planner=Planner.DEFAULT, verbose=False):
+            self, timeout, planner=Planner.DEFAULT,
+            train=True, epoch=20, verbose=False):
         """Have defined the setup method.
 
         This method defines the other objects required for the
         policy. Env is the current environment,
         policy is the item the agent need to execute in the envrionment.
         """
+        self.planner = planner
         self.goalspec = self.name
         self.planner.goalspec = self.goalspec
         self.n = 0
-        self.planner = planner
+        self.train = train
+        self.planner.epoch = epoch
         self.verbose = verbose
 
     def initialise(self):

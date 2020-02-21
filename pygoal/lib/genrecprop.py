@@ -264,6 +264,7 @@ class GenRecPropMDP(GenRecProp):
             actions=[0, 1, 2, 3], epoch=10):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch)
+        self.tcount = 0
 
     def get_curr_state(self, env):
         # env.format_state(env.curr_loc)
@@ -309,15 +310,20 @@ class GenRecPropMDP(GenRecProp):
 
     def train(self, epoch, verbose=False):
         # Run the generator, recognizer loop for some epocs
-        for _ in range(epoch):
-            # Generator
-            trace = self.generator()
+        # for _ in range(epoch):
 
-            # Recognizer
-            result, trace = self.recognizer(trace)
+        # Generator
+        trace = self.generator()
 
+        # Recognizer
+        result, trace = self.recognizer(trace)
+
+        # No need to propagate results after exciding the train epoch
+        if self.tcount <= epoch:
             # Progagrate the error generate from recognizer
             self.propagate(result, trace)
+            # Increment the count
+            self.tcount += 1
 
         return result
 
