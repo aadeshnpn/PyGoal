@@ -127,9 +127,9 @@ class GenRecProp:
             action = self.get_action_policy(policy, state)
         except KeyError:
             return False
-        print('action', action, self.goalspec)
+        # print('action', action, self.goalspec)
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
-        trace['A'] = [list()]
+        trace['A'] = []
 
         def updateTrace(trace, state):
             j = 0
