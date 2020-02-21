@@ -156,8 +156,9 @@ class GenRecProp:
             j += 1
         return False
 
-    def generator(self):
-        self.env.restart()
+    def generator(self, env_reset=False):
+        if env_reset:
+            self.env.restart()
         state = self.get_curr_state(self.env)
         trace = self.create_trace_skeleton(state)
 

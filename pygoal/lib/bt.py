@@ -18,10 +18,7 @@ class GoalNode(Behaviour):
         self.blackboard = Blackboard()
         self.planner = planner
         self.train = train
-        if 'env' not in self.blackboard.shared_content.keys():
-            self.blackboard.shared_content = dict()
-            self.blackboard.shared_content['env'] = self.planner.env
-            # self.blackboard.policies = dict()
+        self.blackboard.shared_content = dict()
 
     def setup(
             self, timeout, planner=Planner.DEFAULT,
@@ -38,6 +35,20 @@ class GoalNode(Behaviour):
         self.n = 0
         self.train = train
         self.planner.epoch = epoch
+        # # This is the first node to get the environment
+        # if (
+        #     'env' not in self.blackboard.shared_content.keys()
+        #         ):
+        #     self.blackboard.shared_content['env'] = self.planner.env
+        #     # self.blackboard.policies = dict()
+        # # This is second node and sequence
+        # elif (
+        #     'env' in self.blackboard.shared_content.keys()
+        #         and type(self.parent) != Sequence):
+        #     self.blackboard.shared_content['env'] = self.planner.env
+
+        # self.planner.env = self.blackboard.shared_content['env']
+
         self.verbose = verbose
 
     def initialise(self):

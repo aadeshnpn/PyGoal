@@ -75,3 +75,7 @@ def display_bt(behaviour_tree, save=False):
             behaviour_tree.root,
             py_trees.common.VisibilityLevel.DETAIL,
             name='/tmp/'+behaviour_tree.root.name)
+
+
+def reset_env(env):
+    env.restart()

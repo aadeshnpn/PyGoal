@@ -119,19 +119,25 @@ def find_cheese_return_bt(seed):
     planner = GenRecPropMDP(
         env, keys, None, dict(), actions=actions, max_trace=10)
     root = goalspec2BT(goalspec, planner=planner)
-    print(root)
+    # print(root)
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree, True)
+    print(dir(behaviour_tree))
+    # # Need to udpate the planner parameters
+    # for child in behaviour_tree.root.children:
+    #     print(child, child.name)
+    #     # child.setup(0, planner, True, 10)
+    #     # planner.env = env
+    #     # print(child.goalspec, child.planner.goalspec, child.planner.env)
 
-    # Need to udpate the planner parameters
-    for child in behaviour_tree.root.children:
-        print(child, child.name)
-        child.setup(0, planner)
-        print(child.goalspec, child.planner.goalspec)
+    def reset_env():
+        env.restart()
 
-    # for i in range(1):
-    #    behaviour_tree.tick()
-    #     print(behaviour_tree.root.status)
+    for i in range(10):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env
+        )
+        print(behaviour_tree.root.status)
 
 
 def main():
