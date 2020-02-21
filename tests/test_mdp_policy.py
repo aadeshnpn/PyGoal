@@ -93,3 +93,42 @@ class TestMDPInference(TestCase):
 
     def test_inference(self):
         self.assertEqual(self.behaviour_tree.root.status, Status.SUCCESS)
+
+
+class TestMDPSequenceGoal(TestCase):
+
+    def setUp(self):
+        goalspec = 'F P_[IC][True,none,==] U F P_[L][13,none,==]'
+        startpoc = (1, 3)
+        env = init_mdp(startpoc)
+        keys = ['L', 'IC']
+        actions = [0, 1, 2, 3]
+        planner = GenRecPropMDP(
+            env, keys, goalspec, dict(), actions=actions, max_trace=10)
+        root = goalspec2BT(goalspec, planner=planner)
+        self.behaviour_tree = BehaviourTree(root)
+
+        for child in self.behaviour_tree.root.children:
+            print(child, child.name)
+            child.setup(0, planner, True, 10)
+            # child.planner.env = env
+            # print(child.goalspec, child.planner.goalspec)
+
+        for i in range(10):
+            self.behaviour_tree.tick(
+                pre_tick_handler=reset_env(env)
+            )
+
+        for child in self.behaviour_tree.root.children:
+            child.setup(0, planner, True, 10)
+            child.train = False
+            print(child, child.name, child.train)
+
+        for i in range(1):
+            self.behaviour_tree.tick(
+                pre_tick_handler=reset_env(env)
+            )
+        # print('inference', behaviour_tree.root.status)
+
+    def test_inference(self):
+        self.assertEqual(self.behaviour_tree.root.status, Status.SUCCESS)

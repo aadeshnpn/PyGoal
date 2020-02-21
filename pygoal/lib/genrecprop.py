@@ -331,7 +331,7 @@ class GenRecPropMDP(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        return self.run_policy(policy, 5)
+        return self.run_policy(policy, self.max_trace_len)
 
 
 class GenRecPropMDPNear(GenRecProp):

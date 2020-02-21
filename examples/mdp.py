@@ -6,7 +6,7 @@ from py_trees.trees import BehaviourTree
 
 from pygoal.lib.mdp import GridMDP, create_policy
 from pygoal.lib.genrecprop import GenRecPropMDP, GenRecPropMDPNear
-from pygoal.utils.bt import goalspec2BT, display_bt
+from pygoal.utils.bt import goalspec2BT, reset_env
 
 
 def init_mdp(sloc):
@@ -122,22 +122,30 @@ def find_cheese_return_bt(seed):
     # print(root)
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree, True)
-    print(dir(behaviour_tree))
+    # print(dir(behaviour_tree))
     # # Need to udpate the planner parameters
-    # for child in behaviour_tree.root.children:
-    #     print(child, child.name)
-    #     # child.setup(0, planner, True, 10)
-    #     # planner.env = env
-    #     # print(child.goalspec, child.planner.goalspec, child.planner.env)
-
-    def reset_env():
-        env.restart()
+    for child in behaviour_tree.root.children:
+        print(child, child.name)
+        child.setup(0, planner, True, 10)
+        # planner.env = env
+        # print(child.goalspec, child.planner.goalspec, child.planner.env)
 
     for i in range(10):
         behaviour_tree.tick(
-            pre_tick_handler=reset_env
+            pre_tick_handler=reset_env(env)
         )
         print(behaviour_tree.root.status)
+
+    for child in behaviour_tree.root.children:
+        child.setup(0, planner, True, 10)
+        child.train = False
+        print(child, child.name, child.train)
+
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print('inference', behaviour_tree.root.status)
 
 
 def main():
