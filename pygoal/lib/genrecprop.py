@@ -11,7 +11,7 @@ from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
 class GenRecProp:
     def __init__(
         self, env, keys, goalspec, gtable=dict(), max_trace=40,
-            actions=[0, 1, 2, 3], epoch=10):
+            actions=[0, 1, 2, 3], epoch=10, seed=None):
         self.env = env
         self.keys = keys
         self.goalspec = goalspec
@@ -19,7 +19,11 @@ class GenRecProp:
         self.gtable = gtable
         self.max_trace_len = max_trace
         self.actionsidx = actions
-        self.nprandom = np.random.RandomState()        # pylint: disable=E1101
+        if seed is None:
+            self.nprandom = np.random.RandomState()   # pylint: disable=E1101
+        else:
+            self.nprandom = np.random.RandomState(    # pylint: disable=E1101
+                seed)
 
     @abstractmethod
     def gtable_key(self, state):
@@ -262,9 +266,9 @@ class GenRecProp:
 class GenRecPropMDP(GenRecProp):
     def __init__(
         self, env, keys, goalspec, gtable=dict(), max_trace=40,
-            actions=[0, 1, 2, 3], epoch=10):
+            actions=[0, 1, 2, 3], epoch=10, seed=None):
         super().__init__(
-            env, keys, goalspec, gtable, max_trace, actions, epoch)
+            env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.tcount = 0
 
     def get_curr_state(self, env):
@@ -337,9 +341,9 @@ class GenRecPropMDP(GenRecProp):
 class GenRecPropMDPNear(GenRecProp):
     def __init__(
         self, env, keys, goalspec, gtable=dict(), max_trace=40,
-            actions=[0, 1, 2, 3], epoch=10):
+            actions=[0, 1, 2, 3], epoch=10, seed=None):
         super().__init__(
-            env, keys, goalspec, gtable, max_trace, actions, epoch)
+            env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
 
     def get_curr_state(self, env):
         # env.format_state(env.curr_loc)

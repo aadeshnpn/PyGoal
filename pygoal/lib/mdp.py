@@ -171,11 +171,16 @@ class GridMDP(MDP):
     An action is an (x, y) unit vector; e.g. (1, 0) means move east."""
 
     def __init__(
-            self, grid, terminals, init=(0, 0), gamma=.9, startloc=(3, 0)):
+            self, grid, terminals, init=(0, 0),
+            gamma=.9, startloc=(3, 0), seed=None):
         grid.reverse()     # because we want row 0 on bottom, not on top
         reward = {}
         states = set()
-        self.nprandom = np.random.RandomState()  # pylint: disable=E1101
+        if seed is None:
+            self.nprandom = np.random.RandomState()  # pylint: disable=E1101
+        else:
+            self.nprandom = np.random.RandomState(   # pylint: disable=E1101
+                seed)
         self.rows = len(grid)
         self.cols = len(grid[0])
         self.grid = grid

@@ -29,7 +29,7 @@ def init_mdp(sloc):
     grid[1][3] = -2
 
     mdp = GridMDP(
-        grid, terminals=[(3, 3), (3, 2)], startloc=sloc)
+        grid, terminals=[(3, 3), (3, 2)], startloc=sloc, seed=123)
 
     return mdp
 
@@ -43,7 +43,8 @@ class TestMDPTraining(TestCase):
         keys = ['L', 'IC']
         actions = [0, 1, 2, 3]
         planner = GenRecPropMDP(
-            env, keys, goalspec, dict(), actions=actions, max_trace=10)
+            env, keys, goalspec, dict(),
+            actions=actions, max_trace=10, seed=123)
         root = goalspec2BT(goalspec, planner=planner)
         self.behaviour_tree = BehaviourTree(root)
 
@@ -71,7 +72,8 @@ class TestMDPInference(TestCase):
         keys = ['L', 'IC']
         actions = [0, 1, 2, 3]
         planner = GenRecPropMDP(
-            env, keys, goalspec, dict(), actions=actions, max_trace=10)
+            env, keys, goalspec, dict(),
+            actions=actions, max_trace=10, seed=123)
         root = goalspec2BT(goalspec, planner=planner)
         self.behaviour_tree = BehaviourTree(root)
 
@@ -104,7 +106,8 @@ class TestMDPSequenceGoal(TestCase):
         keys = ['L', 'IC']
         actions = [0, 1, 2, 3]
         planner = GenRecPropMDP(
-            self.env, keys, goalspec, dict(), actions=actions, max_trace=10)
+            self.env, keys, goalspec, dict(),
+            actions=actions, max_trace=10, seed=123)
         root = goalspec2BT(goalspec, planner=planner)
         self.behaviour_tree = BehaviourTree(root)
 
