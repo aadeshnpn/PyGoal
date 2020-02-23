@@ -61,8 +61,7 @@ def taxi():
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-        # print(behaviour_tree.root.status)
-
+    # print(behaviour_tree.root.status)
     # for child in behaviour_tree.root.children:
     child.setup(0, planner, True, 40)
     child.train = False
