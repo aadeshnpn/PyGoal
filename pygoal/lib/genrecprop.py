@@ -393,3 +393,75 @@ class GenRecPropMDPNear(GenRecProp):
         # ss = state[0]
         ss = state
         return tuple(ss)
+
+
+class GenRecPropTaxi(GenRecProp):
+    def __init__(
+        self, env, keys, goalspec, gtable=dict(), max_trace=40,
+            actions=[0, 1, 2, 3], epoch=10, seed=None):
+        super().__init__(
+            env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
+        self.tcount = 0
+
+    def env_action_dict(self, action):
+        return action
+
+    def get_curr_state(self, env):
+        temp = list(env.decode(env.s))
+        return (str(temp[0])+str(temp[1]), temp[2], temp[3])
+
+    def create_trace_skeleton(self, state):
+        # Create a skeleton for trace
+        trace = dict(zip(self.keys, [[list()] for i in range(len(self.keys))]))
+        j = 0
+        for k in self.keys:
+            trace[k][0].append(state[j])
+            j += 1
+        trace['A'] = [list()]
+        return trace
+
+    def get_action_policy(self, policy, state):
+        # action = policy[state[0]]
+        action = policy[tuple(state)]
+        return action
+
+    def gtable_key(self, state):
+        # ss = state[0]
+        ss = state
+        return tuple(ss)
+
+    def get_policy(self):
+        policy = dict()
+        for s, v in self.gtable.items():
+            elem = sorted(v.items(),  key=lambda x: x[1], reverse=True)
+            try:
+                policy[s] = elem[0][0]
+                pass
+            except IndexError:
+                pass
+
+        return policy
+
+    def train(self, epoch, verbose=False):
+        # Run the generator, recognizer loop for some epocs
+        # for _ in range(epoch):
+
+        # Generator
+        trace = self.generator()
+
+        # Recognizer
+        result, trace = self.recognizer(trace)
+
+        # No need to propagate results after exciding the train epoch
+        if self.tcount <= epoch:
+            # Progagrate the error generate from recognizer
+            self.propagate(result, trace)
+            # Increment the count
+            self.tcount += 1
+
+        return result
+
+    def inference(self, render=False, verbose=False):
+        # Run the policy trained so far
+        policy = self.get_policy()
+        return self.run_policy(policy, self.max_trace_len)
