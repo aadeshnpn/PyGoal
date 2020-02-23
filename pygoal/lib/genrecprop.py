@@ -401,7 +401,6 @@ class GenRecPropMDPNear(GenRecProp):
         for k in self.keys:
             temp = trace[k][i][-1]
             state.append(temp)
-        print('set state', env.state_dict[state[0]], state)
         env.curr_loc = env.state_dict[state[0]]
 
     def create_trace_skeleton(self, state):

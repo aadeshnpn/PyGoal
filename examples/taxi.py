@@ -4,20 +4,20 @@ import gym
 from py_trees.trees import BehaviourTree
 
 from pygoal.lib.genrecprop import GenRecProp
-from pygoal.utils.bt import goalspec2BT, display_bt
+from pygoal.utils.bt import goalspec2BT
 
 
 def env_setup(env, seed=1234):
     env.seed(seed)
     env.reset()
-    env.env.s = 3
+    # env.env.s = 3
     return env
 
 
 def reset_env(env, seed=1234):
     env.seed(seed)
     env.reset()
-    env.env.s = 3
+    # env.env.s = 3
 
 
 def init_taxi(seed):
@@ -53,7 +53,6 @@ class GenRecPropTaxi(GenRecProp):
         return (str(temp[0])+str(temp[1]), temp[2], temp[3])
 
     def set_state(self, env, trace, i):
-        # self.get_curr_state(self.env), trace['L'][i][-1], trace['PI'][i][-1], trace['TI'][i][-1])
         state = []
         for k in self.keys:
             if k == 'L':
@@ -105,7 +104,7 @@ class GenRecPropTaxi(GenRecProp):
         # for _ in range(epoch):
 
         # Generator
-        print('env state', self.goalspec, self.get_curr_state(self.env))
+        # print('env state', self.goalspec, self.get_curr_state(self.env))
         trace = self.generator()
         # print(trace['PI'])
         # Recognizer
@@ -132,20 +131,20 @@ def taxi():
     print(target)
     # goalspec = '((((F(P_[L]['+give_loc(target[2])+',none,==])) U (F(P_[PI]['+str(4)+',none,==]))) U (F(P_[L]['+give_loc(target[3])+',none,==]))) U (F(P_[PI]['+str(target[3])+',none,==])))'
     goalspec = 'F P_[L]['+give_loc(target[2])+',none,==] U F P_[PI]['+str(4)+',none,==]'
-    keys = ['L', 'TI', 'PI']
+    keys = ['L', 'PI', 'DI']
     actions = [[0, 1, 2, 3], [4]]
 
     root = goalspec2BT(goalspec, planner=None)
     # print('root', root)
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree)
-    epoch = [10, 2]
+    epoch = [20, 20]
     j = 0
     for child in behaviour_tree.root.children:
         # print('children', child, child.name, child.id)
         planner = GenRecPropTaxi(
              env, keys, child.name, dict(), actions=actions[j],
-             max_trace=40, seed=None)
+             max_trace=40, seed=12345)
         child.setup(0, planner, True, epoch[j])
         j += 1
         # planner.env = env
@@ -153,43 +152,36 @@ def taxi():
     print('rootname', behaviour_tree.root.name)
     # behaviour_tree.root.remove_child_by_id(id)
     # display_bt(behaviour_tree)
-    for i in range(12):
+    for i in range(40):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
     print(behaviour_tree.root.status)
 
-    # # for child in behaviour_tree.root.children:
-    # child.setup(0, planner, True, 40)
-    # child.train = False
-    # print(child, child.name, child.train)
+    for child in behaviour_tree.root.children:
+        child.setup(0, planner, True, 20)
+        child.train = False
+        print(child, child.name, child.train)
 
-    # for i in range(1):
-    #     behaviour_tree.tick(
-    #         pre_tick_handler=reset_env(env)
-    #     )
-    # print('inference', behaviour_tree.root.status)
-    # print(env.curr_loc)
+    for i in range(2):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print('inference', behaviour_tree.root.status)
 
 
 def taxi1():
     env = init_taxi(seed=1234)
     target = list(env.decode(env.s))
     print(target)
-    # goalspec = '((((F(P_[L]['+give_loc(target[2])+',none,==])) U (F(P_[PI]['+str(4)+',none,==]))) U (F(P_[L]['+give_loc(target[3])+',none,==]))) U (F(P_[PI]['+str(target[3])+',none,==])))'
     goalspec = 'F P_[PI]['+str(4)+',none,==]'
     keys = ['L', 'PI', 'DI']
     actions = [4]
 
     root = goalspec2BT(goalspec, planner=None)
-    # print('root', root)
     behaviour_tree = BehaviourTree(root)
-    # display_bt(behaviour_tree)
-    # epoch = [10, #2]
-    # j = 0
     child = behaviour_tree.root
     # for child in behaviour_tree.root.children:
-    # print('children', child, child.name, child.id)
     planner = GenRecPropTaxi(
             env, keys, child.name, dict(), actions=actions,
             max_trace=3, seed=None)
@@ -208,7 +200,7 @@ def taxi1():
 
 
 def main():
-    taxi1()
+    taxi()
 
 
 if __name__ == '__main__':

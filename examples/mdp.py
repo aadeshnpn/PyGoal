@@ -43,7 +43,8 @@ def init_mdp(sloc):
 #     env2 = init_mdp(startpoc)
 #     keys = ['L', 'IC', 'IT', 'NC', 'NT']
 #     actions = [0, 1, 2, 3]
-#     gmdp = GenRecPropMDPNear(env2, keys, goalspec, dict(), 30, actions, False)
+#     gmdp = GenRecPropMDPNear(env2, keys, goalspec,
+#       dict(), 30, actions, False)
 #     gmdp.gen_rec_prop(100)
 
 #     policy = create_policy(gmdp.gtable)
@@ -59,7 +60,8 @@ def init_mdp(sloc):
 #     env2 = init_mdp(startpoc)
 #     keys = ['L', 'IC', 'IT', 'NC', 'NT']
 #     actions = [0, 1, 2, 3]
-#     gmdp = GenRecPropMDPNear(env2, keys, goalspec, dict(), 30, actions, False)
+#     gmdp = GenRecPropMDPNear(env2, keys, goalspec,
+#       dict(), 30, actions, False)
 #     gmdp.gen_rec_prop(100)
 
 #     policy = create_policy(gmdp.gtable)
