@@ -34,6 +34,10 @@ class GenRecProp:
         raise NotImplementedError
 
     @abstractmethod
+    def set_state(self, env, trace, i):
+        raise NotImplementedError
+
+    @abstractmethod
     def create_trace_skeleton(self, state):
         raise NotImplementedError
 
@@ -225,6 +229,7 @@ class GenRecProp:
             t = self.create_trace_flloat(traceset, i)
             result = parsed_formula.truth(t)
             if result is True:
+                self.set_state(self.env, trace, i)
                 return True, self.create_trace_dict(trace, i)
 
         return result, self.create_trace_dict(trace, i)
@@ -289,6 +294,14 @@ class GenRecPropMDP(GenRecProp):
         }
         return action_dict[action]
 
+    def set_state(self, env, trace, i):
+        state = []
+        for k in self.keys:
+            temp = trace[k][i][-1]
+            state.append(temp)
+        print('set state', env.state_dict[state[0]], state)
+        env.curr_loc = env.state_dict[state[0]]
+
     def get_curr_state(self, env):
         # env.format_state(env.curr_loc)
         curr_loc = env.curr_loc
@@ -340,7 +353,7 @@ class GenRecPropMDP(GenRecProp):
 
         # Recognizer
         result, trace = self.recognizer(trace)
-
+        print(result, self.goalspec, self.env.curr_loc, trace['IC'], trace['L'])
         # No need to propagate results after exciding the train epoch
         if self.tcount <= epoch:
             # Progagrate the error generate from recognizer
@@ -451,7 +464,6 @@ class GenRecPropTaxi(GenRecProp):
 
         # Recognizer
         result, trace = self.recognizer(trace)
-
         # No need to propagate results after exciding the train epoch
         if self.tcount <= epoch:
             # Progagrate the error generate from recognizer

@@ -116,16 +116,17 @@ def find_cheese_return_bt(seed):
     env = init_mdp(startpoc)
     keys = ['L', 'IC']
     actions = [0, 1, 2, 3]
-    planner = GenRecPropMDP(
-        env, keys, None, dict(), actions=actions, max_trace=10)
-    root = goalspec2BT(goalspec, planner=planner)
+
+    root = goalspec2BT(goalspec, planner=None)
     # print(root)
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree, True)
     # print(dir(behaviour_tree))
     # # Need to udpate the planner parameters
     for child in behaviour_tree.root.children:
-        print(child, child.name)
+        print(child, child.name, env.curr_loc)
+        planner = GenRecPropMDP(
+            env, keys, None, dict(), actions=actions, max_trace=10)
         child.setup(0, planner, True, 10)
         # planner.env = env
         # print(child.goalspec, child.planner.goalspec, child.planner.env)
@@ -134,19 +135,19 @@ def find_cheese_return_bt(seed):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-        print(behaviour_tree.root.status)
+        # print(behaviour_tree.root.status)
 
-    for child in behaviour_tree.root.children:
-        child.setup(0, planner, True, 10)
-        child.train = False
-        print(child, child.name, child.train)
+    # for child in behaviour_tree.root.children:
+    #     child.setup(0, planner, True, 10)
+    #     child.train = False
+    #     print(child, child.name, child.train)
 
-    for i in range(1):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    print('inference', behaviour_tree.root.status)
-    print(env.curr_loc)
+    # for i in range(1):
+    #     behaviour_tree.tick(
+    #         pre_tick_handler=reset_env(env)
+    #     )
+    # print('inference', behaviour_tree.root.status)
+    # print(env.curr_loc)
 
 
 def main():
