@@ -53,6 +53,10 @@ class GenRecProp:
     def get_policy(self):
         raise NotImplementedError
 
+    @abstractmethod
+    def env_action_dict(self):
+        raise NotImplementedError
+
     def get_action(self, state):
         return self.nprandom.choice(
             self.actionsidx,
@@ -144,8 +148,11 @@ class GenRecProp:
         trace = updateTrace(trace, state)
         j = 0
         while True:
+            # next_state, reward, done, info = self.env.step(
+            #    self.env.env_action_dict[action])
             next_state, reward, done, info = self.env.step(
-                self.env.env_action_dict[action])
+                self.env_action_dict(action))
+
             next_state = self.get_curr_state(self.env)
             trace = updateTrace(trace, next_state)
             state = next_state
@@ -186,8 +193,10 @@ class GenRecProp:
             except IndexError:
                 trace['A'].append(action)
             # Map the action to env_action
+            # next_state, reward, done, info = self.env.step(
+            #     self.env.env_action_dict[action])
             next_state, reward, done, info = self.env.step(
-                self.env.env_action_dict[action])
+                self.env_action_dict(action))
 
             nstate = self.get_curr_state(self.env)
             trace = self.trace_accumulator(trace, nstate)
@@ -270,6 +279,15 @@ class GenRecPropMDP(GenRecProp):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.tcount = 0
+
+    def env_action_dict(self, action):
+        action_dict = {
+            0: (1, 0),
+            1: (0, 1),
+            2: (-1, 0),
+            3: (0, -1)
+        }
+        return action_dict[action]
 
     def get_curr_state(self, env):
         # env.format_state(env.curr_loc)

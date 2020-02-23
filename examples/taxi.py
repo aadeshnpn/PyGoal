@@ -1,6 +1,5 @@
 """Learn policy in Taxi world using GenRecProp."""
 
-import numpy as np
 import gym
 from py_trees.trees import BehaviourTree
 
@@ -12,6 +11,11 @@ def env_setup(env, seed=123):
     env.seed(seed)
     env.reset()
     return env
+
+
+def reset_env(env, seed=123):
+    env.seed(seed)
+    env.reset()
 
 
 def init_taxi(seed):
@@ -30,17 +34,12 @@ class GenRecPropTaxi(GenRecProp):
         self.tcount = 0
 
     def get_curr_state(self, env):
-        # env.format_state(env.curr_loc)
-        curr_loc = env.curr_loc
-        is_cheese = curr_loc == env.cheese
-        # is_trap = curr_loc == env.trap
-        # reward = env.curr_reward        # F841
-        # return (env.format_state(curr_loc), is_cheese, is_trap, reward)
-        # return (env.format_state(curr_loc), is_cheese, is_trap)
-        return (env.format_state(curr_loc), is_cheese)
+        temp = list(env.decode(env.s))
+        return (str(temp[0])+str(temp[1]), temp[2], temp[3])
 
     def create_trace_skeleton(self, state):
         # Create a skeleton for trace
+        print(state, self.keys)
         trace = dict(zip(self.keys, [[list()] for i in range(len(self.keys))]))
         j = 0
         for k in self.keys:
@@ -109,8 +108,9 @@ def give_loc(idx):
 def taxi():
     env = init_taxi(seed=123)
     target = list(env.decode(env.s))
-    goalspec = '((((F(P_[L]['+give_loc(target[2])+',none,==])) U (F(P_[PI]['+str(4)+',none,==]))) U (F(P_[L]['+give_loc(target[3])+',none,==]))) U (F(P_[PI]['+str(target[3])+',none,==])))'
-    keys = ['L', 'TI', 'PI'],
+    # goalspec = '((((F(P_[L]['+give_loc(target[2])+',none,==])) U (F(P_[PI]['+str(4)+',none,==]))) U (F(P_[L]['+give_loc(target[3])+',none,==]))) U (F(P_[PI]['+str(target[3])+',none,==])))'
+    goalspec = 'F(P_[L]['+give_loc(target[2])+',none,==])'
+    keys = ['L', 'TI', 'PI']
     actions = [0, 1, 2, 3, 4, 5]
     planner = GenRecPropTaxi(
          env, keys, None, dict(), actions=actions, max_trace=40)
@@ -120,9 +120,15 @@ def taxi():
     display_bt(behaviour_tree)
     for child in behaviour_tree.root.children:
         print(child, child.name)
-        child.setup(0, planner, True, 10)
+        child.setup(0, planner, True, 150)
         # planner.env = env
         # print(child.goalspec, child.planner.goalspec, child.planner.env)
+
+    for i in range(100):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+        print(behaviour_tree.root.status)
 
 
 def main():
