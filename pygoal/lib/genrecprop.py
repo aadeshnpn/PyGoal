@@ -299,7 +299,6 @@ class GenRecPropMDP(GenRecProp):
         for k in self.keys:
             temp = trace[k][i][-1]
             state.append(temp)
-        print('set state', env.state_dict[state[0]], state)
         env.curr_loc = env.state_dict[state[0]]
 
     def get_curr_state(self, env):
@@ -353,7 +352,6 @@ class GenRecPropMDP(GenRecProp):
 
         # Recognizer
         result, trace = self.recognizer(trace)
-        print(result, self.goalspec, self.env.curr_loc, trace['IC'], trace['L'])
         # No need to propagate results after exciding the train epoch
         if self.tcount <= epoch:
             # Progagrate the error generate from recognizer
@@ -375,17 +373,36 @@ class GenRecPropMDPNear(GenRecProp):
             actions=[0, 1, 2, 3], epoch=10, seed=None):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
+        self.tcount = 0
 
     def get_curr_state(self, env):
         # env.format_state(env.curr_loc)
         curr_loc = env.curr_loc
-        is_cheese = curr_loc == env.cheese
-        is_trap = curr_loc == env.trap
+        # is_cheese = curr_loc == env.cheese
+        # is_trap = curr_loc == env.trap
         near_cheese = env.check_near_object(curr_loc, 'cheese')
-        near_trap = env.check_near_object(curr_loc, 'trap')
-        return (
-            env.format_state(curr_loc), is_cheese, is_trap,
-            near_cheese, near_trap)
+        # near_trap = env.check_near_object(curr_loc, 'trap')
+        # return (
+        #    env.format_state(curr_loc), is_cheese, is_trap,
+        #    near_cheese, near_trap)
+        return (env.format_state(curr_loc), near_cheese)
+
+    def env_action_dict(self, action):
+        action_dict = {
+            0: (1, 0),
+            1: (0, 1),
+            2: (-1, 0),
+            3: (0, -1)
+        }
+        return action_dict[action]
+
+    def set_state(self, env, trace, i):
+        state = []
+        for k in self.keys:
+            temp = trace[k][i][-1]
+            state.append(temp)
+        print('set state', env.state_dict[state[0]], state)
+        env.curr_loc = env.state_dict[state[0]]
 
     def create_trace_skeleton(self, state):
         # Create a skeleton for trace
@@ -406,6 +423,41 @@ class GenRecPropMDPNear(GenRecProp):
         # ss = state[0]
         ss = state
         return tuple(ss)
+
+    def get_policy(self):
+        policy = dict()
+        for s, v in self.gtable.items():
+            elem = sorted(v.items(),  key=lambda x: x[1], reverse=True)
+            try:
+                policy[s] = elem[0][0]
+                pass
+            except IndexError:
+                pass
+
+        return policy
+
+    def train(self, epoch, verbose=False):
+        # Run the generator, recognizer loop for some epocs
+        # for _ in range(epoch):
+
+        # Generator
+        trace = self.generator()
+
+        # Recognizer
+        result, trace = self.recognizer(trace)
+        # No need to propagate results after exciding the train epoch
+        if self.tcount <= epoch:
+            # Progagrate the error generate from recognizer
+            self.propagate(result, trace)
+            # Increment the count
+            self.tcount += 1
+
+        return result
+
+    def inference(self, render=False, verbose=False):
+        # Run the policy trained so far
+        policy = self.get_policy()
+        return self.run_policy(policy, self.max_trace_len)
 
 
 class GenRecPropTaxi(GenRecProp):
