@@ -26,6 +26,26 @@ def init_taxi(seed):
     return env
 
 
+def init_taxi_s(seed):
+    env_name = 'Taxi-v2'
+    env = gym.make(env_name)
+    env = env_setup_s(env, seed)
+    return env
+
+
+def env_setup_s(env, seed=1234):
+    env.seed(seed)
+    env.reset()
+    env.env.s = 3
+    return env
+
+
+def reset_env_s(env, seed=1234):
+    env.seed(seed)
+    env.reset()
+    env.env.s = 3
+
+
 def give_loc(idx):
     # # (0,0) -> R -> 0
     # # (4,0) -> Y -> 2
