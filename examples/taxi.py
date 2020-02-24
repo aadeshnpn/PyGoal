@@ -4,10 +4,7 @@ import gym
 from py_trees.trees import BehaviourTree
 
 from pygoal.lib.genrecprop import GenRecPropTaxi
-from pygoal.utils.bt import goalspec2BT, display_bt
-
-from flloat.parser.ltlfg import LTLfGParser
-from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
+from pygoal.utils.bt import goalspec2BT
 
 
 def env_setup(env, seed=1234):
@@ -67,29 +64,29 @@ def taxi():
     goalspec = '((((F(P_[L]['+give_loc(target[2])+',none,==])) U (F(P_[PI]['+str(4)+',none,==]))) U (F(P_[L]['+give_loc(target[3])+',none,==]))) U (F(P_[PI]['+str(target[3])+',none,==])))'    # noqa: E501
     # goalspec = 'F P_[L]['+give_loc(target[2])+',none,==] U F P_[PI]['+str(4)+',none,==]'  # noqa: E501
     keys = ['L', 'PI', 'DI']
-    actions = [[0, 1, 2, 3], [4], [0, 1, 2, 3], [5]]
-    # actions = [0, 1, 2, 3, 4, 5]
+    # actions = [[0, 1, 2, 3], [4], [0, 1, 2, 3], [5]]
+    actions = [0, 1, 2, 3, 4, 5]
 
     root = goalspec2BT(goalspec, planner=None)
     print('root', root)
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree)
 
-    epoch = [50, 10, 50, 10]
+    epoch = [80, 50, 80, 50]
     j = 0
     for child in behaviour_tree.root.children:
         print('children', child, child.name, child.id)
         planner = GenRecPropTaxi(
-             env, keys, child.name, dict(), actions=actions[j],
-             max_trace=40)
+             env, keys, child.name, dict(), actions=actions,
+             max_trace=40, seed=1)
         child.setup(0, planner, True, epoch[j])
         j += 1
         # planner.env = env
-        print(child.goalspec, child.planner.goalspec, child.planner.env)
-    print('rootname', behaviour_tree.root.name)
+        # print(child.goalspec, child.planner.goalspec, child.planner.env)
+    # print('rootname', behaviour_tree.root.name)
     # behaviour_tree.root.remove_child_by_id(id)
     # display_bt(behaviour_tree)
-    for i in range(100):
+    for i in range(200):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
@@ -104,7 +101,7 @@ def taxi():
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-    print('inference', behaviour_tree.root.status)
+    print('Inference', behaviour_tree.root.status)
 
 
 def taxid():
