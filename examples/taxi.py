@@ -57,7 +57,6 @@ def give_loc(idx):
     return locdict[idx]
 
 
-
 def taxi():
     env = init_taxi(seed=1234)
     target = list(env.decode(env.s))

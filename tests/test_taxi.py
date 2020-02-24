@@ -177,3 +177,49 @@ class TestTaxiInferenceSimpleGoal1(TestCase):
 
     def test_inference(self):
         self.assertEqual(self.behaviour_tree.root.status, Status.SUCCESS)
+
+
+class TestTaxiCompositeGoal1(TestCase):
+
+    def setUp(self):
+        env = init_taxi(seed=1234)
+        target = list(env.decode(env.s))
+        print(target)
+        goalspec = 'F P_[L]['+give_loc(target[2])+',none,==] U F P_[PI]['+str(4)+',none,==]'    # noqa: E501
+        keys = ['L', 'PI', 'DI']
+        actions = [0, 1, 2, 3, 4, 5]
+
+        root = goalspec2BT(goalspec, planner=None)
+        self.behaviour_tree = BehaviourTree(root)
+        epoch = [50, 10]
+        j = 0
+        for child in self.behaviour_tree.root.children:
+            print('children', child, child.name, child.id)
+            planner = GenRecPropTaxi(
+                env, keys, child.name, dict(), actions=actions,
+                max_trace=40, seed=123)
+            child.setup(0, planner, True, epoch[j])
+            j += 1
+            # print(child.goalspec, child.planner.goalspec, child.planner.env)
+        # print('rootname', behaviour_tree.root.name)
+        # behaviour_tree.root.remove_child_by_id(id)
+        # display_bt(behaviour_tree)
+        for i in range(50):
+            self.behaviour_tree.tick(
+                pre_tick_handler=reset_env(env)
+            )
+        print('Training', self.behaviour_tree.root.status)
+
+        for child in self.behaviour_tree.root.children:
+            # child.setup(0, planner, True, 20)
+            child.train = False
+            print(child, child.name, child.train)
+
+        for i in range(2):
+            self.behaviour_tree.tick(
+                pre_tick_handler=reset_env(env)
+            )
+        print('inference', self.behaviour_tree.root.status)
+
+    def test_inference(self):
+        self.assertEqual(self.behaviour_tree.root.status, Status.SUCCESS)
