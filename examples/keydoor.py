@@ -1,10 +1,7 @@
 """Learn policy in KeyDoor world using GenRecProp."""
 import gym
 import gym_minigrid
-import random
 from gym_minigrid.minigrid import Grid, OBJECT_TO_IDX, Key, Door, Goal
-import numpy as np
-import time
 
 from py_trees.trees import BehaviourTree
 
@@ -117,35 +114,16 @@ class GenRecPropKeyDoor(GenRecProp):
                 c = trace[k][i][-1]
                 if c == '0':
                     status = False
-                else:
+                elif c == '1':
                     status = True
-                # env.carrying = agent[2]
-                # old_key_pos = agent[2].cur_pos  # noqa: F841
-            # elif k ==''
-
-        # pos = agent[0]
-        # ore = agent[1]
-        # if pos is None or ore is None:
-        #     pass
-        # else:
-        #     env.agent_pos = (int(pos[0]), int(pos[1]))
-        #     env.agent_dir = int(ore)
-        #     env.grid.set(int(pos[0]), int(pos[1]), None)
-        #     env.is_open = agent[3]
-        #     if agent[2] is not None:
-        #         env.carrying = agent[2]
-        #         old_key_pos = agent[2].cur_pos  # noqa: F841
-        #         # env.carrying.cur_pos = np.array([-1, -1])
-        #         # env.grid.set(*old_key_pos, None)
-
-        # if agent[3] is True:
-        #     for i in range(1, 7):
-        #         for j in range(1, 7):
-        #             item = env.grid.get(i, j)
-        #             # print(i, j, item)
-        #             if isinstance(item, Door):
-        #                 item.is_open = True
-        # return env
+                    # print('set state', env.carrying)
+                    if env.carrying is None:
+                        for i in range(1, 7):
+                            for j in range(1, 7):
+                                item = env.grid.get(i, j)
+                                if isinstance(item, Key):
+                                    env.carrying = item
+                    # print('set state', env.carrying)
 
     def create_trace_skeleton(self, state):
         # Create a skeleton for trace
@@ -232,7 +210,7 @@ def keydoor():
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-        print(i, behaviour_tree.root.status)
+    print(i, behaviour_tree.root.status)
 
 
 def keydoor1():
@@ -262,11 +240,11 @@ def keydoor1():
         child.setup(0, planner, True, epoch[j])
         j += 1
         print(child.goalspec, child.planner.goalspec, type(child.planner.env))
-    for i in range(60):
+    for i in range(70):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-        print(i, behaviour_tree.root.status)
+    print(i, behaviour_tree.root.status)
 
 
 def main():
