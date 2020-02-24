@@ -160,8 +160,12 @@ class GenRecProp:
             next_state = self.get_curr_state(self.env)
             trace = updateTrace(trace, next_state)
             state = next_state
-            action = self.get_action_policy(policy, state)
-            trace['A'].append(action)
+            try:
+                action = self.get_action_policy(policy, state)
+                trace['A'].append(action)
+            # Handeling terminal state
+            except KeyError:
+                trace['A'].append(9)
             # Run the policy as long as the goal is not achieved or less than j
             traceset = trace.copy()
             if self.evaluate_trace(self.goalspec, traceset):
@@ -495,6 +499,9 @@ class GenRecPropTaxi(GenRecProp):
             trace[k][0].append(state[j])
             j += 1
         trace['A'] = [list()]
+        # Hack to fix the bug of terminal state. Adding big action number
+        # This makes the trace length same accross the keys
+        trace['A'][0].append(9)
         return trace
 
     def get_action_policy(self, policy, state):

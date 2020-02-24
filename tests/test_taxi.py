@@ -46,6 +46,26 @@ def reset_env_s(env, seed=1234):
     env.env.s = 3
 
 
+def init_taxi_d(seed):
+    env_name = 'Taxi-v2'
+    env = gym.make(env_name)
+    env = env_setup_d(env, seed)
+    return env
+
+
+def env_setup_d(env, seed=1234):
+    env.seed(seed)
+    env.reset()
+    env.env.s = 479
+    return env
+
+
+def reset_env_d(env, seed=1234):
+    env.seed(seed)
+    env.reset()
+    env.env.s = 479
+
+
 def give_loc(idx):
     # # (0,0) -> R -> 0
     # # (4,0) -> Y -> 2
@@ -174,6 +194,69 @@ class TestTaxiInferenceSimpleGoal1(TestCase):
             )
         print('inference', self.behaviour_tree.root.status)
         # print(env.curr_loc)
+
+    def test_inference(self):
+        self.assertEqual(self.behaviour_tree.root.status, Status.SUCCESS)
+
+
+class TestTaxiTrainingDropP(TestCase):
+
+    def setUp(self):
+        env = init_taxi_d(seed=1234)
+        target = list(env.decode(env.s))
+        print(target)
+        goalspec = 'F P_[PI]['+str(3)+',none,==]'
+        keys = ['L', 'PI', 'DI']
+        actions = [0, 1, 2, 3, 5]
+        root = goalspec2BT(goalspec, planner=None)
+        self.behaviour_tree = BehaviourTree(root)
+        child = self.behaviour_tree.root
+        planner = GenRecPropTaxi(
+            env, keys, child.name, dict(), actions=actions,
+            max_trace=5, seed=123)
+        child.setup(0, planner, True, 5)
+        # 4,3,4,3
+        # print(child.goalspec, child.planner.goalspec, child.planner.env)
+        for i in range(5):
+            self.behaviour_tree.tick(
+                pre_tick_handler=reset_env_d(env)
+            )
+            print(i, self.behaviour_tree.root.status)
+
+    def test_training(self):
+        self.assertEqual(self.behaviour_tree.root.status, Status.SUCCESS)
+
+
+class TestTaxiInferenceDropP(TestCase):
+
+    def setUp(self):
+        env = init_taxi_d(seed=1234)
+        target = list(env.decode(env.s))
+        print(target)
+        goalspec = 'F P_[PI]['+str(3)+',none,==]'
+        keys = ['L', 'PI', 'DI']
+        actions = [0, 1, 2, 3, 5]
+        root = goalspec2BT(goalspec, planner=None)
+        self.behaviour_tree = BehaviourTree(root)
+        child = self.behaviour_tree.root
+        planner = GenRecPropTaxi(
+            env, keys, child.name, dict(), actions=actions,
+            max_trace=5, seed=123)
+        child.setup(0, planner, True, 5)
+        # 4,3,4,3
+        # print(child.goalspec, child.planner.goalspec, child.planner.env)
+        for i in range(5):
+            self.behaviour_tree.tick(
+                pre_tick_handler=reset_env_d(env)
+            )
+            print(i, self.behaviour_tree.root.status)
+
+        child.train = False
+        for i in range(1):
+            self.behaviour_tree.tick(
+                pre_tick_handler=reset_env_d(env)
+            )
+            print(i, self.behaviour_tree.root.status)
 
     def test_inference(self):
         self.assertEqual(self.behaviour_tree.root.status, Status.SUCCESS)
