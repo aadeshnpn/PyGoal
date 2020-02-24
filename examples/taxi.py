@@ -89,22 +89,22 @@ def taxi():
     print('rootname', behaviour_tree.root.name)
     # behaviour_tree.root.remove_child_by_id(id)
     # display_bt(behaviour_tree)
-    for i in range(110):
+    for i in range(100):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-        print('Training', behaviour_tree.root.status)
+    print('Training', behaviour_tree.root.status)
 
-    # for child in behaviour_tree.root.children:
-    #     child.setup(0, planner, True, 20)
-    #     child.train = False
-    #     print(child, child.name, child.train)
+    for child in behaviour_tree.root.children:
+        # child.setup(0, planner, True, 20)
+        child.train = False
+        # print(child, child.name, child.train)
 
-    # for i in range(2):
-    #     behaviour_tree.tick(
-    #         pre_tick_handler=reset_env(env)
-    #     )
-    # print('inference', behaviour_tree.root.status)
+    for i in range(2):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print('inference', behaviour_tree.root.status)
 
 
 def taxid():
@@ -139,8 +139,8 @@ def taxid():
 
 
 def main():
-    taxid()
-    # testparse()
+    # taxid()
+    taxi()
 
 
 if __name__ == '__main__':

@@ -63,7 +63,7 @@ class GoalNode(Behaviour):
         if self.train:
             return self.planner.train(self.planner.epoch)
         else:
-            print('Inference')
+            # print('Inference')
             return self.planner.inference()
 
     def update(self):
