@@ -474,6 +474,19 @@ class GenRecPropTaxi(GenRecProp):
         temp = list(env.decode(env.s))
         return (str(temp[0])+str(temp[1]), temp[2], temp[3])
 
+    def set_state(self, env, trace, i):
+        state = []
+        for k in self.keys:
+            if k == 'L':
+                temp = trace[k][i][-1]
+                state.append(int(temp[0]))
+                state.append(int(temp[1]))
+            else:
+                temp = trace[k][i][-1]
+                state.append(int(temp))
+        state = env.encode(*tuple(state))
+        env.env.s = state
+
     def create_trace_skeleton(self, state):
         # Create a skeleton for trace
         trace = dict(zip(self.keys, [[list()] for i in range(len(self.keys))]))
@@ -485,12 +498,10 @@ class GenRecPropTaxi(GenRecProp):
         return trace
 
     def get_action_policy(self, policy, state):
-        # action = policy[state[0]]
         action = policy[tuple(state)]
         return action
 
     def gtable_key(self, state):
-        # ss = state[0]
         ss = state
         return tuple(ss)
 
@@ -512,7 +523,6 @@ class GenRecPropTaxi(GenRecProp):
 
         # Generator
         trace = self.generator()
-
         # Recognizer
         result, trace = self.recognizer(trace)
         # No need to propagate results after exciding the train epoch

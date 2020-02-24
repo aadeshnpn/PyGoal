@@ -8,13 +8,13 @@ from pygoal.lib.genrecprop import GenRecPropTaxi
 from pygoal.utils.bt import goalspec2BT
 
 
-def env_setup(env, seed=123):
+def env_setup(env, seed=1234):
     env.seed(seed)
     env.reset()
     return env
 
 
-def reset_env(env, seed=123):
+def reset_env(env, seed=1234):
     env.seed(seed)
     env.reset()
 
@@ -59,19 +59,20 @@ def give_loc(idx):
 class TestTaxiTrainingSimpleGoal(TestCase):
 
     def setUp(self):
-        env = init_taxi(seed=123)
+        env = init_taxi(seed=1234)
         target = list(env.decode(env.s))
         goalspec = 'F(P_[L]['+give_loc(target[2])+',none,==])'
         keys = ['L', 'TI', 'PI']
-        actions = [0, 1, 2, 3, 4, 5]
-        planner = GenRecPropTaxi(
-            env, keys, None, dict(), actions=actions, max_trace=40)
-        root = goalspec2BT(goalspec, planner=planner)
+        actions = [0, 1, 2, 3]
+        root = goalspec2BT(goalspec, planner=None)
         self.behaviour_tree = BehaviourTree(root)
         child = self.behaviour_tree.root
-        child.setup(0, planner, True, 150)
+        planner = GenRecPropTaxi(
+            env, keys, None, dict(), actions=actions,
+            max_trace=40, seed=1234)
+        child.setup(0, planner, True, 50)
         print(child.goalspec, child.planner.goalspec, child.planner.env)
-        for i in range(100):
+        for i in range(50):
             self.behaviour_tree.tick(
                 pre_tick_handler=reset_env(env)
             )
@@ -83,24 +84,25 @@ class TestTaxiTrainingSimpleGoal(TestCase):
 class TestTaxiInferenceSimpleGoal(TestCase):
 
     def setUp(self):
-        env = init_taxi(seed=123)
+        env = init_taxi(seed=1234)
         target = list(env.decode(env.s))
         goalspec = 'F(P_[L]['+give_loc(target[2])+',none,==])'
         keys = ['L', 'TI', 'PI']
-        actions = [0, 1, 2, 3, 4, 5]
-        planner = GenRecPropTaxi(
-            env, keys, None, dict(), actions=actions, max_trace=40)
-        root = goalspec2BT(goalspec, planner=planner)
+        actions = [0, 1, 2, 3]
+        root = goalspec2BT(goalspec, planner=None)
         self.behaviour_tree = BehaviourTree(root)
         child = self.behaviour_tree.root
-        child.setup(0, planner, True, 150)
+        planner = GenRecPropTaxi(
+            env, keys, None, dict(), actions=actions,
+            max_trace=40, seed=1234)
+        child.setup(0, planner, True, 50)
         print(child.goalspec, child.planner.goalspec, child.planner.env)
-        for i in range(100):
+        for i in range(50):
             self.behaviour_tree.tick(
                 pre_tick_handler=reset_env(env)
             )
 
-        child.setup(0, planner, True, 40)
+        # child.setup(0, planner, True, 40)
         child.train = False
         print(child, child.name, child.train)
 
