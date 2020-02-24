@@ -206,11 +206,21 @@ def keydoor():
 
     child.setup(0, planner, True, 100)
     print(child.goalspec, child.planner.goalspec, type(child.planner.env))
+    # Train
     for i in range(50):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-    print(i, behaviour_tree.root.status)
+    print(i, 'Training', behaviour_tree.root.status)
+
+    child.train = False
+
+    # Inference
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print(i, 'Inference', behaviour_tree.root.status)
 
 
 def keydoor1():
@@ -244,7 +254,17 @@ def keydoor1():
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-    print(i, behaviour_tree.root.status)
+    print(i, 'Training', behaviour_tree.root.status)
+
+    # Inference
+    for child in behaviour_tree.root.children:
+        child.train = False
+
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print(i, 'Inference', behaviour_tree.root.status)
 
 
 def main():
