@@ -12,10 +12,37 @@ from cozmo.util import degrees, distance_mm, speed_mmps
 
 import gym
 from py_trees.trees import BehaviourTree
+from py_trees import Blackboard
 
 from pygoal.lib.genrecprop import GenRecPropTaxi
-from pygoal.utils.bt import goalspec2BT
+from pygoal.utils.bt import goalspec2BT, display_bt
 
+
+class CozmoPlanner:
+    def __init__(self, env, keys, goalspec, max_trace=40,
+        actions=[0,1,2,3], epoch=10, seed=None, policy=None):
+        self.env = env
+        self.keys = keys
+        self.goalspec = goalspec
+        self.epoch = epoch
+        self.max_trace_len = max_trace
+        self.actions = actions
+        self.seed = seed
+        self.policy = policy
+        self.blackboard = Blackboard()
+
+    def train(self, epoch=10, verbose=False):
+        pass
+
+    def inference(self, render=False, verbose=False):
+        # conn = cozmo.run.connect()
+        print('inference', self.policy)
+        cozmo.run_program(self.policy, use_viewer=False, force_viewer_on_top=False)
+        if self.blackboard.shared_content['status']:
+            return True
+        else:
+            return False
+        # cozmo.run.connect(self.policy)
 
 # Task description for cozmo robot
 # Random Walk.
@@ -26,24 +53,40 @@ from pygoal.utils.bt import goalspec2BT
 # Drop the cube near charging station
 #
 
-def detect_cube(robot: cozmo.robot.Robot):
+def detect_cube(robot):
+    # def detect_cube():
+    # blackboard.shared_content
+    blackboard = Blackboard()
+    # robot = blackboard.shared_content['robot']
     look_around = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
-
-    # try to find a block
-    cube = None
+    if 'cube' in blackboard.shared_content.keys():
+        cube = blackboard.shared_content['cube']
+    else:
+        # try to find a block
+        cube = None
 
     try:
         cube = robot.world.wait_for_observed_light_cube(timeout=30)
         print("Found cube", cube)
+        blackboard.shared_content['cube'] = cube
     except asyncio.TimeoutError:
         print("Didn't find a cube :-(")
     finally:
         # whether we find it or not, we want to stop the behavior
         look_around.stop()
-        return cube
+        # return cube
+        if cube is not None:
+            blackboard.shared_content['status'] = True
+        else:
+            blackboard.shared_content['status'] = False
 
 
-def find_cube(robot, cube):
+def find_cube(robot):
+    # def find_cube():
+    blackboard = Blackboard()
+    # robot = blackboard.shared_content['robot']
+    cube = blackboard.shared_content['cube']
+    print('find cube', cube)
     try:
         action = robot.go_to_object(cube, distance_mm(75.0))
         action.wait_for_completed()
@@ -144,4 +187,72 @@ def drive_to_charger(robot):
     #     #}
 
 # cozmo.robot.Robot.drive_off_charger_on_connect = False  # Cozmo can stay on charger for now
-cozmo.run_program(drive_to_charger, use_viewer=True, force_viewer_on_top=True)
+
+
+# cozmo.run_program(drive_to_charger, use_viewer=True, force_viewer_on_top=True)
+
+def cozmo_reset():
+    pass
+
+def reset_env(robot):
+    blackboard = Blackboard()
+    blackboard.shared_content['robot'] = robot
+
+
+def cozmomain():
+    crobot = cozmo.robot.Robot
+    print(crobot.pose)
+    goal = 'F(P_[P][2,none,==])'
+    # goalspec = '((((('+goal+' U '+goal+') U '+goal+') U '+goal+') U '+goal+') U '+goal+')'
+    goalspec = goal+' U '+goal
+    print(goalspec)
+    keys = ['P', 'DC', 'FC', 'CC', 'DD', 'FD', 'D']
+
+    # actions = [0, 1, 2, 3, 5]
+    root = goalspec2BT(goalspec, planner=None)
+    behaviour_tree = BehaviourTree(root)
+    # display_bt(behaviour_tree)
+    # planners = [detect_cube, find_cube, carry_cube, find_charger, move_to_charger, drop_cube]
+    policies = [detect_cube, find_cube]
+    j = 0
+    for child in behaviour_tree.root.children:
+        # planner = planners[j]
+        planner = CozmoPlanner(crobot, keys, child.name, policy=policies[j])
+        j += 1
+        child.setup(0, planner, False, 5)
+
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(crobot)
+        )
+        print(i, behaviour_tree.root.status)
+
+    # child.train = False
+
+    # for i in range(1):
+    #     behaviour_tree.tick(
+    #         pre_tick_handler=reset_env_d(env)
+    #     )
+    # print(i, behaviour_tree.root.status)
+
+
+def main():
+    cozmomain()
+    # conn = cozmo.conn.CozmoConnection()
+    # print(conn)
+
+# cozmo.connect(run)
+
+
+# async def run(self, coz_conn):
+#     asyncio.set_event_loop(coz_conn._loop)
+#     coz = await coz_conn.wait_for_robot()
+
+#     asyncio.ensure_future(self.update())
+#     while not self.exit_flag:
+#         await asyncio.sleep(0)
+#     coz.abort_all_actions()
+
+
+if __name__ == '__main__':
+    main()
