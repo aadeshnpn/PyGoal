@@ -55,10 +55,10 @@ class CozmoPlanner:
 
 def detect_cube(robot):
     # def detect_cube():
-    # blackboard.shared_content
     blackboard = Blackboard()
     # robot = blackboard.shared_content['robot']
     look_around = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
+
     if 'cube' in blackboard.shared_content.keys():
         cube = blackboard.shared_content['cube']
     else:
@@ -69,22 +69,18 @@ def detect_cube(robot):
         cube = robot.world.wait_for_observed_light_cube(timeout=30)
         print("Found cube", cube)
         blackboard.shared_content['cube'] = cube
+        blackboard.shared_content['status'] = True
     except asyncio.TimeoutError:
         print("Didn't find a cube :-(")
+        blackboard.shared_content['status'] = False
     finally:
         # whether we find it or not, we want to stop the behavior
         look_around.stop()
-        # return cube
-        if cube is not None:
-            blackboard.shared_content['status'] = True
-        else:
-            blackboard.shared_content['status'] = False
 
 
 def find_cube(robot):
     # def find_cube():
     blackboard = Blackboard()
-    # robot = blackboard.shared_content['robot']
     cube = blackboard.shared_content['cube']
     print('find cube', cube)
     try:
@@ -92,31 +88,42 @@ def find_cube(robot):
         action.wait_for_completed()
         print("Completed action: result = %s" % action)
         print("Done.")
-        return True
+        blackboard.shared_content['status'] = True
+        # return True
     except:
-        return False
+        blackboard.shared_content['status'] = False
+        # return False
 
 
-
-def carry_cube(robot, cube):
+def carry_cube(robot):
     # Carry cube
-    action = robot.pickup_object(cube)
-    print("got action", action)
-    result = action.wait_for_completed(timeout=30)
-    print("got action result", result)
+    blackboard = Blackboard()
+    cube = blackboard.shared_content['cube']
+    try:
+        action = robot.pickup_object(cube)
+        print("got action", action)
+        result = action.wait_for_completed(timeout=30)
+        print("got action result", result)
+        blackboard.shared_content['status'] = True
+    except:
+        blackboard.shared_content['status'] = False
 
 
 def find_charger(robot):
     # see if Cozmo already knows where the charger is
+    blackboard = Blackboard()
     charger = None
     if robot.world.charger:
         if robot.world.charger.pose.is_comparable(robot.pose):
             print("Cozmo already knows where the charger is!")
             charger = robot.world.charger
+            blackboard.shared_content['charger'] = charger
+            blackboard.shared_content['status'] = True
         else:
             # Cozmo knows about the charger, but the pose is not based on the
             # same origin as the robot (e.g. the robot was moved since seeing
             # the charger) so try to look for the charger first
+            blackboard.shared_content['status'] = False
             pass
 
     if not charger:
@@ -124,32 +131,43 @@ def find_charger(robot):
         look_around = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
         try:
             charger = robot.world.wait_for_observed_charger(timeout=30)
+            blackboard.shared_content['charger'] = charger
             print("Found charger: %s" % charger)
+            blackboard.shared_content['status'] = True
         except asyncio.TimeoutError:
             print("Didn't see the charger")
+            blackboard.shared_content['status'] = False
         finally:
             # whether we find it or not, we want to stop the behavior
             look_around.stop()
-            return charger
 
 
-def move_to_charger(robot, charger):
+def move_to_charger(robot):
+    blackboard = Blackboard()
+    charger = blackboard.shared_content['charger']
     try:
         action = robot.go_to_object(charger, distance_mm(65.0))
         action.wait_for_completed()
         print("Completed action: result = %s" % action)
         print("Done.")
-        return True
+        blackboard.shared_content['status'] = True
     except:
-        return False
+        blackboard.shared_content['status'] = False
 
 
-def drop_cube(robot, cube):
-    action = robot.place_object_on_ground_here(cube)
-    print("got action", action)
-    result = action.wait_for_completed(timeout=30)
-    print("got action result", result)
-    robot.turn_in_place(degrees(90)).wait_for_completed()
+
+def drop_cube(robot):
+    blackboard = Blackboard()
+    cube = blackboard.shared_content['cube']
+    try:
+        action = robot.place_object_on_ground_here(cube)
+        print("got action", action)
+        result = action.wait_for_completed(timeout=30)
+        print("got action result", result)
+        robot.turn_in_place(degrees(90)).wait_for_completed()
+        blackboard.shared_content['status'] = True
+    except:
+        blackboard.shared_content['status'] = False
 
 
 def drive_to_charger(robot):
@@ -203,8 +221,8 @@ def cozmomain():
     crobot = cozmo.robot.Robot
     print(crobot.pose)
     goal = 'F(P_[P][2,none,==])'
-    # goalspec = '((((('+goal+' U '+goal+') U '+goal+') U '+goal+') U '+goal+') U '+goal+')'
-    goalspec = goal+' U '+goal
+    goalspec = '((((('+goal+' U '+goal+') U '+goal+') U '+goal+') U '+goal+') U '+goal+')'
+    # goalspec = goal+' U '+goal
     print(goalspec)
     keys = ['P', 'DC', 'FC', 'CC', 'DD', 'FD', 'D']
 
@@ -212,8 +230,8 @@ def cozmomain():
     root = goalspec2BT(goalspec, planner=None)
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree)
-    # planners = [detect_cube, find_cube, carry_cube, find_charger, move_to_charger, drop_cube]
-    policies = [detect_cube, find_cube]
+    policies = [detect_cube, find_cube, carry_cube, find_charger, move_to_charger, drop_cube]
+    # policies = [detect_cube, find_cube]
     j = 0
     for child in behaviour_tree.root.children:
         # planner = planners[j]
