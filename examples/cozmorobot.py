@@ -5,22 +5,19 @@ GoalFrame work.
 '''
 
 import asyncio
-import time
-
 import cozmo
-from cozmo.util import degrees, distance_mm, speed_mmps
+from cozmo.util import degrees, distance_mm
 
-import gym
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
-
-from pygoal.lib.genrecprop import GenRecPropTaxi
-from pygoal.utils.bt import goalspec2BT, display_bt
+# from pygoal.lib.genrecprop import GenRecPropTaxi
+from pygoal.utils.bt import goalspec2BT
 
 
 class CozmoPlanner:
-    def __init__(self, env, keys, goalspec, max_trace=40,
-        actions=[0,1,2,3], epoch=10, seed=None, policy=None):
+    def __init__(
+            self, env, keys, goalspec, max_trace=40,
+            actions=[0, 1, 2, 3], epoch=10, seed=None, policy=None):
         self.env = env
         self.keys = keys
         self.goalspec = goalspec
@@ -37,7 +34,8 @@ class CozmoPlanner:
     def inference(self, render=False, verbose=False):
         # conn = cozmo.run.connect()
         print('inference', self.policy)
-        cozmo.run_program(self.policy, use_viewer=False, force_viewer_on_top=False)
+        cozmo.run_program(
+            self.policy, use_viewer=False, force_viewer_on_top=False)
         if self.blackboard.shared_content['status']:
             return True
         else:
@@ -51,13 +49,14 @@ class CozmoPlanner:
 # Carry cube
 # Find charging station
 # Drop the cube near charging station
-#
+
 
 def detect_cube(robot):
     # def detect_cube():
     blackboard = Blackboard()
     # robot = blackboard.shared_content['robot']
-    look_around = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
+    look_around = robot.start_behavior(
+        cozmo.behavior.BehaviorTypes.LookAroundInPlace)
 
     if 'cube' in blackboard.shared_content.keys():
         cube = blackboard.shared_content['cube']
@@ -90,7 +89,7 @@ def find_cube(robot):
         print("Done.")
         blackboard.shared_content['status'] = True
         # return True
-    except:
+    except:     # noqa: E722
         blackboard.shared_content['status'] = False
         # return False
 
@@ -105,7 +104,7 @@ def carry_cube(robot):
         result = action.wait_for_completed(timeout=30)
         print("got action result", result)
         blackboard.shared_content['status'] = True
-    except:
+    except:     # noqa: E722
         blackboard.shared_content['status'] = False
 
 
@@ -128,7 +127,8 @@ def find_charger(robot):
 
     if not charger:
         # Tell Cozmo to look around for the charger
-        look_around = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
+        look_around = robot.start_behavior(
+            cozmo.behavior.BehaviorTypes.LookAroundInPlace)
         try:
             charger = robot.world.wait_for_observed_charger(timeout=30)
             blackboard.shared_content['charger'] = charger
@@ -151,9 +151,8 @@ def move_to_charger(robot):
         print("Completed action: result = %s" % action)
         print("Done.")
         blackboard.shared_content['status'] = True
-    except:
+    except:     # noqa: E722
         blackboard.shared_content['status'] = False
-
 
 
 def drop_cube(robot):
@@ -166,7 +165,7 @@ def drop_cube(robot):
         print("got action result", result)
         robot.turn_in_place(degrees(90)).wait_for_completed()
         blackboard.shared_content['status'] = True
-    except:
+    except:     # noqa: E722
         blackboard.shared_content['status'] = False
 
 
@@ -186,7 +185,7 @@ def drive_to_charger(robot):
         move_to_charger(robot, charger)
         drop_cube(robot, cube)
 
-    #{
+    # {
     # print(robot, dir(robot))
     # methods = dir(robot)
     # for method in methods:
@@ -204,13 +203,16 @@ def drive_to_charger(robot):
     #     print("Done.")
     #     #}
 
-# cozmo.robot.Robot.drive_off_charger_on_connect = False  # Cozmo can stay on charger for now
+# cozmo.robot.Robot.drive_off_charger_on_connect = False
+# # Cozmo can stay on charger for now
 
 
-# cozmo.run_program(drive_to_charger, use_viewer=True, force_viewer_on_top=True)
+# cozmo.run_program(
+# drive_to_charger, use_viewer=True, force_viewer_on_top=True)
 
 def cozmo_reset():
     pass
+
 
 def reset_env(robot):
     blackboard = Blackboard()
@@ -221,7 +223,7 @@ def cozmomain():
     crobot = cozmo.robot.Robot
     print(crobot.pose)
     goal = 'F(P_[P][2,none,==])'
-    goalspec = '((((('+goal+' U '+goal+') U '+goal+') U '+goal+') U '+goal+') U '+goal+')'
+    goalspec = '((((('+goal+' U '+goal+') U '+goal+') U '+goal+') U '+goal+') U '+goal+')'  # noqa:
     # goalspec = goal+' U '+goal
     print(goalspec)
     keys = ['P', 'DC', 'FC', 'CC', 'DD', 'FD', 'D']
@@ -230,7 +232,9 @@ def cozmomain():
     root = goalspec2BT(goalspec, planner=None)
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree)
-    policies = [detect_cube, find_cube, carry_cube, find_charger, move_to_charger, drop_cube]
+    policies = [
+        detect_cube, find_cube, carry_cube, find_charger,
+        move_to_charger, drop_cube]
     # policies = [detect_cube, find_cube]
     j = 0
     for child in behaviour_tree.root.children:
