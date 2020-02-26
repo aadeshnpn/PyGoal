@@ -22,7 +22,7 @@ class ComplexGoal:
         'drop_cube': self.drop_cube
         }
         self.blackboard = Blackboard()
-        self.blackboard.shared_content = dict()
+        # self.blackboard.shared_content = dict()
         self.goal = kw['goal']
         normal = kw['normal']
         if normal:

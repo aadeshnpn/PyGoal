@@ -15,6 +15,7 @@ from pygoal.utils.bt import goalspec2BT
 
 from robot import ComplexGoal
 
+
 class CozmoPlanner:
     def __init__(
             self, env, keys, goalspec, max_trace=40,
@@ -28,6 +29,7 @@ class CozmoPlanner:
         self.seed = seed
         self.policy = policy
         self.blackboard = Blackboard()
+        self.blackboard.shared_content = dict()
 
     def train(self, epoch=10, verbose=False):
         pass
@@ -35,8 +37,9 @@ class CozmoPlanner:
     def inference(self, render=False, verbose=False):
         # conn = cozmo.run.connect()
         print('inference', self.policy)
-        cozmo.run_program(
-            self.policy, use_viewer=False, force_viewer_on_top=False)
+        # cozmo.run_program(
+        #    self.policy, use_viewer=False, force_viewer_on_top=False)
+        self.env(normal=False, goal=self.policy)
         if self.blackboard.shared_content['status']:
             return True
         else:
@@ -73,8 +76,8 @@ def cozmomain():
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree)
     policies = [
-        detect_cube, find_cube, carry_cube, find_charger,
-        move_to_charger, drop_cube]
+        'detect_cube', 'find_cube', 'carry_cube', 'find_charger',
+        'move_to_charger', 'drop_cube']
     # policies = [detect_cube, find_cube]
     j = 0
     for child in behaviour_tree.root.children:
@@ -110,26 +113,54 @@ def cozmomain1():
     behaviour_tree = BehaviourTree(root)
     # display_bt(behaviour_tree)
     # policies = [detect_cube, find_cube, carry_cube, find_charger, move_to_charger, drop_cube]
-    policies = [detect_cube, find_cube]
+    policies = ['detect_cube', 'find_cube']
     j = 0
     child = behaviour_tree.root
     #for child in behaviour_tree.root.children:
         # planner = planners[j]
-    planner = CozmoPlanner(crobot, keys, child.name, policy=policies[j])
+    planner = CozmoPlanner(ComplexGoal, keys, child.name, policy=policies[j])
     #    j += 1
     child.setup(0, planner, False, 5)
 
     for i in range(1):
         behaviour_tree.tick(
-            pre_tick_handler=reset_env(crobot)
+            pre_tick_handler=reset_env(ComplexGoal)
+        )
+        print(i, behaviour_tree.root.status)
+
+
+def cozmomain2():
+    goal = 'F(P_[P][2,none,==])'
+    # goalspec = '((((('+goal+' U '+goal+') U '+goal+') U '+goal+') U '+goal+') U '+goal+')'
+    goalspec = goal+' U '+goal
+    print(goalspec)
+    keys = ['P', 'DC', 'FC', 'CC', 'DD', 'FD', 'D']
+
+    # actions = [0, 1, 2, 3, 5]
+    root = goalspec2BT(goalspec, planner=None)
+    behaviour_tree = BehaviourTree(root)
+    # display_bt(behaviour_tree)
+    # policies = [detect_cube, find_cube, carry_cube, find_charger, move_to_charger, drop_cube]
+    policies = ['detect_cube', 'find_cube']
+    j = 0
+    child = behaviour_tree.root
+    for child in behaviour_tree.root.children:
+        # planner = planners[j]
+        planner = CozmoPlanner(ComplexGoal, keys, child.name, policy=policies[j])
+        j += 1
+        child.setup(0, planner, False, 5)
+
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(ComplexGoal)
         )
         print(i, behaviour_tree.root.status)
 
 
 def main():
-    # cozmomain()
+    cozmomain2()
     # robot = ComplexGoal(normal=True, goal='detect_cube')
-    robot = ComplexGoal(normal=False, goal='detect_cube')
+    # robot = ComplexGoal(normal=False, goal='detect_cube')
 
 
 if __name__ == '__main__':
