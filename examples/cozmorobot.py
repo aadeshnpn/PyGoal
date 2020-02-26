@@ -53,12 +53,19 @@ class CozmoPlanner:
 # Drop the cube near charging station
 #
 
+allstates = []
+
+def states(robot, **kwargs):
+    global allstates
+    allstates.append(robot.pose)
+
 def detect_cube(robot):
     # def detect_cube():
+    # global robot
     blackboard = Blackboard()
     # robot = blackboard.shared_content['robot']
     look_around = robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
-
+    # look_around.add_event_handler(states(robot))
     if 'cube' in blackboard.shared_content.keys():
         cube = blackboard.shared_content['cube']
     else:
@@ -66,10 +73,12 @@ def detect_cube(robot):
         cube = None
 
     try:
+        print(look_around, dir(look_around))
         cube = robot.world.wait_for_observed_light_cube(timeout=30)
         print("Found cube", cube)
         blackboard.shared_content['cube'] = cube
         blackboard.shared_content['status'] = True
+        # print('all states', allstates)
     except asyncio.TimeoutError:
         print("Didn't find a cube :-(")
         blackboard.shared_content['status'] = False
@@ -252,6 +261,36 @@ def cozmomain():
     #         pre_tick_handler=reset_env_d(env)
     #     )
     # print(i, behaviour_tree.root.status)
+
+
+def cozmomain1():
+    crobot = cozmo.robot.Robot
+    print(crobot.pose)
+    goalspec = 'F(P_[P][2,none,==])'
+    # goalspec = '((((('+goal+' U '+goal+') U '+goal+') U '+goal+') U '+goal+') U '+goal+')'
+    # goalspec = goal+' U '+goal
+    print(goalspec)
+    keys = ['P', 'DC', 'FC', 'CC', 'DD', 'FD', 'D']
+
+    # actions = [0, 1, 2, 3, 5]
+    root = goalspec2BT(goalspec, planner=None)
+    behaviour_tree = BehaviourTree(root)
+    # display_bt(behaviour_tree)
+    # policies = [detect_cube, find_cube, carry_cube, find_charger, move_to_charger, drop_cube]
+    policies = [detect_cube, find_cube]
+    j = 0
+    child = behaviour_tree.root
+    #for child in behaviour_tree.root.children:
+        # planner = planners[j]
+    planner = CozmoPlanner(crobot, keys, child.name, policy=policies[j])
+    #    j += 1
+    child.setup(0, planner, False, 5)
+
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(crobot)
+        )
+        print(i, behaviour_tree.root.status)
 
 
 def main():
