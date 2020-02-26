@@ -5,11 +5,8 @@ import time
 import cozmo
 from cozmo.util import degrees, Pose, distance_mm, speed_mmps
 
-# import gym
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
-
-from event_monitor import monitor
 
 
 class ComplexGoal:
@@ -26,11 +23,25 @@ class ComplexGoal:
         }
         self.blackboard = Blackboard()
         self.blackboard.shared_content = dict()
-        cozmo.connect(self.run)
+        self.goal = kw['goal']
+        normal = kw['normal']
+        if normal:
+            cozmo.connect(self.runall)
+        else:
+            cozmo.connect(self.run)
+        # self.crun = cozmo.connect()
 
     def run(self, sdk_conn):
         '''The run method runs once Cozmo is connected.'''
-        self.robot = sdk_conn.wait_for_robot()
+        self.robot =  sdk_conn.wait_for_robot()
+        initPos = self.robot.pose
+        updatePos = initPos.position
+        self.dict_planner[self.goal]()
+
+
+    def runall(self, sdk_conn):
+        '''The run method runs once Cozmo is connected.'''
+        self.robot =  sdk_conn.wait_for_robot()
         initPos = self.robot.pose
         updatePos = initPos.position
         j = 0
@@ -41,8 +52,6 @@ class ComplexGoal:
                 self.dict_planner[key]()
                 result = self.blackboard.shared_content['status']
                 print('result', result)
-        # if self.dict_planner['detect_cube']():
-        #    self.dict_planner
 
     async def collect_state(self, evt, **kwargs):
         self.states.append(self.robot.pose)
@@ -160,6 +169,6 @@ class ComplexGoal:
             self.blackboard.shared_content['status'] = False
 
 
-if __name__ == '__main__':
-    cozmo.setup_basic_logging()
-    ComplexGoal()
+# if __name__ == '__main__':
+#     cozmo.setup_basic_logging()
+#     ComplexGoal()
