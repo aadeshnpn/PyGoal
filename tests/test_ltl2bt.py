@@ -136,3 +136,16 @@ def test_goal_11():
     assert rootname == 'Parallel'
     assert name == '&'
     assert num_child == 2
+
+
+def test_goal_paper():
+    atomic = 'F(P_[IC][True,none,==])'
+    goalspec = '('+atomic+' & '+atomic+') U ('+atomic+' U '+atomic+')'
+    print(goalspec)
+    root = goalspec2BT(goalspec)
+    rootname = type(root).__name__
+    name, num_child = root.name, len(root.children)
+    print(root.children)
+    assert rootname == 'Sequence'
+    assert name == 'U'
+    assert num_child == 3
