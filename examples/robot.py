@@ -7,7 +7,7 @@ from cozmo.util import degrees, Pose, distance_mm, speed_mmps
 
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
-
+from scipy.spatial.distance import cdist
 
 class ComplexGoal:
     def __init__(self, *a, **kw):
@@ -24,6 +24,7 @@ class ComplexGoal:
         self.blackboard = Blackboard()
         # self.blackboard.shared_content = dict()
         self.goal = kw['goal']
+        self.tkeys = kw['tkeys']
         normal = kw['normal']
         if normal:
             cozmo.connect(self.runall)
@@ -54,12 +55,27 @@ class ComplexGoal:
                 print('result', result)
 
     async def collect_state(self, evt, **kwargs):
-        self.states.append(self.robot.pose)
+        # self.states.append(self.robot.pose)
+        # print(self.robot.pose)
+        self.states['P'].append(self.robot.pose.position)
+        dist = 1000
+        if 'cube' in self.blackboard.shared_content.keys():
+            self.states['DC'].append(True)
+            self.robot.pose.position
+            cube = self.blackboard.shared_content['cube']
+            dist = cdist(self.robot.pose.position, cube.pose.position, 'euclidean')
+        else:
+            self.states['DC'].append(False)
+        if dist < 67.0:
+            self.states['DC'].append(True)
+        else:
+            self.states['DC'].append(False)
+
 
     def detect_cube(self):
-        self.states = []
-        look_around = self.robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
+        self.states = dict(zip(self.tkeys, [[] for i in range(len(self.tkeys))]))
         self.robot.world.add_event_handler(cozmo.robot.EvtRobotStateUpdated, self.collect_state)
+        look_around = self.robot.start_behavior(cozmo.behavior.BehaviorTypes.LookAroundInPlace)
         if 'cube' in self.blackboard.shared_content.keys():
             cube = self.blackboard.shared_content['cube']
         else:
@@ -78,6 +94,8 @@ class ComplexGoal:
             look_around.stop()
             # print(self.states)
             self.robot.world.remove_event_handler(cozmo.robot.EvtRobotStateUpdated, self.collect_state)
+            print('from detect cube',self.states)
+            self.blackboard.shared_content['states'] = self.states
 
     def find_cube(self):
         cube = self.blackboard.shared_content['cube']
@@ -171,4 +189,4 @@ class ComplexGoal:
 
 # if __name__ == '__main__':
 #     cozmo.setup_basic_logging()
-#     ComplexGoal()
+#     ComplexGoal(normal=True, goal='detect_cube')

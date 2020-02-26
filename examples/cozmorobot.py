@@ -39,8 +39,9 @@ class CozmoPlanner:
         print('inference', self.policy)
         # cozmo.run_program(
         #    self.policy, use_viewer=False, force_viewer_on_top=False)
-        self.env(normal=False, goal=self.policy)
+        self.env(normal=False, goal=self.policy, tkeys=self.keys)
         if self.blackboard.shared_content['status']:
+            print(self.blackboard.shared_content['states'])
             return True
         else:
             return False
@@ -70,7 +71,7 @@ def cozmomain():
     # goalspec = goal+' U '+goal
     print(goalspec)
     keys = ['P', 'DC', 'FC', 'CC', 'DD', 'FD', 'D']
-
+    # Pose, Detected Cube, Found Cube, Carried Cube, Detected Desk, Found Desk, Drop Desk
     # actions = [0, 1, 2, 3, 5]
     root = goalspec2BT(goalspec, planner=None)
     behaviour_tree = BehaviourTree(root)
