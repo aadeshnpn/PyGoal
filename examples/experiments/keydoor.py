@@ -6,14 +6,18 @@ GenRecProp and MAX-Q algorithm."""
 import gym
 import copy
 import numpy as np
+import pickle
+from joblib import Parallel, delayed
 
 import gym_minigrid
 from gym_minigrid.minigrid import Grid, OBJECT_TO_IDX, Key, Door, Goal
 
 from py_trees.trees import BehaviourTree
+from py_trees import Status
 
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.utils.bt import goalspec2BT, display_bt
+
 
 def env_setup(env, agent=(None, None, None, None)):
     env_name = 'MiniGrid-DoorKey-8x8-v0'
@@ -194,7 +198,7 @@ def run_planner(
     j = 0
     for child in behaviour_tree.root.children:
         planner = Planner(
-             env, keys, child.name, dict(), actions=actions[0],
+             env, keys, child.name, dict(), actions=actions[j],
              max_trace=40, seed=seed)
         child.setup(0, planner, True, epoch[j])
         j += 1
@@ -204,19 +208,23 @@ def run_planner(
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-    print(behaviour_tree.root.status)
+    # print(behaviour_tree.root.status)
 
     for child in behaviour_tree.root.children:
         # Inference setup
         child.train = False
-        print(child, child.name, child.train)
+        # print(child, child.name, child.train)
 
     # Inference loop
     for i in range(1):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-    print('inference', behaviour_tree.root.status)
+    # print('inference', behaviour_tree.root.status)
+    if behaviour_tree.root.status is Status.SUCCESS:
+        return True
+    else:
+        return False
 
 
 def find_bt(goalspec):
@@ -226,7 +234,7 @@ def find_bt(goalspec):
     return behaviour_tree
 
 
-def keydoor():
+def keydoor(seed, epoch):
     env_name = 'MiniGrid-DoorKey-8x8-v0'
     env = gym.make(env_name)
     env.max_steps = min(env.max_steps, 200)
@@ -245,11 +253,16 @@ def keydoor():
         [0, 1, 2, 3], [0, 1, 2, 3, 5], [0, 1, 2, 3]
         ]
     behaviour_tree = find_bt(goalspec)
-    epoch = [70, 40, 70, 40, 70]
+    epochs = [epoch, epoch//2, epoch, epoch//2, epoch]
 
-    run_planner(
-        GenRecPropKeyDoor, behaviour_tree, env,
-        keys, actions, epoch=epoch)
+    result = []
+    for i in range(25):
+        status = run_planner(
+            GenRecPropKeyDoor, behaviour_tree, env,
+            keys, actions, epoch=epochs)
+        result += [status*1]
+
+    return {epoch: result}
     # j = 0
     # for child in behaviour_tree.root.children:
     #     planner = GenRecPropKeyDoor(
@@ -276,7 +289,15 @@ def keydoor():
 
 
 def main():
-    keydoor()
+    epoch = list(range(20, 180, 30))
+
+    results = [Parallel(n_jobs=8)(
+        delayed(keydoor)(None, i) for i in epoch)]
+
+    with open('/tmp/resultskeydoor.pi', 'wb') as f:
+        pickle.dump((results), f, pickle.HIGHEST_PROTOCOL)
+
+    # keydoor()
 
 
 if __name__ == '__main__':

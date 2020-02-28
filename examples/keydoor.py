@@ -1,6 +1,6 @@
 """Learn policy in KeyDoor world using GenRecProp."""
 import gym
-# import gym_minigrid
+import gym_minigrid
 from gym_minigrid.minigrid import Grid, OBJECT_TO_IDX, Key, Door, Goal
 
 from py_trees.trees import BehaviourTree
