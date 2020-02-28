@@ -243,7 +243,7 @@ class GridMDP(MDP):
         else:
             return False
 
-    def calculate_T(self, state, action, fp=0.99, lp=0.005, rp=0.005, bp=0.0):
+    def calculate_T(self, state, action, fp=0.95, lp=0.025, rp=0.025, bp=0.0):
         if action:
             return [(fp, self.go(state, action)),
                     (rp, self.go(state, turn_right(action))),

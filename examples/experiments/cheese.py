@@ -5,10 +5,15 @@ GenRecProp and Q-learning algorithm."""
 
 
 import numpy as np
+import pickle
+
+from joblib import Parallel, delayed
+
 from py_trees.trees import BehaviourTree
+from py_trees import Status
 
 from pygoal.lib.mdp import GridMDP, orientations
-from pygoal.lib.genrecprop import GenRecProp, GenRecPropMDP
+from pygoal.lib.genrecprop import GenRecProp, GenRecPropMDP, GenRecPropMDPNear
 from pygoal.utils.bt import goalspec2BT, reset_env
 
 
@@ -302,8 +307,92 @@ def find_cheese(seed):
     run_planner(qplanner, behaviour_tree, env, epoch=10)
 
 
+def run_planner_complex(
+        Planner, behaviour_tree, env, keys, actions, epoch=10, seed=None):
+    # child = behaviour_tree.root
+    # Training setup
+    j = 0
+    for child in behaviour_tree.root.children:
+        # print(actions[j], child.name)
+        planner = Planner(
+             env, keys, child.name, dict(), actions=actions[0],
+             max_trace=30, seed=seed)
+        child.setup(0, planner, True, epoch[j])
+        j += 1
+
+    # Training loop
+    for i in range(sum(epoch)):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    # print(behaviour_tree.root.status)
+
+    for child in behaviour_tree.root.children:
+        # Inference setup
+        child.train = False
+        # print(child, child.name, child.train)
+
+    # Inference loop
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    # print('inference', behaviour_tree.root.status)
+
+    if behaviour_tree.root.status is Status.SUCCESS:
+        return True
+    else:
+        return False
+
+
+def find_cheese_back(seed, epoch):
+    # Define the environment for the experiment
+    goalspec = 'F P_[NC][True,none,==] U F P_[L][02,none,==]'
+    startpoc = (0, 2)
+    env = init_mdp(startpoc)
+    keys = ['L', 'NC']
+    actions = [[0, 1, 2, 3], [0, 1, 2, 3]]
+    # Find BT representation based on goal specification
+    behaviour_tree = find_bt(goalspec)
+    # child = behaviour_tree.root
+
+    # Initialize GenRecProp Planner
+    # for child in behaviour_tree.root.children:
+    # print(child, child.name, env.curr_loc)
+    # gplanner = GenRecPropMDP(
+    #    env, keys, None, dict(), actions=actions, max_trace=40)
+    # child.setup(0, gplanner, True, 60)
+
+    # Initilized Qlearning planner
+    # qplanner = QLearning(
+    #     env, keys, None, dict(), actions=actions, max_trace=20, seed=12)
+    # child.setup(0, qplanner, True, 10)
+
+    # Run GenRecProp Planner
+    epochs = [epoch, epoch]
+    result = []
+    for i in range(50):
+        status = run_planner_complex(
+            GenRecPropMDPNear, behaviour_tree, env,
+            keys, actions, epoch=epochs)
+        result += [status*1]
+
+    return result
+    # Run Q-learning Planner
+    # run_planner(qplanner, behaviour_tree, env, epoch=10)
+
+
 def main():
-    find_cheese(12)
+    # find_cheese(12)
+    # find_cheese_back(12)
+    epoch = list(range(5, 50, 5))
+
+    results = [Parallel(n_jobs=8)(
+        delayed(find_cheese_back)(None, i) for i in epoch)]
+
+    with open('/tmp/resultscheese.pi', 'wb') as f:
+        pickle.dump((results), f, pickle.HIGHEST_PROTOCOL)
 
 
 main()
+
