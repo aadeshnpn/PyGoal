@@ -377,7 +377,7 @@ def find_cheese_back(seed, epoch):
             keys, actions, epoch=epochs)
         result += [status*1]
 
-    return result
+    return {epoch: result}
     # Run Q-learning Planner
     # run_planner(qplanner, behaviour_tree, env, epoch=10)
 

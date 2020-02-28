@@ -1,13 +1,19 @@
-"""Learn policy in KeyDoor world using GenRecProp."""
+"""Experiment fom taxi problem.
+
+Expreriments and reults for taxi problem using
+GenRecProp and MAX-Q algorithm."""
+
 import gym
-# import gym_minigrid
+import copy
+import numpy as np
+
+import gym_minigrid
 from gym_minigrid.minigrid import Grid, OBJECT_TO_IDX, Key, Door, Goal
 
 from py_trees.trees import BehaviourTree
 
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.utils.bt import goalspec2BT, display_bt
-
 
 def env_setup(env, agent=(None, None, None, None)):
     env_name = 'MiniGrid-DoorKey-8x8-v0'
@@ -181,6 +187,45 @@ class GenRecPropKeyDoor(GenRecProp):
         return self.run_policy(policy, self.max_trace_len)
 
 
+def run_planner(
+        Planner, behaviour_tree, env, keys, actions, epoch=10, seed=None):
+    # child = behaviour_tree.root
+    # Training setup
+    j = 0
+    for child in behaviour_tree.root.children:
+        planner = Planner(
+             env, keys, child.name, dict(), actions=actions[0],
+             max_trace=40, seed=seed)
+        child.setup(0, planner, True, epoch[j])
+        j += 1
+
+    # Training loop
+    for i in range(sum(epoch)):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print(behaviour_tree.root.status)
+
+    for child in behaviour_tree.root.children:
+        # Inference setup
+        child.train = False
+        print(child, child.name, child.train)
+
+    # Inference loop
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print('inference', behaviour_tree.root.status)
+
+
+def find_bt(goalspec):
+    root = goalspec2BT(goalspec, planner=None)
+    behaviour_tree = BehaviourTree(root)
+    # display_bt(behaviour_tree, True)
+    return behaviour_tree
+
+
 def keydoor():
     env_name = 'MiniGrid-DoorKey-8x8-v0'
     env = gym.make(env_name)
@@ -191,130 +236,49 @@ def keydoor():
 
     state = (env.agent_pos, env.agent_dir)
     print(state)
-    # Find the key
-    goalspec = 'F P_[K][1,none,==]'
-    keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
-    actions = [0, 1, 2, 3, 4, 5]
-
-    root = goalspec2BT(goalspec, planner=None)
-    behaviour_tree = BehaviourTree(root)
-    child = behaviour_tree.root
-
-    planner = GenRecPropKeyDoor(
-        env, keys, child.name, dict(), actions=actions,
-        max_trace=40, seed=None)
-
-    child.setup(0, planner, True, 100)
-    print(child.goalspec, child.planner.goalspec, type(child.planner.env))
-    # Train
-    for i in range(50):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    print(i, 'Training', behaviour_tree.root.status)
-
-    child.train = False
-
-    # Inference
-    for i in range(1):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    print(i, 'Inference', behaviour_tree.root.status)
-
-
-def keydoor1():
-    env_name = 'MiniGrid-DoorKey-8x8-v0'
-    env = gym.make(env_name)
-    env.max_steps = min(env.max_steps, 200)
-    env.seed(12345)
-    env.reset()
-    env = env_setup(env)
-
-    state = (env.agent_pos, env.agent_dir)
-    print(state)
     # Find the key and carry it
-    goalspec = 'F(P_[K][1,none,==]) U F P_[C][1,none,==]'
-
-    keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
-    actions = [0, 1, 2, 3, 4, 5]
-
-    root = goalspec2BT(goalspec, planner=None)
-    behaviour_tree = BehaviourTree(root)
-    epoch = [60, 20]
-    j = 0
-    for child in behaviour_tree.root.children:
-        planner = GenRecPropKeyDoor(
-            env, keys, child.name, dict(), actions=actions,
-            max_trace=40, seed=None)
-        child.setup(0, planner, True, epoch[j])
-        j += 1
-        print(child.goalspec, child.planner.goalspec, type(child.planner.env))
-    for i in range(70):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    print(i, 'Training', behaviour_tree.root.status)
-
-    # Inference
-    for child in behaviour_tree.root.children:
-        child.train = False
-
-    for i in range(1):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    print(i, 'Inference', behaviour_tree.root.status)
-
-
-def keydoor2():
-    env_name = 'MiniGrid-DoorKey-8x8-v0'
-    env = gym.make(env_name)
-    env.max_steps = min(env.max_steps, 200)
-    env.seed(12345)
-    env.reset()
-    env = env_setup(env)
-
-    state = (env.agent_pos, env.agent_dir)
-    print(state)
-    # Find the key and carry it
-    goalspec = '(F(P_[K][1,none,==]) U F(P_[C][1,none,==])) U (F(P_[D][1,none,==]))'    # noqa: E501
+    goalspec = '(((F(P_[K][1,none,==]) U F(P_[C][1,none,==])) U (F(P_[D][1,none,==]))) U (F(P_[O][1,none,==]))) U (F(P_[G][1,none,==]))'     # noqa: E501
     # goalspec = '(F(P_[K][1,none,==]) U F(P_[C][1,none,==]))'    # noqa: E501
     keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
-    actions = [[0, 1, 2, 3], [0, 1, 2, 3, 4], [0, 1, 2, 3]]
+    actions = [
+        [0, 1, 2, 3], [0, 1, 2, 3, 4],
+        [0, 1, 2, 3], [0, 1, 2, 3, 5], [0, 1, 2, 3]
+        ]
+    behaviour_tree = find_bt(goalspec)
+    epoch = [70, 40, 70, 40, 70]
 
-    root = goalspec2BT(goalspec, planner=None)
-    behaviour_tree = BehaviourTree(root)
-    # display_bt(behaviour_tree, save=True)
-    epoch = [70, 40, 70]
-    j = 0
-    for child in behaviour_tree.root.children:
-        planner = GenRecPropKeyDoor(
-            env, keys, child.name, dict(), actions=actions[j],
-            max_trace=40, seed=None)
-        child.setup(0, planner, True, epoch[j])
-        j += 1
-        print(child.goalspec, child.planner.goalspec, type(child.planner.env))
-    for i in range(150):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-        print(i, 'Training', behaviour_tree.root.status)
+    run_planner(
+        GenRecPropKeyDoor, behaviour_tree, env,
+        keys, actions, epoch=epoch)
+    # j = 0
+    # for child in behaviour_tree.root.children:
+    #     planner = GenRecPropKeyDoor(
+    #         env, keys, child.name, dict(), actions=actions[j],
+    #         max_trace=40, seed=None)
+    #     child.setup(0, planner, True, epoch[j])
+    #     j += 1
+    #     print(child.goalspec, child.planner.goalspec, type(child.planner.env))
+    # for i in range(150):
+    #     behaviour_tree.tick(
+    #         pre_tick_handler=reset_env(env)
+    #     )
+    #     print(i, 'Training', behaviour_tree.root.status)
 
-    # Inference
-    for child in behaviour_tree.root.children:
-        child.train = False
+    # # Inference
+    # for child in behaviour_tree.root.children:
+    #     child.train = False
 
-    for i in range(2):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    print(i, 'Inference', behaviour_tree.root.status)
+    # for i in range(2):
+    #     behaviour_tree.tick(
+    #         pre_tick_handler=reset_env(env)
+    #     )
+    # print(i, 'Inference', behaviour_tree.root.status)
 
 
 def main():
-    keydoor2()
+    keydoor()
 
 
 if __name__ == '__main__':
     main()
+
