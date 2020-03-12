@@ -29,6 +29,49 @@ import torch.nn.functional as F
 from torch.optim import Adam
 from torch.distributions import Categorical
 from collections import namedtuple
+import torchvision
+from torchvision import datasets, models, transforms
+
+
+class State2ActionUpdate:
+    def __init__(self, input_shape, num_actions, model):
+        self.model = model
+
+    def forward(self, x):
+        x = x.view(1, *x.shape)
+        x = x/225.0
+        return self.model(x)
+
+    def action(self, state):
+        logits = self.forward(state)
+        probs = F.softmax(logits, dim=-1)
+        return probs[0]
+
+    def greedy_action(self, state):
+        logits = self.forward(state)
+        probs = F.softmax(logits, dim=-1)
+        probs = probs.to(torch.float16)
+        probs = probs[0].detach().cpu().numpy()
+        return np.random.choice(
+            list(range(7)), p = probs)
+
+    def init_optimizer(self, optim=Adam, lr=0.003):
+        self.optim = optim(self.model.parameters(), lr=lr)
+        self.error = nn.MSELoss()
+
+    def feedback(self, state, label):
+        self.optim.zero_grad()
+        outputs = self.action(state)
+        label = torch.tensor(label)
+        loss = self.error(outputs, label)
+        loss.backward()
+        self.optim.step()
+
+    def save(self, filename):
+        torch.save(self.state_dict(), filename)
+
+    def load(self, filename):
+        self.load_state_dict(torch.load(filename))
 
 
 class State2Action(nn.Module):
@@ -38,7 +81,6 @@ class State2Action(nn.Module):
     Params:
         state_size (int)
         action_size (int)
-        hidden_size (int)
     '''
 
     def __init__(self,
@@ -80,7 +122,6 @@ class State2Action(nn.Module):
 
         Params:
             state (List of float)
-            command (List of float)
 
         Returns:
             FloatTensor -- action logits
@@ -94,7 +135,6 @@ class State2Action(nn.Module):
         '''
         Params:
             state (List of float)
-            command (List of float)
 
         Returns:
             int -- stochastic action
@@ -106,31 +146,21 @@ class State2Action(nn.Module):
         # dist = Categorical(probs)
         # return probs[0]
         return probs[0]
-        # probs = probs[0].detach().cpu().numpy()
-        # return dist.sample().item()probs[0].detach().cpu().numpy()
 
     def greedy_action(self, state):
         '''
         Params:
             state (List of float)
-            command (List of float)
 
         Returns:
             int -- greedy action
         '''
-        # if np.random.rand() < 0.5:
         logits = self.forward(state)
         probs = F.softmax(logits, dim=-1)
         probs = probs.to(torch.float16)
-        # print(type(probs))
-        # probs = probs[0] / torch.sum(probs[0])
-        # return np.argmax(probs[0].detach().cpu().numpy())
         probs = probs[0].detach().cpu().numpy()
-        # print(probs, np.sum(probs))
         return np.random.choice(
             list(range(7)), p = probs)
-        #else:
-        #    return np.random.randint(0, 6)
 
     def init_optimizer(self, optim=Adam, lr=0.003):
         '''Initialize GD optimizer
@@ -146,10 +176,7 @@ class State2Action(nn.Module):
     def feedback(self, state, label):
         self.optim.zero_grad()
         outputs = self.action(state)
-        # outputs = outputs.view(1, *outputs.shape)
         label = torch.tensor(label)
-        # label = label.view(1, *label.shape)
-        # print(outputs, label)
         loss = self.error(outputs, label)
         loss.backward()
         self.optim.step()
@@ -213,13 +240,7 @@ class GenRecPropKeyDoor:
                 seed)
 
     def get_action(self, state):
-        # return self.nprandom.choice(
-        #    self.actionsidx,
-        #    p=list(self.gtable[state].values())
-        #    )
-        # print(state[0].shape)
         return self.gtable.greedy_action(state[0])
-        # self.gtable.action()
 
     def create_gtable_indv(self, state):
         p = np.ones(len(self.actionsidx), dtype=np.float64)
@@ -287,12 +308,10 @@ class GenRecPropKeyDoor:
         and develope a BT structure. """
         pass
 
-    def run_policy(self, policy, max_trace_len=20, verbose=False):
+    def run_policy(self, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
-        try:
-            action = self.get_action_policy(policy, state)
-        except KeyError:
-            return False
+        action = self.get_action_policy(self.gtable, state)
+
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
         trace['A'] = [action]
 
@@ -306,16 +325,15 @@ class GenRecPropKeyDoor:
         trace = updateTrace(trace, state)
         j = 0
         while True:
-            # next_state, reward, done, info = self.env.step(
-            #    self.env.env_action_dict[action])
+            self.env.render()
             next_state, reward, done, info = self.env.step(
-                self.env_action_dict(action))
+                action)
 
             next_state = self.get_curr_state(self.env)
             trace = updateTrace(trace, next_state)
             state = next_state
             try:
-                action = self.get_action_policy(policy, state)
+                action = self.get_action_policy(self.gtable, state)
                 trace['A'].append(action)
             # Handeling terminal state
             except KeyError:
@@ -330,8 +348,7 @@ class GenRecPropKeyDoor:
         return False
 
     def generator(self, env_reset=False):
-        if env_reset:
-            self.env.restart()
+        self.env.env.reset()
         state = self.get_curr_state(self.env)
         trace = self.create_trace_skeleton(state)
 
@@ -354,12 +371,12 @@ class GenRecPropKeyDoor:
             #     self.env.env_action_dict[action])
             next_state, reward, done, info = self.env.step(
                 action)
-            self.env.render()
+            # self.env.render()
             # print(action)
             nstate = self.get_curr_state(self.env)
             trace = self.trace_accumulator(trace, nstate)
             state = nstate
-            if j >= self.max_trace_len:
+            if j >= self.max_trace_len or nstate[1] is True:
                 break
             j += 1
 
@@ -388,7 +405,6 @@ class GenRecPropKeyDoor:
 
         return result, self.create_trace_dict(trace, i)
 
-
     def propagate(self, result, trace):
         """Propagate the error to shape the probability."""
 
@@ -401,13 +417,6 @@ class GenRecPropKeyDoor:
             a = tracea[i]
             tempvals = [t[i+1] for t in traces]
             distribution = self.gtable.action(tempvals[0]).detach().numpy()
-            # print(tempvals[0], a)
-            # ss = self.gtable_key(tempvals)
-            # try:
-            #     prob = self.gtable[ss][a]
-            # except KeyError:
-            #     self.create_gtable_indv(self.gtable_key(ss))
-            #     prob = self.gtable[ss][a]
             prob = distribution[a]
             Psi = pow(psi, j)
             j += 1
@@ -416,16 +425,12 @@ class GenRecPropKeyDoor:
             else:
                 new_prob = prob + (Psi * prob)
 
-            # self.gtable[ss][a] = new_prob
             distribution[a] = new_prob
             probs = np.array(distribution)
             probs = probs / probs.sum()
             # Train the neural net with this new probability
-            # print(a, probs)
             # Backprop probs
             self.gtable.feedback(tempvals[0], probs)
-            # self.gtable[ss] = dict(zip(self.gtable[ss].keys(), probs))
-        # print(j)
 
     def gen_rec_prop(self, epoch=50):
         # Run the generator, recognizer loop for some epocs
@@ -479,8 +484,9 @@ class GenRecPropKeyDoor:
         return trace
 
     def get_action_policy(self, policy, state):
-        action = policy[tuple(state)]
-        return action
+        # action = policy[tuple(state)]
+        action = self.gtable.action(state[0])
+        return np.argmax(action.detach().cpu().numpy())
 
     def gtable_key(self, state):
         ss = state
@@ -504,7 +510,7 @@ class GenRecPropKeyDoor:
         while self.tcount <= epoch:
             # Generator
             trace = self.generator()
-            # print(trace['I'][1])
+            # print(self.tcount, trace['G'][-1])
             # Recognizer
             result, trace = self.recognizer(trace)
             # print(result, trace['G'])
@@ -535,16 +541,25 @@ def main():
         ]
 
     planner = GenRecPropKeyDoor(
-        env, keys, goalspec, gtable=None, actions=actions, epoch=1, max_trace=20)
+        env, keys, goalspec, gtable=None, actions=actions, epoch=500, max_trace=40)
     state, goal = planner.get_curr_state(env)
-    model = State2Action(state.shape, 7)
+    # model = State2Action(state.shape, 7)
+    model = models.resnet18(pretrained=True)
+    # set_parameter_requires_grad(model_ft, feature_extract)
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, 7)
+    # input_size = 224
+    model = State2ActionUpdate(state.shape, 7, model)
     model.init_optimizer()
     planner.gtable = model
     # print(state.shape)
 
     # state = torch.tensor(state)
     # print(model.action(state))
-    print(planner.train(0))
+    print(planner.train(500))
+    # env = env_setup('MiniGrid-Empty-5x5-v0')
+    env.env.reset()
+    planner.run_policy()
     # print(state.shape)
 
 
