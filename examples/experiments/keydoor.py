@@ -1,7 +1,8 @@
-"""Experiment fom taxi problem.
+"""Experiment fom Keydoor problem.
 
-Expreriments and reults for taxi problem using
-GenRecProp and MAX-Q algorithm."""
+Expreriments and reults for KeyDoor problem using
+GenRecProp
+"""
 
 import gym
 import copy

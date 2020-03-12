@@ -118,15 +118,16 @@ class CozmoPlanner(GenRecProp):
         # self.
         trace = self.blackboard.shared_content['states']
         trace = copy.copy(trace)
-        if self.evaluate_trace_simple(self.goalspec, trace):
-            return True
+        if evaluate:
+            if self.evaluate_trace_simple(self.goalspec, trace):
+                return True
+            else:
+                return False
         else:
-            return False
-
-        # if self.blackboard.shared_content['status']:
-        #     return True
-        # else:
-        #     return False
+            if self.blackboard.shared_content['status']:
+                return True
+            else:
+                return False
 
 
         # cozmo.run.connect(self.policy)
