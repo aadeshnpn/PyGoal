@@ -32,12 +32,60 @@ from collections import namedtuple
 import torchvision
 from torchvision import datasets, models, transforms
 
-# device='cpu'
 
-input_dim = 512
-hidden_dim = 128
-layer_dim = 4  # ONLY CHANGE IS HERE FROM ONE LAYER TO TWO LAYER
-output_dim = 2
+class State2ActionRnn:
+    def __init__(self, resnet, rnn):
+        self.resnet = resnet
+        self.rnn = rnn
+
+    def forward(self, x):
+        # x = x.view(1, *x.shape)
+        # x = x/225.0
+        # print(x.shape)
+        embeddings = self.resnet(x)
+        embeddings = embeddings.view(
+            embeddings.shape[0], 1, embeddings.shape[1])
+        actions = self.rnn(embeddings)
+        return actions
+
+    def action(self, state):
+        probs = self.forward(state)
+        # probs = F.softmax(logits, dim=-1)
+        return probs # [:state.size(0)]
+
+    def greedy_action(self, state):
+        probs = self.forward(state)
+        # probs = F.softmax(logits, dim=-1)
+        probs = probs.to(torch.float16)
+        probs = probs[0].detach().cpu().numpy()
+        return np.random.choice(
+            list(range(4)), p = probs)
+
+    def init_optimizer(self, optim=Adam, lr=0.003):
+        self.optim = optim(
+            list(
+                self.resnet.parameters())
+                + list(self.rnn.parameters())
+            , lr=lr)
+        self.error = nn.MSELoss(reduction='sum')
+
+    def feedback(self, state, label):
+        self.optim.zero_grad()
+        outputs = self.action(state)
+        label = torch.tensor(label) #.to(device)
+        # print(outputs.shape, label.shape)
+        loss = self.error(outputs, label)
+        loss.backward(retain_graph=True)
+        # print ("epoch : %d, loss: %1.3f" %(epoch+1, loss.item()))
+        self.optim.step()
+        return loss.item()
+
+    def save(self, filename):
+        torch.save(self.model.state_dict(), filename)
+
+    def load(self, filename):
+        self.model = self.load_state_dict(torch.load(filename))
+
 
 
 class RNNModel(nn.Module):
@@ -67,7 +115,7 @@ class RNNModel(nn.Module):
         #  USE GPU FOR MODEL  #
         #######################
         # h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim) # .to(device)
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim) # .to(device)
+        h0 = torch.zeros(self.layer_dim, x.size(0), x.size(0)) # .to(device)
 
         # One time step
         # We need to detach the hidden state to prevent exploding/vanishing gradients
@@ -82,9 +130,35 @@ class RNNModel(nn.Module):
         # out = self.fc1(out)
         out = self.fc(out)
         # print(out.shape)
-        # out = self.softmax(out)
+        out = self.softmax(out)
         # out.size() --> 100, 10
         return out.reshape(out.shape[0], out.shape[2]) #, hn
+
+
+def combined():
+    model = models.resnet18(pretrained=True)
+    num_ftrs = model.fc.in_features
+    model.fc = nn.Linear(num_ftrs, 64)
+    batch_size = 5
+    # Five images stack together
+    images = torch.rand(batch_size, 3, 40, 40)
+
+    rnn = RNNModel(64, batch_size, 50, 4)
+    algo = State2ActionRnn(model, rnn)
+    algo.init_optimizer()
+    target = torch.ones(batch_size, 4) / 4.0
+    # Train the model
+    for epoch in range(40):
+        # loss = 0
+        # outputs = algo.forward(images)
+        # batch_size = np.random.randint(1, 10)
+        images = torch.rand(batch_size, 3, 40, 40)
+        loss = algo.feedback(images, target)
+        print ("epoch : %d, loss: %1.3f" %(epoch+1, loss))
+
+    print ("Learning finished!")
+    imag1 = torch.rand(10, 3, 40, 40)
+    print('actions', algo.action(images)[0])
 
 
 def main():
@@ -101,6 +175,7 @@ def main():
     seq_len = 1
     hidden_size = 5
     num_layers = 1
+
     embeddings = model(images)
     embeddings = embeddings.view(embeddings.shape[0], 1, embeddings.shape[1])
     # embeddings = embeddings.view(1, *embeddings.shape)
@@ -136,4 +211,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    combined()
