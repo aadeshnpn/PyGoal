@@ -53,7 +53,7 @@ class State2ActionUpdate:
         probs = probs.to(torch.float16)
         probs = probs[0].detach().cpu().numpy()
         return np.random.choice(
-            list(range(7)), p = probs)
+            list(range(4)), p = probs)
 
     def init_optimizer(self, optim=Adam, lr=0.003):
         self.optim = optim(self.model.parameters(), lr=lr)
@@ -62,16 +62,16 @@ class State2ActionUpdate:
     def feedback(self, state, label):
         self.optim.zero_grad()
         outputs = self.action(state)
-        label = torch.tensor(label)
+        label = torch.tensor(label) #.to(device)
         loss = self.error(outputs, label)
         loss.backward()
         self.optim.step()
 
     def save(self, filename):
-        torch.save(self.state_dict(), filename)
+        torch.save(self.model.state_dict(), filename)
 
     def load(self, filename):
-        self.load_state_dict(torch.load(filename))
+        self.model = self.load_state_dict(torch.load(filename))
 
 
 class State2Action(nn.Module):
@@ -160,7 +160,7 @@ class State2Action(nn.Module):
         probs = probs.to(torch.float16)
         probs = probs[0].detach().cpu().numpy()
         return np.random.choice(
-            list(range(7)), p = probs)
+            list(range(4)), p = probs)
 
     def init_optimizer(self, optim=Adam, lr=0.003):
         '''Initialize GD optimizer
@@ -310,7 +310,8 @@ class GenRecPropKeyDoor:
 
     def run_policy(self, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
-        action = self.get_action_policy(self.gtable, state)
+        # action = self.get_action_policy(self.gtable, state)
+        action = self.get_action(state)
 
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
         trace['A'] = [action]
@@ -333,7 +334,8 @@ class GenRecPropKeyDoor:
             trace = updateTrace(trace, next_state)
             state = next_state
             try:
-                action = self.get_action_policy(self.gtable, state)
+                action = self.get_action(state)
+                # action = self.get_action_policy(self.gtable, state)
                 trace['A'].append(action)
             # Handeling terminal state
             except KeyError:
@@ -341,6 +343,7 @@ class GenRecPropKeyDoor:
             # Run the policy as long as the goal is not achieved or less than j
             traceset = trace.copy()
             if self.evaluate_trace(self.goalspec, traceset):
+                print(traceset['G'])
                 return True
             if j > max_trace_len:
                 return False
@@ -413,6 +416,7 @@ class GenRecPropKeyDoor:
         psi = 0.9
         j = 1
         # print(traces)
+        targets = []
         for i in range(0, len(traces[0])-1, 1):
             a = tracea[i]
             tempvals = [t[i+1] for t in traces]
@@ -430,7 +434,8 @@ class GenRecPropKeyDoor:
             probs = probs / probs.sum()
             # Train the neural net with this new probability
             # Backprop probs
-            self.gtable.feedback(tempvals[0], probs)
+            # self.gtable.feedback(tempvals[0], probs)
+            targets.append(probs)
 
     def gen_rec_prop(self, epoch=50):
         # Run the generator, recognizer loop for some epocs
@@ -519,7 +524,9 @@ class GenRecPropKeyDoor:
             self.propagate(result, trace)
             # Increment the count
             self.tcount += 1
-            print(self.tcount)
+            print(self.tcount, result)
+            # print(trace['A'])
+            # print(trace['I'][1]
         return result
 
     def inference(self, render=False, verbose=False):
@@ -537,29 +544,35 @@ def main():
 
     keys = ['I', 'G']
     actions = [
-        [0, 1, 2, 3, 4, 5, 6]
+        # [0, 1, 2, 3, 4, 5, 6]
+        [0, 1, 2, 3]
         ]
 
     planner = GenRecPropKeyDoor(
-        env, keys, goalspec, gtable=None, actions=actions, epoch=500, max_trace=40)
+        env, keys, goalspec, gtable=None, actions=actions, epoch=500, max_trace=80)
     state, goal = planner.get_curr_state(env)
-    # model = State2Action(state.shape, 7)
+    # model = RNNModel
+    # # model = State2Action(state.shape, 7)
     model = models.resnet18(pretrained=True)
-    # set_parameter_requires_grad(model_ft, feature_extract)
+    # model = model.to(device)
+    # # set_parameter_requires_grad(model_ft, feature_extract)
     num_ftrs = model.fc.in_features
-    model.fc = nn.Linear(num_ftrs, 7)
+    model.fc = nn.Linear(num_ftrs, 4)
     # input_size = 224
-    model = State2ActionUpdate(state.shape, 7, model)
+    model = State2ActionUpdate(state.shape, 4, model)
     model.init_optimizer()
     planner.gtable = model
     # print(state.shape)
-
     # state = torch.tensor(state)
     # print(model.action(state))
-    print(planner.train(500))
+    print(planner.train(10))
     # env = env_setup('MiniGrid-Empty-5x5-v0')
     env.env.reset()
-    planner.run_policy()
+    print(env.env.front_pos)
+    # print(env.fwd_pos)
+    # planner.inference()
+    model.save('train100.pt')
+    planner.run_policy(max_trace_len=50)
     # print(state.shape)
 
 
