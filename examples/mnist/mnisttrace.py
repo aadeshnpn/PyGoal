@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
+from torch.optim import Adam
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -38,6 +40,7 @@ class EnvMNIST:
         self.images = images
         self.labels = labels
         self.idxs = idxs
+        self.idxs_back = idxs.copy()
         self.state = 0
         self.render = render
 
@@ -59,6 +62,11 @@ class EnvMNIST:
             # plt.show()
             pass
         return self.state, 1, None, done
+
+    def reset(self):
+        self.state = 0
+        self.idxs = self.idxs_back.copy()
+
 
     def get_images(self, label):
         i = self.nprandom.choice(self.idxs[label], replace=False)
@@ -95,7 +103,7 @@ class Generator(nn.Module):
 
 class Recognizer(nn.Module):
     def __init__(self, input_dim, hidden_dim, layer_dim, output_dim):
-        super(RNNModel, self).__init__()
+        super(Recognizer, self).__init__()
         self.hidden_dim = hidden_dim
         # Number of hidden layers
         self.layer_dim = layer_dim
@@ -107,7 +115,8 @@ class Recognizer(nn.Module):
     def forward(self, x):
         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim) # .to(device)
         out, hn = self.rnn(x, h0.detach())
-        out = self.fc1(out[:, -1, :])
+        out = self.fc(out[:, -1, :])
+        # print(out.shape)
         out = self.sigmoid(out)
         return out
 
@@ -129,9 +138,8 @@ def get_current_state(env, generator):
         _, fc = generator(image)
     return env.state, fc
 
-def generation(generator):
+def generation(generator, env):
     # print(generator)
-    env = EnvMNIST(render=True)
     actions = [0, 1, 2, 3]
     action = env.nprandom.choice(actions)
     j = 0
@@ -181,6 +189,31 @@ def recognition(trace):
 
     return result, create_trace_dict(trace, i)
 
+
+def propogation(label, trace, generator, recoginzer, optim, error):
+    input_images = trace['I']
+    # print('input images',len(input_images))
+    input_batch = torch.stack(input_images)
+    # print('input batch size', input_batch.shape)
+    output = recoginzer(input_batch)
+    # print(output)
+    # if output[0][-1] > 0.5:
+    #     output = 1
+    # else:
+    #    output = 0
+    # Define loss
+    optim.zero_grad()
+    # outputs = self.action(state)
+    label = torch.tensor(label) #.to(device)
+    # print(outputs.shape, label.shape)
+    # print('error', type(output[0][-1]), type(label))
+    loss = error(output[0][-1], label)
+    loss.backward(retain_graph=True)
+    # print ("epoch : %d, loss: %1.3f" %(epoch+1, loss.item()))
+    optim.step()
+    return loss.item()
+
+
 def create_trace_skeleton(state):
     # Create a skeleton for trace
     trace = dict(zip(keys, [[list()] for i in range(len(keys))]))
@@ -227,11 +260,27 @@ def create_trace_dict(trace, i):
 
 
 def main():
+    # Define neural nets
     generator = modify_mnistnet()
-    trace = generation(generator)
-    print(trace['S'])
-    result, trace = recognition(trace)
-    print(result, trace['S'])
+    recognizer = Recognizer(128, 100, 1, 1)
+    optim = Adam(
+        list(
+            generator.parameters())
+            + list(recognizer.parameters())
+        , lr=0.003)
+    error = nn.MSELoss()
+    # error = nn.BCELoss()
+    env = EnvMNIST(render=False)
+
+    for epoch in range(1):
+        env.reset()
+        trace = generation(generator, env)
+        # print(epoch, trace['S'])
+        result, trace = recognition(trace)
+        print(epoch, result, trace['S'])
+        # Define loss, optimizer
+        loss = propogation(result * 1.0, trace, generator, recognizer , optim, error)
+        print(epoch, loss)
 
 
 if __name__ == "__main__":
