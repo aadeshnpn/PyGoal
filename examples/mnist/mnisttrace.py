@@ -168,7 +168,7 @@ def generation(generator, env):
     return trace
 
 def recognition(trace):
-    goalspec = 'F P_[S][9,none,==]'
+    goalspec = 'F P_[S][5,none,==]'
     # parse the formula
     parser = LTLfGParser()
 
@@ -262,7 +262,7 @@ def create_trace_dict(trace, i):
 def main():
     # Define neural nets
     generator = modify_mnistnet()
-    recognizer = Recognizer(128, 100, 1, 1)
+    recognizer = Recognizer(128, 20, 1, 1)
     optim = Adam(
         list(
             generator.parameters())
@@ -272,15 +272,36 @@ def main():
     # error = nn.BCELoss()
     env = EnvMNIST(render=False)
 
-    for epoch in range(1):
+    # Store all the good traces that recognizer validates
+    valid_traces = []
+    print('Training Time')
+    for epoch in range(500):
         env.reset()
         trace = generation(generator, env)
         # print(epoch, trace['S'])
         result, trace = recognition(trace)
-        print(epoch, result, trace['S'])
+        if result:
+            valid_traces.append(trace)
+        # print(epoch, result, trace['S'])
         # Define loss, optimizer
         loss = propogation(result * 1.0, trace, generator, recognizer , optim, error)
-        print(epoch, loss)
+        # print(epoch, result, trace['S'], loss)
+        # print(epoch, loss)
+
+    print('valid trace', len(valid_traces))
+
+    # Train valid traces for 50 epochs:
+    print('Training only valid traces')
+    for epoch in range(50):
+        for trace in valid_traces:
+            loss = propogation(1.0, trace, generator, recognizer, optim, error)
+
+    # Inference
+    print('inference time')
+    for i in range(5):
+        env.reset()
+        trace = generation(generator, env)
+        print(trace['S'][-1])
 
 
 if __name__ == "__main__":
