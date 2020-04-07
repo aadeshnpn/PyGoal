@@ -8,6 +8,11 @@ from torch.optim.lr_scheduler import StepLR
 import numpy as np
 import matplotlib.pyplot as plt
 
+from flloat.parser.ltlfg import LTLfGParser
+from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
+
+keys = ['S', 'I']
+
 
 class EnvMNIST:
     def __init__(self, seed=123, render=False):
@@ -50,8 +55,9 @@ class EnvMNIST:
         if self.state == 9:
             done = True
         if self.render == True:
-            plt.imshow(curr_state_image.view(28,28))
-            plt.show()
+            # plt.imshow(curr_state_image.view(28,28))
+            # plt.show()
+            pass
         return self.state, 1, None, done
 
     def get_images(self, label):
@@ -117,26 +123,115 @@ def greedy_action(prob):
     # print(prob)
     return np.random.choice([0, 1, 2, 3], p=prob[0])
 
+def get_current_state(env, generator):
+    image = env.get_images(env.state)
+    with torch.no_grad():
+        _, fc = generator(image)
+    return env.state, fc
 
-def main():
-    generator = modify_mnistnet()
+def generation(generator):
     # print(generator)
     env = EnvMNIST(render=True)
     actions = [0, 1, 2, 3]
     action = env.nprandom.choice(actions)
     j = 0
+    # states = []
+    # images = []
+    curr_state = get_current_state(env, generator)
+    trace = create_trace_skeleton(curr_state)
     while True:
+        # print(j, env.state, action)
         s, _, _, done = env.step(action)
         if done:
             break
         if j > 20:
             break
         j += 1
-        actions, fc = generator(env.get_images(s))
+        # states.append(s)
+        image = env.get_images(s)
+        actions, fc = generator(image)
+        state = get_current_state(env, generator)
+        trace = trace_accumulator(trace, state)
         action = greedy_action(actions.data.numpy())
-        print(j, action)
+        # images.append(fc)
+        # print(j, action)
     # print(actions, torch.sum(actions))
+    # print(states)
+    return trace
 
+def recognition(trace):
+    goalspec = 'F P_[S][9,none,==]'
+    # parse the formula
+    parser = LTLfGParser()
+
+    # Define goal formula/specification
+    parsed_formula = parser(goalspec)
+
+    # Change list of trace to set
+    traceset = trace.copy()
+    akey = list(traceset.keys())[0]
+    # print('recognizer', traceset)
+    # Loop through the trace to find the shortest best trace
+    for i in range(0, len(traceset[akey])):
+        t = create_trace_flloat(traceset, i)
+        result = parsed_formula.truth(t)
+        if result is True:
+            # self.set_state(self.env, trace, i)
+            return True, create_trace_dict(trace, i)
+
+    return result, create_trace_dict(trace, i)
+
+def create_trace_skeleton(state):
+    # Create a skeleton for trace
+    trace = dict(zip(keys, [[list()] for i in range(len(keys))]))
+    j = 0
+    for k in keys:
+        trace[k][0].append(state[j])
+        j += 1
+    return trace
+
+def trace_accumulator(trace, state):
+    for j in range(len(keys)):
+        # Add the state variables to the trace
+        temp = trace[keys[j]][-1].copy()
+        temp.append(state[j])
+        trace[keys[j]].append(temp)
+    return trace
+
+def create_trace_flloat(traceset, i):
+    setslist = [create_sets(traceset[k][i]) for k in keys]
+    # a = self.create_sets(traceset['A'][i])
+    # setslist.append(a)
+    dictlist = [FiniteTrace.fromStringSets(s) for s in setslist]
+    keydictlist = dict()
+    # keydictlist['A'] = dictlist[-1]
+    j = 0
+    for k in keys:
+        keydictlist[k] = dictlist[j]
+        j += 1
+    t = FiniteTraceDict.fromDictSets(keydictlist)
+    return t
+
+def create_sets(trace):
+    if len(trace) == 1:
+        return [set(trace)]
+    else:
+        return [set([l]) for l in trace]
+
+def create_trace_dict(trace, i):
+    tracedict = dict()
+    for k in keys:
+        tracedict[k] = trace[k][i]
+    # tracedict['A'] = trace['A'][i]
+    return tracedict
+
+
+def main():
+    generator = modify_mnistnet()
+    trace = generation(generator)
+    print(trace['S'])
+    result, trace = recognition(trace)
+    print(result, trace['S'])
 
 
 if __name__ == "__main__":

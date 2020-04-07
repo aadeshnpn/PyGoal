@@ -335,6 +335,7 @@ class GenRecPropKeyDoor:
 
         # Change list of trace to set
         traceset = trace.copy()
+        # print('recognizer',traceset)
         akey = list(traceset.keys())[0]
         # Loop through the trace to find the shortest best trace
         for i in range(0, len(traceset[akey])):
