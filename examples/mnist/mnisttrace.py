@@ -5,7 +5,8 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from torch.optim.lr_scheduler import StepLR
-from torch.optim import Adam
+from torch.optim import Adam, SGD
+from torchviz import make_dot
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -18,9 +19,9 @@ keys = ['S', 'I']
 
 class EnvMNIST:
     def __init__(self, seed=123, render=False):
-        self.nprandom = np.random.RandomState(seed)
+        self.nprandom = np.random.RandomState(123)
         use_cuda = True
-        kwargs = {'num_workers': 1, 'pin_memory': True} if use_cuda else {}
+        kwargs = {'num_workers': 8, 'pin_memory': True} if use_cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
             datasets.MNIST('../data', train=True, download=True,
             transform=transforms.Compose([
@@ -53,9 +54,9 @@ class EnvMNIST:
             new_state = self.state + 1
         else:
             new_state = self.state
-        new_state = np.clip(new_state, 0, 9)
+        new_state = np.clip(new_state, 0, 5)
         self.state = new_state
-        if self.state == 9:
+        if self.state == 5:
             done = True
         if self.render == True:
             # plt.imshow(curr_state_image.view(28,28))
@@ -83,6 +84,7 @@ class Generator(nn.Module):
         self.dropout2 = nn.Dropout2d(0.5)
         self.fc1 = nn.Linear(9216, 128)
         self.fc2 = nn.Linear(128, 10)
+        # self.bn = nn.BatchNorm1d(128)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -93,15 +95,43 @@ class Generator(nn.Module):
         x = self.dropout1(x)
         x = torch.flatten(x, 1)
         x1 = self.fc1(x)
-        x = F.relu(x1)
-        x = self.dropout2(x)
-        x = self.fc2(x)
+        x1 = torch.tanh(x1) #F.tanh(x1)
+        # x1 = self.bn(x1)
+        # x = self.dropout2(x1)
+        x = self.fc2(x1)
         # output = F.log_softmax(x, dim=1)
         output = F.softmax(x, dim=1)
         return output, x1
 
 
 class Recognizer(nn.Module):
+    def __init__(self):
+        super(Recognizer, self).__init__()
+
+        self.rnn = nn.LSTM(         # if use nn.RNN(), it hardly learns
+            input_size=128,
+            hidden_size=64,         # rnn hidden unit
+            num_layers=1,           # number of rnn layer
+            batch_first=True,       # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
+        )
+
+        self.out = nn.Linear(64, 1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        # x shape (batch, time_step, input_size)
+        # r_out shape (batch, time_step, output_size)
+        # h_n shape (n_layers, batch, hidden_size)
+        # h_c shape (n_layers, batch, hidden_size)
+        r_out, (h_n, h_c) = self.rnn(x, None)   # None represents zero initial hidden state
+
+        # choose r_out at the last time step
+        out = self.out(r_out[:, -1, :])
+        out = self.sigmoid(out)
+        return out
+
+
+class Recognizer1(nn.Module):
     def __init__(self, input_dim, hidden_dim, layer_dim, output_dim):
         super(Recognizer, self).__init__()
         self.hidden_dim = hidden_dim
@@ -128,14 +158,14 @@ def modify_mnistnet():
     model.fc2 = nn.Linear(128, 4)
     return model
 
-def greedy_action(prob):
+def greedy_action(prob, nprandom):
     # print(prob)
-    return np.random.choice([0, 1, 2, 3], p=prob[0])
+    return nprandom.choice([0, 1, 2, 3], p=prob[0])
 
 def get_current_state(env, generator):
     image = env.get_images(env.state)
-    with torch.no_grad():
-        _, fc = generator(image)
+    # with torch.no_grad():
+    _, fc = generator(image)
     return env.state, fc
 
 def generation(generator, env):
@@ -150,17 +180,18 @@ def generation(generator, env):
     while True:
         # print(j, env.state, action)
         s, _, _, done = env.step(action)
-        if done:
-            break
-        if j > 20:
-            break
         j += 1
         # states.append(s)
+        # print(image.shape)
         image = env.get_images(s)
         actions, fc = generator(image)
         state = get_current_state(env, generator)
         trace = trace_accumulator(trace, state)
-        action = greedy_action(actions.data.numpy())
+        action = greedy_action(actions.data.numpy(), env.nprandom)
+        if done:
+            break
+        if j > 15:
+            break
         # images.append(fc)
         # print(j, action)
     # print(actions, torch.sum(actions))
@@ -191,11 +222,25 @@ def recognition(trace):
 
 
 def propogation(label, trace, generator, recoginzer, optim, error):
-    input_images = trace['I']
+    input_images = trace
     # print('input images',len(input_images))
+    # print(input_images[0].requires_grad)
     input_batch = torch.stack(input_images)
+    # print('rrn input', input_batch.shape)
     # print('input batch size', input_batch.shape)
+    # print(input_batch.shape, input_batch.requires_grad)
+    # exit()
     output = recoginzer(input_batch)
+    # dot1 = make_dot(
+    #     input_batch, params=dict(generator.named_parameters()))
+
+    # dot2 = make_dot(
+    #     output, params=dict(recoginzer.named_parameters()))
+
+    # dot1.render('/tmp/generator.png', view=True)
+    # dot2.render('/tmp/recognizer.png', view=True)
+
+    # exit()
     # print(output)
     # if output[0][-1] > 0.5:
     #     output = 1
@@ -204,10 +249,13 @@ def propogation(label, trace, generator, recoginzer, optim, error):
     # Define loss
     optim.zero_grad()
     # outputs = self.action(state)
-    label = torch.tensor(label) #.to(device)
+    # label = torch.tensor(label) #.to(device)
+    label = torch.ones(output.shape[0]) * label
+    label = label.view(output.shape[0], 1)
     # print(outputs.shape, label.shape)
     # print('error', type(output[0][-1]), type(label))
-    loss = error(output[0][-1], label)
+    # print('output', output.shape, label.shape, output, label)
+    loss = error(output, label)
     loss.backward(retain_graph=True)
     # print ("epoch : %d, loss: %1.3f" %(epoch+1, loss.item()))
     optim.step()
@@ -263,19 +311,19 @@ def main():
     # Define neural nets
     generator = modify_mnistnet()
     recognizer = Recognizer(128, 20, 1, 1)
-    optim = Adam(
+    optim = SGD(
         list(
             generator.parameters())
             + list(recognizer.parameters())
         , lr=0.003)
-    error = nn.MSELoss()
-    # error = nn.BCELoss()
+    # error = nn.MSELoss()
+    error = nn.BCELoss()
     env = EnvMNIST(render=False)
 
     # Store all the good traces that recognizer validates
     valid_traces = []
     print('Training Time')
-    for epoch in range(500):
+    for epoch in range(1000):
         env.reset()
         trace = generation(generator, env)
         # print(epoch, trace['S'])
@@ -285,24 +333,163 @@ def main():
         # print(epoch, result, trace['S'])
         # Define loss, optimizer
         loss = propogation(result * 1.0, trace, generator, recognizer , optim, error)
-        # print(epoch, result, trace['S'], loss)
+        # print(epoch, result, trace['S'])
         # print(epoch, loss)
 
     print('valid trace', len(valid_traces))
 
     # Train valid traces for 50 epochs:
     print('Training only valid traces')
-    for epoch in range(50):
+    for epoch in range(1000):
         for trace in valid_traces:
             loss = propogation(1.0, trace, generator, recognizer, optim, error)
 
     # Inference
     print('inference time')
-    for i in range(5):
+    for i in range(10):
+        env.reset()
+        j = 0
+        states = []
+        act = []
+        while True:
+            image = env.get_images(env.state)
+            actions, fc = generator(image)
+            action = np.argmax(actions.detach().numpy())
+            # print(env.state, action)
+            s, _, _, done = env.step(action)
+            states.append(env.state)
+            act.append(action)
+            if done:
+                break
+            if j > 20:
+                break
+            j += 1
+        print(i, states, act)
+        # trace = generation(generator, env)
+        # print(trace['S'][-1])
+
+    # Save both the recognizer and generator
+    torch.save(generator.state_dict(), "generator.pt")
+    torch.save(recognizer.state_dict(), "recognizer.pt")
+
+
+def create_valid_traces(env, generator, n=100):
+    valid_traces = []
+    for i in range(n):
+        env.reset()
+        curr_state = get_current_state(env, generator)
+        trace = create_trace_skeleton(curr_state)
+        j = 0
+        while True:
+            # image = env.get_images(env.state)
+            # actions, fc = generator(image)
+            # We know the valid action is to move right
+            action = 1
+            s, _, _, done = env.step(action)
+            state = get_current_state(env, generator)
+            trace = trace_accumulator(trace, state)
+            if done:
+                break
+            if j > 10:
+                break
+            j += 1
+        valid_traces.append(trace)
+
+    return valid_traces
+
+
+def create_traces(env, generator):
+    valid_trace = []
+    invalid_trace = []
+    for epoch in range(200):
         env.reset()
         trace = generation(generator, env)
-        print(trace['S'][-1])
+        result, trace = recognition(trace)
+        if result:
+            valid_trace.append(trace)
+        else:
+            invalid_trace.append(trace)
+
+        # if len(invalid_trace) >= 100:
+        #    break
+
+    return valid_trace, invalid_trace
+
+
+def recognizer_performance():
+    ## Need to check if the trained recognizer is a good automaton
+    ## Manually create valid and invalid traces and evaluate the recognizer
+    # Creating valid traces
+    pass
+
+
+def test():
+    env = EnvMNIST(render=False)
+    generator = modify_mnistnet()
+    while True:
+        s,_,_,done = env.step(1)
+        print(get_current_state(env, generator))
+        # print(s)
+        if done:
+            break
+
+def train_hardcoded():
+    # Define neural nets
+    generator = modify_mnistnet()
+    recognizer = Recognizer()
+    optimvalid = Adam(
+        list(generator.parameters()) + list(recognizer.parameters()),
+        lr=0.01)
+
+    optiminvalid = Adam(
+        list(generator.parameters()) + list(recognizer.parameters()),
+        lr=0.003)
+
+    error = nn.BCELoss()
+    env = EnvMNIST(render=False)
+    vloss = []
+    iloss = []
+    for epoch in range(5):
+        valid_traces, invalid_traces = create_traces(env, generator)
+        print(epoch, 'valid','invalid', len(valid_traces), len(invalid_traces))
+        if len(valid_traces) > 1:
+            for v in range(10):
+                # Get valid traces
+                # valid_traces = create_valid_traces(env, generator)
+                # print(valid_traces[0]['I'][-1])
+                losses = 0
+                for trace in valid_traces:
+                    trace = trace['I']
+                    loss = propogation(1.0, trace, generator, recognizer, optimvalid, error)
+                    losses += loss
+                vloss.append(np.mean(losses))
+                print(epoch, v, 'valid', np.mean(losses))
+
+        for i in range(10):
+            # Gen invalid traces
+            losses = 0
+            # invalid_traces = create_invalid_traces(env, generator)
+            # invalid_traces = invalid_traces[:len(valid_traces)]
+            for trace in invalid_traces:
+                trace = trace['I']
+                # print(trace)
+                loss = propogation(0.0, trace, generator, recognizer, optiminvalid, error)
+                losses += loss
+            print(epoch, i, 'invalid', np.mean(losses))
+            iloss.append(np.mean(losses))
+            # print(epoch, 'invalid', np.mean(losses))
+
+    # Save both the recognizer and generator
+    torch.save(generator.state_dict(), "generator5.pt")
+    torch.save(recognizer.state_dict(), "recognizer5.pt")
+
+    # Plot the loss curves
+    plt.plot(vloss, 'g')
+    plt.plot(iloss, 'r')
+    plt.show()
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    # test()
+    train_hardcoded()
