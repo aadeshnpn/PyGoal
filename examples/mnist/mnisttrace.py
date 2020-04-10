@@ -13,13 +13,27 @@ import matplotlib.pyplot as plt
 
 from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
+import pickle
 
 keys = ['S', 'I']
 
+# torch.manual_seed(none)
+class TotalLoss(nn.Module):
+    def __init__(self):
+        super(TotalLoss, self).__init__()
+        self.__dict__.update(locals())
+
+    def forward(self, input, target, numbers):
+        valid, invalid = numbers
+        # total = valid + invalid
+        loss = F.binary_cross_entropy_with_logits(input, target)
+        totloss = invalid * loss
+        return loss
+
 
 class EnvMNIST:
-    def __init__(self, seed=123, render=False):
-        self.nprandom = np.random.RandomState(123)
+    def __init__(self, seed=2, render=False):
+        self.nprandom = np.random.RandomState(None)
         use_cuda = True
         kwargs = {'num_workers': 8, 'pin_memory': True} if use_cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
@@ -109,10 +123,10 @@ class Recognizer(nn.Module):
         super(Recognizer, self).__init__()
 
         self.rnn = nn.LSTM(         # if use nn.RNN(), it hardly learns
-            input_size=128,
+            input_size= 132, #128,
             hidden_size=64,         # rnn hidden unit
             num_layers=1,           # number of rnn layer
-            batch_first=True,       # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
+            batch_first=False,       # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
         )
 
         self.out = nn.Linear(64, 1)
@@ -155,18 +169,25 @@ def modify_mnistnet():
     model = Generator()
     model.load_state_dict(torch.load("mnist_cnn.pt"))
     # model = torch.load("mnist_cnn.pt")
+    for param in model.parameters():
+        param.requires_grad = False
     model.fc2 = nn.Linear(128, 4)
+    model.fc2.requires_grad = True
     return model
+
 
 def greedy_action(prob, nprandom):
     # print(prob)
     return nprandom.choice([0, 1, 2, 3], p=prob[0])
+    # return np.argmax(prob)
 
 def get_current_state(env, generator):
     image = env.get_images(env.state)
     # with torch.no_grad():
-    _, fc = generator(image)
-    return env.state, fc
+    actions, fc = generator(image)
+    # return env.state, fc
+    # print(fc.shape, actions.shape)
+    return env.state, torch.cat([fc, actions], dim=1)
 
 def generation(generator, env):
     # print(generator)
@@ -221,11 +242,12 @@ def recognition(trace):
     return result, create_trace_dict(trace, i)
 
 
-def propogation(label, trace, generator, recoginzer, optim, error):
+def propogation(label, trace, generator, recoginzer, optim, error, numbers):
     input_images = trace
     # print('input images',len(input_images))
     # print(input_images[0].requires_grad)
     input_batch = torch.stack(input_images)
+    # input_batch = torch.view()
     # print('rrn input', input_batch.shape)
     # print('input batch size', input_batch.shape)
     # print(input_batch.shape, input_batch.requires_grad)
@@ -255,7 +277,8 @@ def propogation(label, trace, generator, recoginzer, optim, error):
     # print(outputs.shape, label.shape)
     # print('error', type(output[0][-1]), type(label))
     # print('output', output.shape, label.shape, output, label)
-    loss = error(output, label)
+    loss = error(output, label, numbers)
+    # loss.backward(retain_graph=True)
     loss.backward(retain_graph=True)
     # print ("epoch : %d, loss: %1.3f" %(epoch+1, loss.item()))
     optim.step()
@@ -401,7 +424,8 @@ def create_valid_traces(env, generator, n=100):
 def create_traces(env, generator):
     valid_trace = []
     invalid_trace = []
-    for epoch in range(200):
+    for epoch in range(4000):
+        print(epoch)
         env.reset()
         trace = generation(generator, env)
         result, trace = recognition(trace)
@@ -438,55 +462,58 @@ def train_hardcoded():
     generator = modify_mnistnet()
     recognizer = Recognizer()
     optimvalid = Adam(
-        list(generator.parameters()) + list(recognizer.parameters()),
-        lr=0.01)
+        recognizer.parameters(),
+        lr=0.003)
 
     optiminvalid = Adam(
         list(generator.parameters()) + list(recognizer.parameters()),
         lr=0.003)
 
-    error = nn.BCELoss()
+    # error = nn.BCELoss()
+    error = TotalLoss()
     env = EnvMNIST(render=False)
     vloss = []
     iloss = []
-    for epoch in range(5):
-        valid_traces, invalid_traces = create_traces(env, generator)
-        print(epoch, 'valid','invalid', len(valid_traces), len(invalid_traces))
-        if len(valid_traces) > 1:
-            for v in range(10):
-                # Get valid traces
-                # valid_traces = create_valid_traces(env, generator)
-                # print(valid_traces[0]['I'][-1])
-                losses = 0
-                for trace in valid_traces:
-                    trace = trace['I']
-                    loss = propogation(1.0, trace, generator, recognizer, optimvalid, error)
-                    losses += loss
-                vloss.append(np.mean(losses))
-                print(epoch, v, 'valid', np.mean(losses))
+    # for epoch in range(15):
+    valid_traces, invalid_traces = create_traces(env, generator)
+    pickle.dump((valid_traces,invalid_traces), open( "traces.pk", "wb" ))
+        # print(epoch, 'valid','invalid', len(valid_traces), len(invalid_traces))
+        # numbers = (len(valid_traces), len(invalid_traces))
+        # if len(valid_traces) >= 1:
+        #     for v in range(5):
+        #         # Get valid traces
+        #         # valid_traces = create_valid_traces(env, generator)
+        #         # print(valid_traces[0]['I'][-1])
+        #         losses = 0
+        #         for trace in valid_traces:
+        #             trace = trace['I']
+        #             loss = propogation(1.0, trace, generator, recognizer, optimvalid, error, numbers)
+        #             losses += loss
+        #         print(epoch, v, 'valid', np.mean(losses))
+        #         vloss.append(np.mean(losses))
 
-        for i in range(10):
-            # Gen invalid traces
-            losses = 0
-            # invalid_traces = create_invalid_traces(env, generator)
-            # invalid_traces = invalid_traces[:len(valid_traces)]
-            for trace in invalid_traces:
-                trace = trace['I']
-                # print(trace)
-                loss = propogation(0.0, trace, generator, recognizer, optiminvalid, error)
-                losses += loss
-            print(epoch, i, 'invalid', np.mean(losses))
-            iloss.append(np.mean(losses))
+        # for i in range(1):
+        #     # Gen invalid traces
+        #     losses = 0
+        #     # invalid_traces = create_invalid_traces(env, generator)
+        #     # invalid_traces = invalid_traces[:len(valid_traces)]
+        #     for trace in invalid_traces:
+        #         trace = trace['I']
+        #         # print(trace)
+        #         loss = propogation(0.0, trace, generator, recognizer, optiminvalid, error, numbers)
+        #         losses += loss
+        #     print(epoch, i, 'invalid', np.mean(losses))
+        #     iloss.append(np.mean(losses))
             # print(epoch, 'invalid', np.mean(losses))
 
     # Save both the recognizer and generator
-    torch.save(generator.state_dict(), "generator5.pt")
-    torch.save(recognizer.state_dict(), "recognizer5.pt")
+    # torch.save(generator.state_dict(), "generatormain.pt")
+    # torch.save(recognizer.state_dict(), "recognizermain.pt")
 
-    # Plot the loss curves
-    plt.plot(vloss, 'g')
-    plt.plot(iloss, 'r')
-    plt.show()
+    # # Plot the loss curves
+    # plt.plot(vloss, 'g')
+    # plt.plot(iloss, 'r')
+    # plt.show()
 
 
 if __name__ == "__main__":
