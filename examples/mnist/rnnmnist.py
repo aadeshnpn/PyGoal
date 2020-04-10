@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-import torchvision
-import torchvision.transforms as transforms
+# import torchvision
+# import torchvision.transforms as transforms
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms, utils, datasets
 import numpy as np
@@ -10,43 +10,24 @@ import pickle
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+# print(device)
+device = 'cuda:0'
+
 # Hyper-parameters
-sequence_length = 1
+sequence_length = 132 # 1
 input_size = 17
 hidden_size = 128
 num_layers = 1
 num_classes = 2
-batch_size = 5
+batch_size = 4
 num_epochs = 20
 learning_rate = 0.01
-
-# # MNIST dataset
-# train_dataset = torchvision.datasets.MNIST(root='../../data/',
-#                                            train=True,
-#                                            transform=transforms.ToTensor(),
-#                                            download=True)
-
-# test_dataset = torchvision.datasets.MNIST(root='../../data/',
-#                                           train=False,
-#                                           transform=transforms.ToTensor())
-
-# # Data loader
-# train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-#                                            batch_size=batch_size,
-#                                            shuffle=True)
-
-# test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-#                                           batch_size=batch_size,
-#                                           shuffle=False)
 
 
 class TraceDS(Dataset):
     def __init__(self):
-        # vchoices = ['a','b','c','d','e','f']
-        # ichoices =
         data = pickle.load(open('traces.pk','rb'))
         valid, invalid = data
-        # valid = [v['S'] for v in valid ]
         invalid = [v['S'] for v in invalid ]
         for v in valid:
             val = [0]
@@ -54,8 +35,6 @@ class TraceDS(Dataset):
                 diff = 17-len(v['S'])
                 val = val * diff
                 v['S'] = val + v['S']
-                # v['S'] = np.array(v['S'])
-            # print(len(v['S']))
         valid = [v['S'] for v in valid ]
         self.vdata = torch.tensor(np.array(valid))
         self.vdata = self.vdata.float()
@@ -63,12 +42,6 @@ class TraceDS(Dataset):
         self.idata = torch.tensor(np.array(invalid))
         self.idata = self.idata.float()
         self.idata = self.idata.view(self.idata.shape[0], 1 , self.idata.shape[1])
-        # print(self.vdata.shape, self.idata.shape)
-        # print(self.vdata.shape, self.idata.shape)
-        # self.vdata = self.vdata.view(20000, 1, 10)
-        # self.idata = [[[np.random.choice([1,2,3,4,6,7,8,9]) * 1.0] for a in range(10)] for b in range(20000)]
-        # self.idata = torch.tensor(np.array(self.idata))
-        # self.idata = self.vdata.view(20000, 1, 10)
 
     def __getitem__(self, index):
         # print(index)
@@ -84,45 +57,45 @@ class TraceDS(Dataset):
         return  len(self.idata)
 
 
-# class ValidTraceDS(Dataset):
-#   def __init__(self):
-#     self.data = [[[np.random.randint(0, 4) * 1.0] for a in range(9)]+[[5.0]] for b in range(20)]
-#     self.data = torch.tensor(np.array(self.data))
-#     print(self.data.shape)
+class TraceEmbDS(Dataset):
+    def __init__(self):
+        data = pickle.load(open('traces.pk','rb'))
+        valid, invalid = data
+        invalid = [v['I'] for v in invalid ]
+        valid = [v['I'] for v in valid ]
 
-#   def __getitem__(self, index):
-#     d = self.data[index]
-#     return d, 1
+        for i in range(len(invalid)):
+            # print(i, invalid[i])
+            invalid[i] = torch.stack(invalid[i])
+        for v in range(len(valid)):
+            val = [valid[v][0]]
+            if len(valid[v]) != 17:
+                diff = 17-len(valid[v])
+                val = val * diff
+                valid[v] = val + valid[v]
+            valid[v] = torch.stack(valid[v])
 
-#   def __len__(self):
-#     return  len(self.data)
+        self.vdata = torch.stack(valid)
+        self.vdata = self.vdata.float()
+        self.vdata = self.vdata.view(self.vdata.shape[0], self.vdata.shape[3] , self.vdata.shape[1])
+        self.idata = torch.stack(invalid)
+        self.idata = self.idata.float()
+        self.idata = self.idata.view(self.idata.shape[0], self.idata.shape[3] , self.idata.shape[1])
+        # print(self.vdata.shape, self.idata.shape)
 
+    def __getitem__(self, index):
+        # print(index)
+        if index < len(self.vdata):
+            d = self.vdata[index]
+            l = 1.0
+        else:
+            d = self.idata[index]
+            l = 0.0
+        return d, l
 
-# class InValidTraceDS(Dataset):
-#   def __init__(self):
-#     self.data = [[[np.random.randint(0, 4) * 1.0] for a in range(10)] for b in range(20)]
-#     self.data = torch.tensor(np.array(self.data))
-#     print(self.data.shape)
+    def __len__(self):
+        return  len(self.idata)
 
-#   def __getitem__(self, index):
-#     d = self.data[index]
-#     return d, 0
-
-#   def __len__(self):
-#     return  len(self.data)
-
-
-train_dataset = TraceDS()
-
-train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                           batch_size=4,
-                                           shuffle=True)
-
-test_dataset = TraceDS()
-
-test_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                           batch_size=4,
-                                           shuffle=True)
 
 # Recurrent neural network (many-to-one)
 class RNN(nn.Module):
@@ -151,6 +124,17 @@ class RNN(nn.Module):
 def main():
     model = RNN(input_size, hidden_size, num_layers, num_classes).to(device)
 
+    train_dataset = TraceEmbDS() # TraceDS()
+
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+                                            batch_size=4,
+                                            shuffle=True)
+
+    test_dataset = TraceEmbDS() # TraceDS()
+
+    test_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+                                            batch_size=4,
+                                            shuffle=True)
 
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
@@ -201,7 +185,7 @@ def main():
         print('Test Accuracy of the model on the 10000 test images: {} %'.format(100 * correct / total))
 
     # Save the model checkpoint
-    torch.save(model.state_dict(), 'model.ckpt')
+    torch.save(model.state_dict(), 'modeltrace.ckpt')
 
 
 def invalidtest():
@@ -237,7 +221,7 @@ def validtest():
 
 
 def load():
-    train_dataset = TraceDS()
+    train_dataset = TraceEmbDS() #TraceDS()
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                                batch_size=4,
@@ -246,7 +230,7 @@ def load():
         print(images.shape, label)
 
 if __name__ == "__main__":
-    # main()
+    main()
     # invalidtest()
-    validtest()
+    # validtest()
     # load()
