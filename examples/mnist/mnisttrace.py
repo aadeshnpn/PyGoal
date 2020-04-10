@@ -15,20 +15,57 @@ from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
 import pickle
 
+
+# Hyper-parameters
 keys = ['S', 'I']
+sequence_length = 132 # 1
+input_size = 17
+hidden_size = 128
+num_layers = 1
+num_classes = 2
+batch_size = 4
+num_epochs = 3
+learning_rate = 0.01
 
-# torch.manual_seed(none)
-class TotalLoss(nn.Module):
-    def __init__(self):
-        super(TotalLoss, self).__init__()
-        self.__dict__.update(locals())
 
-    def forward(self, input, target, numbers):
-        valid, invalid = numbers
-        # total = valid + invalid
-        loss = F.binary_cross_entropy_with_logits(input, target)
-        totloss = invalid * loss
-        return loss
+class TraceEmbDS(Dataset):
+    def __init__(self, fname='traces.pk'):
+        data = pickle.load(open(fname,'rb'))
+        valid, invalid = data
+        invalid = [v['I'] for v in invalid ]
+        valid = [v['I'] for v in valid ]
+
+        for i in range(len(invalid)):
+            # print(i, invalid[i])
+            invalid[i] = torch.stack(invalid[i])
+        for v in range(len(valid)):
+            val = [valid[v][0]]
+            if len(valid[v]) != 17:
+                diff = 17-len(valid[v])
+                val = val * diff
+                valid[v] = val + valid[v]
+            valid[v] = torch.stack(valid[v])
+
+        self.vdata = torch.stack(valid)
+        self.vdata = self.vdata.float()
+        self.vdata = self.vdata.view(self.vdata.shape[0], self.vdata.shape[3] , self.vdata.shape[1])
+        self.idata = torch.stack(invalid)
+        self.idata = self.idata.float()
+        self.idata = self.idata.view(self.idata.shape[0], self.idata.shape[3] , self.idata.shape[1])
+        # print(self.vdata.shape, self.idata.shape)
+
+    def __getitem__(self, index):
+        # print(index)
+        if index < len(self.vdata):
+            d = self.vdata[index]
+            l = 1.0
+        else:
+            d = self.idata[index]
+            l = 0.0
+        return d, l
+
+    def __len__(self):
+        return  len(self.idata)
 
 
 class EnvMNIST:
@@ -98,7 +135,6 @@ class Generator(nn.Module):
         self.dropout2 = nn.Dropout2d(0.5)
         self.fc1 = nn.Linear(9216, 128)
         self.fc2 = nn.Linear(128, 10)
-        # self.bn = nn.BatchNorm1d(128)
 
     def forward(self, x):
         x = self.conv1(x)
@@ -109,60 +145,35 @@ class Generator(nn.Module):
         x = self.dropout1(x)
         x = torch.flatten(x, 1)
         x1 = self.fc1(x)
-        x1 = torch.tanh(x1) #F.tanh(x1)
-        # x1 = self.bn(x1)
-        # x = self.dropout2(x1)
+        x1 = torch.tanh(x1)
         x = self.fc2(x1)
-        # output = F.log_softmax(x, dim=1)
         output = F.softmax(x, dim=1)
         return output, x1
 
 
+# Recurrent neural network (many-to-one)
 class Recognizer(nn.Module):
-    def __init__(self):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
         super(Recognizer, self).__init__()
-
-        self.rnn = nn.LSTM(         # if use nn.RNN(), it hardly learns
-            input_size= 132, #128,
-            hidden_size=64,         # rnn hidden unit
-            num_layers=1,           # number of rnn layer
-            batch_first=False,       # input & output will has batch size as 1s dimension. e.g. (batch, time_step, input_size)
-        )
-
-        self.out = nn.Linear(64, 1)
-        self.sigmoid = nn.Sigmoid()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
-        # x shape (batch, time_step, input_size)
-        # r_out shape (batch, time_step, output_size)
-        # h_n shape (n_layers, batch, hidden_size)
-        # h_c shape (n_layers, batch, hidden_size)
-        r_out, (h_n, h_c) = self.rnn(x, None)   # None represents zero initial hidden state
+        # Set initial hidden and cell states
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
+        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
 
-        # choose r_out at the last time step
-        out = self.out(r_out[:, -1, :])
-        out = self.sigmoid(out)
-        return out
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
 
-
-class Recognizer1(nn.Module):
-    def __init__(self, input_dim, hidden_dim, layer_dim, output_dim):
-        super(Recognizer, self).__init__()
-        self.hidden_dim = hidden_dim
-        # Number of hidden layers
-        self.layer_dim = layer_dim
-        self.rnn = nn.RNN(input_dim, hidden_dim, layer_dim, batch_first=True, nonlinearity='tanh')
-        # Readout layer
-        self.fc = nn.Linear(hidden_dim, output_dim)
-        self.sigmoid = nn.Sigmoid()
-
-    def forward(self, x):
-        h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim) # .to(device)
-        out, hn = self.rnn(x, h0.detach())
+        # print('LSTM output',out.shape)
+        # Decode the hidden state of the last time step
         out = self.fc(out[:, -1, :])
-        # print(out.shape)
-        out = self.sigmoid(out)
+
         return out
+
 
 
 def modify_mnistnet():
@@ -177,16 +188,11 @@ def modify_mnistnet():
 
 
 def greedy_action(prob, nprandom):
-    # print(prob)
     return nprandom.choice([0, 1, 2, 3], p=prob[0])
-    # return np.argmax(prob)
 
 def get_current_state(env, generator):
     image = env.get_images(env.state)
-    # with torch.no_grad():
     actions, fc = generator(image)
-    # return env.state, fc
-    # print(fc.shape, actions.shape)
     return env.state, torch.cat([fc, actions], dim=1)
 
 def generation(generator, env):
@@ -194,16 +200,12 @@ def generation(generator, env):
     actions = [0, 1, 2, 3]
     action = env.nprandom.choice(actions)
     j = 0
-    # states = []
-    # images = []
     curr_state = get_current_state(env, generator)
     trace = create_trace_skeleton(curr_state)
     while True:
         # print(j, env.state, action)
         s, _, _, done = env.step(action)
         j += 1
-        # states.append(s)
-        # print(image.shape)
         image = env.get_images(s)
         actions, fc = generator(image)
         state = get_current_state(env, generator)
@@ -213,10 +215,6 @@ def generation(generator, env):
             break
         if j > 15:
             break
-        # images.append(fc)
-        # print(j, action)
-    # print(actions, torch.sum(actions))
-    # print(states)
     return trace
 
 def recognition(trace):
@@ -242,43 +240,18 @@ def recognition(trace):
     return result, create_trace_dict(trace, i)
 
 
-def propogation(label, trace, generator, recoginzer, optim, error, numbers):
-    input_images = trace
-    # print('input images',len(input_images))
-    # print(input_images[0].requires_grad)
+def propogation(data_loader, generator, recoginzer, optim, error, numbers):
+    # input_images = trace
     input_batch = torch.stack(input_images)
-    # input_batch = torch.view()
-    # print('rrn input', input_batch.shape)
-    # print('input batch size', input_batch.shape)
-    # print(input_batch.shape, input_batch.requires_grad)
-    # exit()
     output = recoginzer(input_batch)
     # dot1 = make_dot(
     #     input_batch, params=dict(generator.named_parameters()))
-
-    # dot2 = make_dot(
-    #     output, params=dict(recoginzer.named_parameters()))
-
     # dot1.render('/tmp/generator.png', view=True)
-    # dot2.render('/tmp/recognizer.png', view=True)
 
-    # exit()
-    # print(output)
-    # if output[0][-1] > 0.5:
-    #     output = 1
-    # else:
-    #    output = 0
-    # Define loss
     optim.zero_grad()
-    # outputs = self.action(state)
-    # label = torch.tensor(label) #.to(device)
     label = torch.ones(output.shape[0]) * label
     label = label.view(output.shape[0], 1)
-    # print(outputs.shape, label.shape)
-    # print('error', type(output[0][-1]), type(label))
-    # print('output', output.shape, label.shape, output, label)
     loss = error(output, label, numbers)
-    # loss.backward(retain_graph=True)
     loss.backward(retain_graph=True)
     # print ("epoch : %d, loss: %1.3f" %(epoch+1, loss.item()))
     optim.step()

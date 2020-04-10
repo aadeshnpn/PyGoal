@@ -239,9 +239,10 @@ def test_real_trace():
                                             batch_size=5,
                                             shuffle=False)
     for data, labels in train_loader:
+
         outputs = model(data)
         _, predicted = torch.max(outputs.data, 1)
-        print(predicted, labels)
+        # print(predicted, labels, data.shape)
 
 
 if __name__ == "__main__":
