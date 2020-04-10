@@ -11,7 +11,7 @@ import pickle
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # print(device)
-device = 'cuda:0'
+# device = 'cuda:0'
 
 # Hyper-parameters
 sequence_length = 132 # 1
@@ -20,7 +20,7 @@ hidden_size = 128
 num_layers = 1
 num_classes = 2
 batch_size = 4
-num_epochs = 20
+num_epochs = 3
 learning_rate = 0.01
 
 
@@ -58,8 +58,8 @@ class TraceDS(Dataset):
 
 
 class TraceEmbDS(Dataset):
-    def __init__(self):
-        data = pickle.load(open('traces.pk','rb'))
+    def __init__(self, fname='traces.pk'):
+        data = pickle.load(open(fname,'rb'))
         valid, invalid = data
         invalid = [v['I'] for v in invalid ]
         valid = [v['I'] for v in valid ]
@@ -229,8 +229,24 @@ def load():
     for images, label in train_loader:
         print(images.shape, label)
 
+
+def test_real_trace():
+    model = RNN(input_size, hidden_size, num_layers, num_classes).to(device)
+    model.load_state_dict(torch.load("modeltrace.ckpt"))
+    train_dataset = TraceEmbDS('tracestest.pk') # TraceDS()
+
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+                                            batch_size=5,
+                                            shuffle=False)
+    for data, labels in train_loader:
+        outputs = model(data)
+        _, predicted = torch.max(outputs.data, 1)
+        print(predicted, labels)
+
+
 if __name__ == "__main__":
-    main()
+    # main()
     # invalidtest()
     # validtest()
     # load()
+    test_real_trace()

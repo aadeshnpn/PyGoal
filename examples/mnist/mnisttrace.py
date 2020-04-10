@@ -424,7 +424,7 @@ def create_valid_traces(env, generator, n=100):
 def create_traces(env, generator):
     valid_trace = []
     invalid_trace = []
-    for epoch in range(4000):
+    for epoch in range(1000):
         print(epoch)
         env.reset()
         trace = generation(generator, env)
@@ -476,7 +476,7 @@ def train_hardcoded():
     iloss = []
     # for epoch in range(15):
     valid_traces, invalid_traces = create_traces(env, generator)
-    pickle.dump((valid_traces,invalid_traces), open( "traces.pk", "wb" ))
+    pickle.dump((valid_traces,invalid_traces), open( "tracestest.pk", "wb" ))
         # print(epoch, 'valid','invalid', len(valid_traces), len(invalid_traces))
         # numbers = (len(valid_traces), len(invalid_traces))
         # if len(valid_traces) >= 1:
