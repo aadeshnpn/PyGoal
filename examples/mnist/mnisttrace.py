@@ -8,13 +8,18 @@ from torch.optim.lr_scheduler import StepLR
 from torch.optim import Adam, SGD
 from torchviz import make_dot
 
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms, utils, datasets
 import numpy as np
+import pickle
+
+
 import matplotlib.pyplot as plt
 
 from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
-import pickle
 
+device = 'cpu'
 
 # Hyper-parameters
 keys = ['S', 'I']
@@ -24,7 +29,7 @@ hidden_size = 128
 num_layers = 1
 num_classes = 2
 batch_size = 4
-num_epochs = 3
+num_epochs = 1
 learning_rate = 0.01
 
 
@@ -240,22 +245,27 @@ def recognition(trace):
     return result, create_trace_dict(trace, i)
 
 
-def propogation(data_loader, generator, recoginzer, optim, error, numbers):
-    # input_images = trace
-    input_batch = torch.stack(input_images)
-    output = recoginzer(input_batch)
-    # dot1 = make_dot(
-    #     input_batch, params=dict(generator.named_parameters()))
-    # dot1.render('/tmp/generator.png', view=True)
+def propogation(train_loader, generator, recoginzer, optim, error):
+    # Train the model
+    total_step = len(train_loader)
+    for epoch in range(num_epochs):
+        for i, (images, labels) in enumerate(train_loader):
+            images = images.reshape(-1, sequence_length, input_size).to(device)
+            images = images.float()
+            labels = labels.to(device)
+            labels = labels.long()
+            # Forward pass
+            outputs = recoginzer(images)
+            loss = error(outputs, labels)
 
-    optim.zero_grad()
-    label = torch.ones(output.shape[0]) * label
-    label = label.view(output.shape[0], 1)
-    loss = error(output, label, numbers)
-    loss.backward(retain_graph=True)
-    # print ("epoch : %d, loss: %1.3f" %(epoch+1, loss.item()))
-    optim.step()
-    return loss.item()
+            # Backward and optimize
+            optim.zero_grad()
+            loss.backward()
+            optim.step()
+
+            if (i+1) % 10 == 0:
+                print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+                    .format(epoch+1, num_epochs, i+1, total_step, loss.item()))
 
 
 def create_trace_skeleton(state):
@@ -394,11 +404,10 @@ def create_valid_traces(env, generator, n=100):
     return valid_traces
 
 
-def create_traces(env, generator):
+def create_traces(env, generator, n=500):
     valid_trace = []
     invalid_trace = []
-    for epoch in range(1000):
-        print(epoch)
+    for epoch in range(n):
         env.reset()
         trace = generation(generator, env)
         result, trace = recognition(trace)
@@ -406,9 +415,6 @@ def create_traces(env, generator):
             valid_trace.append(trace)
         else:
             invalid_trace.append(trace)
-
-        # if len(invalid_trace) >= 100:
-        #    break
 
     return valid_trace, invalid_trace
 
@@ -430,54 +436,59 @@ def test():
         if done:
             break
 
+def test_hardcoded(model, test_loader):
+    # Test the model
+    model.eval()
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images, labels in test_loader:
+            images = images.reshape(-1, sequence_length, input_size).to(device)
+            images = images.float()
+            labels = labels.to(device)
+            labels = labels.long()
+            outputs = model(images)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            # print(predicted, labels)
+            correct += (predicted == labels).sum().item()
+
+        print('Test Accuracy of the model on the 10000 test images: {} %'.format(100 * correct / total))
+
+
 def train_hardcoded():
     # Define neural nets
     generator = modify_mnistnet()
-    recognizer = Recognizer()
-    optimvalid = Adam(
-        recognizer.parameters(),
-        lr=0.003)
+    recognizer = Recognizer(input_size, hidden_size, num_layers, num_classes).to(device)
 
-    optiminvalid = Adam(
-        list(generator.parameters()) + list(recognizer.parameters()),
-        lr=0.003)
+    # Loss and optimizer
+    error = nn.CrossEntropyLoss()
+    optim = torch.optim.Adam(recognizer.parameters(), lr=learning_rate)
 
-    # error = nn.BCELoss()
-    error = TotalLoss()
     env = EnvMNIST(render=False)
     vloss = []
     iloss = []
-    # for epoch in range(15):
-    valid_traces, invalid_traces = create_traces(env, generator)
-    pickle.dump((valid_traces,invalid_traces), open( "tracestest.pk", "wb" ))
-        # print(epoch, 'valid','invalid', len(valid_traces), len(invalid_traces))
-        # numbers = (len(valid_traces), len(invalid_traces))
-        # if len(valid_traces) >= 1:
-        #     for v in range(5):
-        #         # Get valid traces
-        #         # valid_traces = create_valid_traces(env, generator)
-        #         # print(valid_traces[0]['I'][-1])
-        #         losses = 0
-        #         for trace in valid_traces:
-        #             trace = trace['I']
-        #             loss = propogation(1.0, trace, generator, recognizer, optimvalid, error, numbers)
-        #             losses += loss
-        #         print(epoch, v, 'valid', np.mean(losses))
-        #         vloss.append(np.mean(losses))
+    for epoch in range(1):
+        valid_traces, invalid_traces = create_traces(env, generator, 500)
+        name = str(epoch)+'.pk'
+        pickle.dump((valid_traces,invalid_traces), open(name, "wb" ))
+        train_dataset = TraceEmbDS(name)
 
-        # for i in range(1):
-        #     # Gen invalid traces
-        #     losses = 0
-        #     # invalid_traces = create_invalid_traces(env, generator)
-        #     # invalid_traces = invalid_traces[:len(valid_traces)]
-        #     for trace in invalid_traces:
-        #         trace = trace['I']
-        #         # print(trace)
-        #         loss = propogation(0.0, trace, generator, recognizer, optiminvalid, error, numbers)
-        #         losses += loss
-        #     print(epoch, i, 'invalid', np.mean(losses))
-        #     iloss.append(np.mean(losses))
-            # print(epoch, 'invalid', np.mean(losses))
+        train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+                                                batch_size=4,
+                                                shuffle=True)
+
+        propogation(train_loader, generator, recognizer, optim, error)
+
+        valid_traces, invalid_traces = create_traces(env, generator, 100)
+        name = str(epoch)+'t.pk'
+        pickle.dump((valid_traces,invalid_traces), open(name, "wb" ))
+        test_dataset = TraceEmbDS(name)
+
+        test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
+                                                batch_size=50,
+                                                shuffle=True)
+        test_hardcoded(recognizer, test_loader)
 
     # Save both the recognizer and generator
     # torch.save(generator.state_dict(), "generatormain.pt")
