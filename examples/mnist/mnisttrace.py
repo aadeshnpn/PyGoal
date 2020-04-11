@@ -22,7 +22,8 @@ from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
 device = 'cpu'
 
 # Hyper-parameters
-keys = ['S', 'I']
+keys = ['S', 'I', 'A']
+
 sequence_length = 132 # 1
 input_size = 17
 hidden_size = 128
@@ -61,16 +62,19 @@ class TraceEmbDS(Dataset):
 
     def __getitem__(self, index):
         # print(index)
-        if index < len(self.vdata):
-            d = self.vdata[index]
-            l = 1.0
-        else:
-            d = self.idata[index]
-            l = 0.0
-        return d, l
+        # if index < len(self.vdata):
+        #     d = self.vdata[index]
+        #     l = 1.0
+        # else:
+        #     d = self.idata[index]
+        #     l = 0.0
+        # return d, l
+        d = self.vdata[index]
+        l = 1.0
+        return d,l
 
     def __len__(self):
-        return  len(self.idata)
+        return  len(self.vdata)
 
 
 class EnvMNIST:
@@ -198,7 +202,7 @@ def greedy_action(prob, nprandom):
 def get_current_state(env, generator):
     image = env.get_images(env.state)
     actions, fc = generator(image)
-    return env.state, torch.cat([fc, actions], dim=1)
+    return env.state, torch.cat([fc, actions], dim=1), actions
 
 def generation(generator, env):
     # print(generator)
@@ -322,6 +326,9 @@ def main():
             generator.parameters())
             + list(recognizer.parameters())
         , lr=0.003)
+
+    optimgen = SGD(
+            generator.parameters(), lr=0.003)
     # error = nn.MSELoss()
     error = nn.BCELoss()
     env = EnvMNIST(render=False)
@@ -453,7 +460,7 @@ def test_hardcoded(model, test_loader):
             # print(predicted, labels)
             correct += (predicted == labels).sum().item()
 
-        print('Test Accuracy of the model on the 10000 test images: {} %'.format(100 * correct / total))
+        print('Test Accuracy of the model on the {} test images: {} %'.format(total, 100 * correct / total))
 
 
 def train_hardcoded():
@@ -463,25 +470,28 @@ def train_hardcoded():
 
     # Loss and optimizer
     error = nn.CrossEntropyLoss()
-    optim = torch.optim.Adam(recognizer.parameters(), lr=learning_rate)
+    optim = torch.optim.Adam(
+        list(recognizer.parameters()) + list(generator.parameters())
+        , lr=learning_rate)
+
 
     env = EnvMNIST(render=False)
     vloss = []
     iloss = []
-    for epoch in range(1):
+    for epoch in range(10):
         valid_traces, invalid_traces = create_traces(env, generator, 500)
-        name = str(epoch)+'.pk'
-        pickle.dump((valid_traces,invalid_traces), open(name, "wb" ))
+        print(epoch, len(valid_traces), len(invalid_traces))
+        name = 'data/'+str(epoch)+'.pk'
+        pickle.dump((valid_traces, invalid_traces), open(name, "wb" ))
         train_dataset = TraceEmbDS(name)
 
         train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                                batch_size=4,
+                                                batch_size=10,
                                                 shuffle=True)
 
         propogation(train_loader, generator, recognizer, optim, error)
-
         valid_traces, invalid_traces = create_traces(env, generator, 100)
-        name = str(epoch)+'t.pk'
+        name = 'data/'+str(epoch)+'t.pk'
         pickle.dump((valid_traces,invalid_traces), open(name, "wb" ))
         test_dataset = TraceEmbDS(name)
 
@@ -491,8 +501,8 @@ def train_hardcoded():
         test_hardcoded(recognizer, test_loader)
 
     # Save both the recognizer and generator
-    # torch.save(generator.state_dict(), "generatormain.pt")
-    # torch.save(recognizer.state_dict(), "recognizermain.pt")
+    torch.save(generator.state_dict(), "generatormain.pt")
+    torch.save(recognizer.state_dict(), "recognizermain.pt")
 
     # # Plot the loss curves
     # plt.plot(vloss, 'g')
