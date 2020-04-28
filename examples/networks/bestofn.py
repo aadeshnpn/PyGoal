@@ -19,8 +19,8 @@ from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
 
 def env_setup(
         num_agent=10, num_site=2,
-        attach_mode='importance 2 linear',
-        detach_mode='power law', seed=1234):
+        attach_mode='linear',
+        detach_mode='linear', seed=1234):
     # num_agent = 10
     # num_site = 2
     # attach_mode = 'importance 2 linear' # choices for attach interface are' always', 'linear', 'exponential', 'importance linear', 'importance 2 linear', 'importance exponential' or \'importance 2 exponential\'
@@ -193,15 +193,17 @@ class GenRecPropGraph:
             # Map the action to env_action
             # next_state, reward, done, info = self.env.step(
             #     self.env.env_action_dict[action])
-            print(action)
-            next_state, reward, done, info = self.env.step(
+            # print(action)
+            next_state, reward, _, info = self.env.step(
                 action)
+            # self.env.showGraph()
             # self.env.render()
             # print(action)
             nstate = self.get_curr_state(self.env)
+            # print(j, nstate)
             trace = self.trace_accumulator(trace, nstate)
             state = nstate
-            if j >= self.max_trace_len or done is True:
+            if j >= self.max_trace_len:
                 break
             j += 1
 
@@ -372,13 +374,14 @@ def main():
     actions = list(range(0, 2+1))
     gtable = dict()
     goalspec = 'F P_[C][9,none,=>]'
-    genrecprop = GenRecPropGraph(env, keys, goalspec, gtable, actions=actions)
+    genrecprop = GenRecPropGraph(env, keys, goalspec, gtable, actions=actions, max_trace=40)
     genrecprop.get_curr_state(env)
     # for epoch in range(100):
     #     env.step()
     #     genrecprop.get_curr_state(env)
     #     env.showGraph()
-    genrecprop.generator()
+    trace = genrecprop.generator()
+    print(trace['S'][-1], trace['C'][-1])
 
 
 if __name__ == "__main__":

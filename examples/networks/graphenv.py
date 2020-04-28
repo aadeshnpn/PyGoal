@@ -229,18 +229,18 @@ class GraphBestofNEnvironment:
         return False
 
     """ Collection of Interfaces for Factory Design Pattern for Attachment """
-    def _attachAgentAlways(self, random_agent):
+    def _attachAgentAlways(self, random_agent, random_site):
         """There are four attachment types: always, linear, exponential, and importance
         sampling. This method always attaches an agent to a random site unless the agent
         is already attached to a site. Part of factory design pattern for attaching."""
         # random_agent = self._getRandomAgent()
         # if random_agent == None:
         #    return
-        random_site = self._getRandomSite()
+        # random_site = self._getRandomSite()
         random_weight = 1
         self.G.add_edge(random_agent,random_site,weight=random_weight)
 
-    def _attachAgentLinear(self, random_agent):
+    def _attachAgentLinear(self, random_agent, random_site):
         """There are fpur attachment types: always, linear, exponential, and importance
         sampling. This method attaches an agent to a random site with probability linearly
         proportional to the degree of the site unless the agent is already attached to a site.
@@ -250,12 +250,13 @@ class GraphBestofNEnvironment:
         # random_agent = self._getRandomAgent()
         # if random_agent == None:
         #     return
-        random_site = self._getRandomSite()
+        # random_site = self._getRandomSite()
         random_weight = 1
+        # print(random_site, self.G.degree(random_site))
         if self.nprandom.uniform(0,1)<= ADD_EDGE_PROBABILITY*(1+self.G.degree(random_site)):
             self.G.add_edge(random_agent,random_site,weight=random_weight)
 
-    def _attachAgentExponential(self, random_agent):
+    def _attachAgentExponential(self, random_agent, random_site):
         """There are four attachment types: always, linear, exponential, and importance
         sampling. This method attaches an agent to a random site with probability proportional
         to an exponential function of the degree of the site, unless the agent is already
@@ -266,14 +267,14 @@ class GraphBestofNEnvironment:
         # random_agent = self._getRandomAgent()
         # if random_agent == None:
         #    return
-        random_site = self._getRandomSite()
+        # random_site = self._getRandomSite()
         random_weight = 1
         magic_number = 3 # TODO: replace this magic_number with an adjustable parameter
         threshold = np.exp(-1.0* magic_number*(self.NumAgents-1-self.G.degree(random_site))/self.NumAgents)
         if self.nprandom.uniform(0,1) <= max(ADD_EDGE_PROBABILITY,threshold):
             self.G.add_edge(random_agent,random_site,weight=random_weight)
 
-    def _attachAgentImportanceLinear(self, random_agent):
+    def _attachAgentImportanceLinear(self, random_agent, random_site):
         """There are four attachment types: always, linear, exponential, and importance
         sampling. This method attaches an agent to a site using importance smapling,
         unless the agent is already attached to a site. The importance sampling means that
@@ -299,7 +300,7 @@ class GraphBestofNEnvironment:
         site = self._findSiteFromDegreePDF(pdf,D,siteDegreeList)
         self.G.add_edge(random_agent,site,weight=random_weight)
 
-    def _attachAgentImportanceExponential(self, random_agent):
+    def _attachAgentImportanceExponential(self, random_agent, random_site):
         """There are four attachment types: always, linear, exponential, and importance
         sampling. This method attaches an agent to a site using importance smapling,
         unless the agent is already attached to a site. The importance sampling means that
@@ -325,7 +326,7 @@ class GraphBestofNEnvironment:
         site = self._findSiteFromDegreePDF(pdf, D, siteDegreeList)
         self.G.add_edge(random_agent,site,weight=random_weight)
 
-    def _attachAgentImportanceLinear2Groups(self, random_agent):
+    def _attachAgentImportanceLinear2Groups(self, random_agent, random_site):
         """This method attaches an agent to a site using importance smapling,
         unless the agent is already attached to a site. The importance sampling means that
         an agent will always attach to a site (unless the agent is already attached), and the
@@ -356,7 +357,7 @@ class GraphBestofNEnvironment:
         site = self._findSiteFromDegreePDF(pdf, D, siteDegreeList)
         self.G.add_edge(random_agent,site,weight=random_weight)
 
-    def _attachAgentImportanceExponential2Groups(self, random_agent):
+    def _attachAgentImportanceExponential2Groups(self, random_agent, random_site):
         """This method attaches an agent to a site using importance smapling,
         unless the agent is already attached to a site. The importance sampling means that
         an agent will always attach to a site (unless the agent is already attached), and the
@@ -479,13 +480,22 @@ class GraphBestofNEnvironment:
         ## Check if the agent is attached to a site or not
         # If the agent is attached to a site do the dis-attachment process
         if self.G.degree(random_agent) == 0:
-            self.attachAgent(random_agent)
+            # Agent is not attached to any site.
+            # Based on the action attach it to the give action
+            if action != 0:
+                site = 's' + str(action-1)
+                self.attachAgent(random_agent, site)
         # Else do the deattachment process
         else:
             edge_to_remove = [val for val in self.G.edges if val[0]==random_agent][0]
             site_to_remove = edge_to_remove[1] # sites have names 'si' where 's' is the character s and 'i' is an integer
             site_quality = int(site_to_remove[1:len(site_to_remove)]) # Take off the leading 's' and make the number an int
             self.detachAgent(edge_to_remove, np.power(site_quality, site_quality))
+            if action != 0:
+                if self.G.degree(random_agent) == 0:
+                    site = 's' + str(action-1)
+                    self.attachAgent(random_agent, site)
+
         self.setStateSpace()
         done = self.isGraphSuccessful()
         return self.state, 0.0, done, dict()
