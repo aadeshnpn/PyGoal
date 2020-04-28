@@ -472,7 +472,7 @@ class GraphBestofNEnvironment:
         for agent, site in self.G.edges:
             self.state[int(agent[1:])] = int(site[1:])+1
 
-    def step(self):
+    def step(self, action):
         # Get a random agent
         random_agent = 'a' + str(self.nprandom.randint(self.NumAgents))
 

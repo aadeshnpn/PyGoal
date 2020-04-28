@@ -17,14 +17,17 @@ from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
 
 
-def env_setup():
-    num_agent = 10
-    num_site = 2
-    attach_mode = 'importance 2 linear' # choices for attach interface are' always', 'linear', 'exponential', 'importance linear', 'importance 2 linear', 'importance exponential' or \'importance 2 exponential\'
-    detach_mode = 'power law' # choices are 'uniform', 'linear', 'exponential', 'power law', or 'perfect'
-    seed = 1234
-    env = GraphBestofNEnvironment(num_agent, num_site, attach_mode, detach_mode, seed=seed)
-    # env.seed(seed)
+def env_setup(
+        num_agent=10, num_site=2,
+        attach_mode='importance 2 linear',
+        detach_mode='power law', seed=1234):
+    # num_agent = 10
+    # num_site = 2
+    # attach_mode = 'importance 2 linear' # choices for attach interface are' always', 'linear', 'exponential', 'importance linear', 'importance 2 linear', 'importance exponential' or \'importance 2 exponential\'
+    # detach_mode = 'power law' # choices are 'uniform', 'linear', 'exponential', 'power law', or 'perfect'
+    # seed = 1234
+    env = GraphBestofNEnvironment(
+        num_agent, num_site, attach_mode, detach_mode, seed=seed)
     env.reset()
     return env
 
@@ -49,7 +52,10 @@ class GenRecPropGraph:
                 seed)
 
     def get_action(self, state):
-        return self.gtable.greedy_action(state[0])
+        return self.nprandom.choice(
+            self.actionsidx,
+            p=list(self.gtable[state].values())
+            )
 
     def create_gtable_indv(self, state):
         p = np.ones(len(self.actionsidx), dtype=np.float64)
@@ -120,7 +126,7 @@ class GenRecPropGraph:
     def run_policy(self, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
         # action = self.get_action_policy(self.gtable, state)
-        action = self.get_action(state)
+        action = self.get_action(state[0])
 
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
         trace['A'] = [action]
@@ -160,7 +166,7 @@ class GenRecPropGraph:
         return False
 
     def generator(self, env_reset=False):
-        self.env.env.reset()
+        self.env.reset()
         state = self.get_curr_state(self.env)
         trace = self.create_trace_skeleton(state)
 
@@ -170,7 +176,13 @@ class GenRecPropGraph:
 
         while not done:
             # Explore action or exploit
-            action = self.get_action(state)
+            try:
+                action = self.get_action(self.gtable_key(state))
+            except KeyError:
+                self.create_gtable_indv(self.gtable_key(state))
+                action = self.get_action(self.gtable_key(state))
+
+            # action = self.get_action(state)
             # Addd action to the trace
             try:
                 temp = trace['A'][-1].copy()
@@ -181,6 +193,7 @@ class GenRecPropGraph:
             # Map the action to env_action
             # next_state, reward, done, info = self.env.step(
             #     self.env.env_action_dict[action])
+            print(action)
             next_state, reward, done, info = self.env.step(
                 action)
             # self.env.render()
@@ -188,7 +201,7 @@ class GenRecPropGraph:
             nstate = self.get_curr_state(self.env)
             trace = self.trace_accumulator(trace, nstate)
             state = nstate
-            if j >= self.max_trace_len or nstate[1] is True:
+            if j >= self.max_trace_len or done is True:
                 break
             j += 1
 
@@ -276,22 +289,17 @@ class GenRecPropGraph:
 
     def get_curr_state(self, env):
         # Things that I need to make the trace
-        rgb_img = env.render(
-            mode='rgb_array',
-            highlight=False,
-            tile_size=env.tile_size
-        )
-        # return rgb_img
-
-        fwd_pos = env.front_pos
-        fwd_cell = env.grid.get(*fwd_pos)
-        if fwd_cell is not None:
-            goal = fwd_cell.type == 'goal'
-        else:
-            goal = False
-        return torch.tensor(rgb_img.reshape(
-            rgb_img.shape[2], rgb_img.shape[0],
-            rgb_img.shape[1])), goal
+        state = env.state
+        site_degree = np.zeros(env.getNumSites()+1)
+        unique, count = np.unique(state, return_counts=True)
+        for j in range(len(unique)):
+            if unique[j] == 0:
+                pass
+            else:
+                site_degree[j] = count[j]
+        # print(unique, count, site_degree)
+        # print(state, np.max(site_degree))
+        return ''.join(map(str, state)), int(np.max(site_degree))
 
     # Need to work on this
     def set_state(self, env, trace, i):
@@ -316,8 +324,8 @@ class GenRecPropGraph:
         return np.argmax(action.detach().cpu().numpy())
 
     def gtable_key(self, state):
-        ss = state
-        # return tuple(ss)
+        # ss = state
+        return state[0]
 
     def get_policy(self):
         policy = dict()
@@ -359,10 +367,18 @@ class GenRecPropGraph:
 
 
 def main():
-    env = env_setup()
-    for epoch in range(100):
-        env.step()
-        env.showGraph()
+    env = env_setup(10, 2)
+    keys = ['S', 'C']
+    actions = list(range(0, 2+1))
+    gtable = dict()
+    goalspec = 'F P_[C][9,none,=>]'
+    genrecprop = GenRecPropGraph(env, keys, goalspec, gtable, actions=actions)
+    genrecprop.get_curr_state(env)
+    # for epoch in range(100):
+    #     env.step()
+    #     genrecprop.get_curr_state(env)
+    #     env.showGraph()
+    genrecprop.generator()
 
 
 if __name__ == "__main__":
