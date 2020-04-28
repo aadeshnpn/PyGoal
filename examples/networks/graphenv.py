@@ -432,9 +432,9 @@ class GraphBestofNEnvironment:
         degreeTopSite = self.getTopSiteDegree()
         #print("Degree of highest quality site is",degreeTopSite)
         if degreeTopSite == highest_degree:
-            return 1
+            return True
         else:
-            return 0
+            return False
 
     def getNumAgents(self):
         return self.NumAgents
@@ -487,4 +487,5 @@ class GraphBestofNEnvironment:
             site_quality = int(site_to_remove[1:len(site_to_remove)]) # Take off the leading 's' and make the number an int
             self.detachAgent(edge_to_remove, np.power(site_quality, site_quality))
         self.setStateSpace()
-        return self.state, 0.0, False, dict()
+        done = self.isGraphSuccessful()
+        return self.state, 0.0, done, dict()
