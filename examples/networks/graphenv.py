@@ -19,7 +19,7 @@ class GraphBestofNEnvironment:
         else:
             self.nprandom = np.random.RandomState(    # pylint: disable=E1101
                 seed)
-
+        self.seed = seed
         self.NumAgents = num_agents
         self.state = np.zeros(num_agents, dtype=np.int16)
         self.NumSites = num_sites
@@ -390,6 +390,9 @@ class GraphBestofNEnvironment:
     def resetGraph(self):
         edges = [e for e in self.G.edges]
         self.G.remove_edges_from(edges)
+
+    def reset(self):
+        self.resetGraph()
 
     def showGraph(self):
         #pos = dict()
