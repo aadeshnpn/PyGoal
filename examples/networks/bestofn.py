@@ -123,11 +123,11 @@ class GenRecPropGraph:
         and develope a BT structure. """
         pass
 
-    def run_policy(self, max_trace_len=20, verbose=False):
+    def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
         # action = self.get_action_policy(self.gtable, state)
-        action = self.get_action(state[0])
-
+        # action = self.get_action(state[0])
+        action = policy[state[0]]
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
         trace['A'] = [action]
 
@@ -141,15 +141,16 @@ class GenRecPropGraph:
         trace = updateTrace(trace, state)
         j = 0
         while True:
-            self.env.render()
-            next_state, reward, done, info = self.env.step(
+            # self.env.render()
+            next_state, reward, _, info = self.env.step(
                 action)
 
             next_state = self.get_curr_state(self.env)
             trace = updateTrace(trace, next_state)
             state = next_state
             try:
-                action = self.get_action(state)
+                action = policy[state[0]]
+                # action = self.get_action(state)
                 # action = self.get_action_policy(self.gtable, state)
                 trace['A'].append(action)
             # Handeling terminal state
@@ -158,7 +159,7 @@ class GenRecPropGraph:
             # Run the policy as long as the goal is not achieved or less than j
             traceset = trace.copy()
             if self.evaluate_trace(self.goalspec, traceset):
-                print(traceset['G'])
+                print(traceset['C'])
                 return True
             if j > max_trace_len:
                 return False
@@ -257,7 +258,7 @@ class GenRecPropGraph:
             if result is False:
                 new_prob = prob - (Psi * prob)
             else:
-                new_prob = prob + (Psi * prob)
+                new_prob = prob + (Psi * prob )
 
             self.gtable[ss][a] = new_prob
             probs = np.array(list(self.gtable[ss].values()))
@@ -364,21 +365,11 @@ def main():
     keys = ['S', 'C']
     actions = list(range(0, 2+1))
     gtable = dict()
-    goalspec = 'F P_[C][5,none,<=]'
-    genrecprop = GenRecPropGraph(env, keys, goalspec, gtable, actions=actions, max_trace=40)
-    genrecprop.get_curr_state(env)
-    # for epoch in range(100):
-    #     env.step()
-    #     genrecprop.get_curr_state(env)
-    #     env.showGraph()
-    trace = genrecprop.generator()
-    print(gtable)
-    result, trace = genrecprop.recognizer(trace)
-    # print('recognizer',result, trace)
-    genrecprop.propagate(result, trace)
-    print(gtable)
-    # print(genrecprop.gtable)
-    # print(trace['S'][-1], trace['C'][-1])
+    goalspec = 'F P_[C][6,none,<=]'
+    genrecprop = GenRecPropGraph(
+        env, keys, goalspec, gtable, actions=actions, max_trace=20)
+    genrecprop.train(100)
+    print('inference', genrecprop.inference())
 
 
 if __name__ == "__main__":
