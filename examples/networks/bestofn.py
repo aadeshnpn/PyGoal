@@ -226,7 +226,9 @@ class GenRecPropGraph:
         # Loop through the trace to find the shortest best trace
         for i in range(0, len(traceset[akey])):
             t = self.create_trace_flloat(traceset, i)
+            # print(i, t['C'], parsed_formula)
             result = parsed_formula.truth(t)
+            # print(i, t['C'], parsed_formula, result)
             if result is True:
                 self.set_state(self.env, trace, i)
                 return True, self.create_trace_dict(trace, i)
@@ -238,22 +240,18 @@ class GenRecPropGraph:
 
         traces = [trace[k][::-1] for k in self.keys]
         tracea = trace['A'][::-1]
-        images = torch.stack(traces[0])
-        # self.gtable.feedback(images, result)
-
         psi = 0.9
         j = 1
-        # print(traces)
-        targets = [torch.ones(4) / 4.0 ]
-        # targets = []
         for i in range(0, len(traces[0])-1, 1):
             a = tracea[i]
             tempvals = [t[i+1] for t in traces]
-            tempvals = tempvals[0].reshape(1, *tempvals[0].shape)
-            # print(tempvals.shape)
-            distribution = self.gtable.action(tempvals).detach().numpy()[0]
-            # print(distribution)
-            prob = distribution[a]
+            ss = self.gtable_key(tempvals)
+            try:
+                prob = self.gtable[ss][a]
+            except KeyError:
+                self.create_gtable_indv(self.gtable_key(ss))
+                prob = self.gtable[ss][a]
+
             Psi = pow(psi, j)
             j += 1
             if result is False:
@@ -261,18 +259,11 @@ class GenRecPropGraph:
             else:
                 new_prob = prob + (Psi * prob)
 
-            distribution[a] = new_prob
-            probs = np.array(distribution)
+            self.gtable[ss][a] = new_prob
+            probs = np.array(list(self.gtable[ss].values()))
             probs = probs / probs.sum()
-            # Train the neural net with this new probability
-            # Backprop probs
-            # self.gtable.feedback(tempvals[0], probs)
-            probs = torch.tensor(probs)
-            targets.append(probs)
 
-        targets = torch.stack(targets)
-        # print(images.shape, targets.shape)
-        self.gtable.feedback(images, targets)
+            self.gtable[ss] = dict(zip(self.gtable[ss].keys(), probs))
 
     def gen_rec_prop(self, epoch=50):
         # Run the generator, recognizer loop for some epocs
@@ -373,7 +364,7 @@ def main():
     keys = ['S', 'C']
     actions = list(range(0, 2+1))
     gtable = dict()
-    goalspec = 'F P_[C][9,none,=>]'
+    goalspec = 'F P_[C][5,none,<=]'
     genrecprop = GenRecPropGraph(env, keys, goalspec, gtable, actions=actions, max_trace=40)
     genrecprop.get_curr_state(env)
     # for epoch in range(100):
@@ -381,7 +372,13 @@ def main():
     #     genrecprop.get_curr_state(env)
     #     env.showGraph()
     trace = genrecprop.generator()
-    print(trace['S'][-1], trace['C'][-1])
+    print(gtable)
+    result, trace = genrecprop.recognizer(trace)
+    # print('recognizer',result, trace)
+    genrecprop.propagate(result, trace)
+    print(gtable)
+    # print(genrecprop.gtable)
+    # print(trace['S'][-1], trace['C'][-1])
 
 
 if __name__ == "__main__":
