@@ -1,20 +1,20 @@
-import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
+# import torch.optim as optim
 from torchvision import datasets, transforms
-from torch.optim.lr_scheduler import StepLR
-from torch.optim import Adam, SGD
-from torchviz import make_dot
+# from torch.optim.lr_scheduler import StepLR
+# from torch.optim import Adam, SGD
+# from torchviz import make_dot
 
-from torch.utils.data import Dataset, DataLoader
-from torchvision import transforms, utils, datasets
+from torch.utils.data import Dataset
+# from torchvision import transforms, utils, datasets
 import numpy as np
 import pickle
+import os
 
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
@@ -24,9 +24,9 @@ device = 'cpu'
 # Hyper-parameters
 keys = ['S', 'I']
 
-sequence_length = 132 # 1
-input_size = 17
-hidden_size = 128
+sequence_length = 128  # 1
+input_size = 128
+hidden_size = 10
 num_layers = 1
 num_classes = 2
 batch_size = 4
@@ -65,8 +65,8 @@ class TraceEmbDS(Dataset):
     def __init__(self, valid, invalid):
         # data = pickle.load(open(fname,'rb'))
         # valid, invalid = data
-        invalid = [v['I'] for v in invalid ]
-        valid = [v['I'] for v in valid ]
+        invalid = [v['I'] for v in invalid]
+        valid = [v['I'] for v in valid]
 
         for i in range(len(invalid)):
             # print(i, invalid[i])
@@ -84,7 +84,9 @@ class TraceEmbDS(Dataset):
             self.vdata = torch.stack(valid)
             self.vdata = self.vdata.float()
             shape = self.vdata.shape
-            self.vdata = self.vdata.view(shape[0], shape[1], shape[4], shape[5])
+            self.vdata = self.vdata.view(
+                shape[0], shape[1], shape[4], shape[5]
+                )
         else:
             self.vdata = []
         # print(self.vdata.shape)
@@ -100,25 +102,25 @@ class TraceEmbDS(Dataset):
         if index < len(self.vdata):
             try:
                 d = self.vdata[index]
-                l = 1.0
+                l = 1.0     # noqa: E741
             except KeyError:
                 d = self.vdata[0]
-                l = 1.0
+                l = 1.0     # noqa: E741
         else:
             index -= len(self.vdata)
             try:
                 d = self.idata[index]
-                l = 0.0
+                l = 0.0     # noqa: E741
             except KeyError:
                 d = self.idata[index]
-                l = 0.0
+                l = 0.0     # noqa: E741
         # return d, l
         # d = self.vdata[index]
         # l = 1.0
-        return d,l
+        return d, l
 
     def __len__(self):
-        return  len(self.idata)//2 # * 2 # + len(self.idata)
+        return len(self.idata) // 2  # * 2 # + len(self.idata)
 
 
 class TraceEmbDSOne(Dataset):
@@ -126,7 +128,7 @@ class TraceEmbDSOne(Dataset):
         # data = pickle.load(open(fname,'rb'))
         # valid, invalid = data
         self.label = label
-        trace = [v['I'] for v in trace ]
+        trace = [v['I'] for v in trace]
         valid = trace
         for v in range(len(valid)):
             val = [valid[v][0]]
@@ -146,7 +148,7 @@ class TraceEmbDSOne(Dataset):
         return d, self.label
 
     def __len__(self):
-        return  len(self.vdata)
+        return len(self.vdata)
 
 
 class EnvMNIST:
@@ -155,19 +157,19 @@ class EnvMNIST:
         use_cuda = True
         kwargs = {'num_workers': 8, 'pin_memory': True} if use_cuda else {}
         self.train_loader = torch.utils.data.DataLoader(
-            datasets.MNIST('../data', train=True, download=True,
-            transform=transforms.Compose([
-            transforms.ToTensor(),
-            transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-            batch_size=60000, shuffle=False, **kwargs)
+                datasets.MNIST('../data', train=True, download=True,
+                transform=transforms.Compose([  # noqa: E128
+                            transforms.ToTensor(),
+                            transforms.Normalize((0.1307,), (0.3081,))
+                        ])),
+                batch_size=60000, shuffle=False, **kwargs)
         images, labels = None, None
         for image, label in self.train_loader:
             images = image
             labels = label
         idxs = []
         for i in range(10):
-            idx = torch.where(labels==i)[0].data.numpy()
+            idx = torch.where(labels == i)[0].data.numpy()
             # print(idx, idx.shape)
             idxs.append(idx)
         self.images = images
@@ -179,7 +181,7 @@ class EnvMNIST:
 
     def step(self, action):
         done = False
-        curr_state_image = self.get_images(self.state)
+        # curr_state_image = self.get_images(self.state)
         if action == 0:
             new_state = self.state - 1
         elif action == 1:
@@ -190,7 +192,7 @@ class EnvMNIST:
         self.state = new_state
         if self.state == 5:
             done = True
-        if self.render == True:
+        if self.render is True:
             # plt.imshow(curr_state_image.view(28,28))
             # plt.show()
             pass
@@ -199,7 +201,6 @@ class EnvMNIST:
     def reset(self):
         self.state = 0
         self.idxs = self.idxs_back.copy()
-
 
     def get_images(self, label):
         i = self.nprandom.choice(self.idxs[label], replace=False)
@@ -235,12 +236,14 @@ class Generator(nn.Module):
 
 # Recurrent neural network (many-to-one)
 class Recognizer(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, num_classes, generator):
+    def __init__(
+            self, input_size, hidden_size, num_layers, num_classes, generator):
         super(Recognizer, self).__init__()
         self.generator = generator
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        self.lstm = nn.LSTM(
+            input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
 
     def forward(self, x):
@@ -253,16 +256,22 @@ class Recognizer(nn.Module):
         # torch.Size([10, 132, 17])
         # torch.Size([8, 132, 17])
         # print(x.shape)
-        actions, fc = self.generator(x)
+        print('image', x.shape)
+        _, x = self.generator(x)
         # print(actions.shape, fc.shape)
-        x = torch.cat([fc, actions], dim=1)
-        x = x.reshape(1, x.shape[1], x.shape[0])
-        # print(x.shape)
-        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
-        c0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
+        # x = torch.cat([fc, actions], dim=1)
+        x = x.reshape(1, x.shape[0], x.shape[1])
+        print('image reshape size', x.shape)
+        h0 = torch.zeros(
+            self.num_layers, x.size(0), self.hidden_size).to(device)
+        c0 = torch.zeros(
+            self.num_layers, x.size(0), self.hidden_size).to(device)
 
         # Forward propagate LSTM
-        out, _ = self.lstm(x, (h0, c0))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+        out, _ = self.lstm(x, (h0, c0))
+        print('LSTM layer', out.shape)
+        exit()
+        # out: tensor of shape (batch_size, seq_length, hidden_size)
 
         # print('LSTM output',out.shape)
         # Decode the hidden state of the last time step
@@ -276,8 +285,8 @@ def modify_mnistnet():
     model.load_state_dict(torch.load("mnist_cnn.pt"))
     for param in model.parameters():
         param.requires_grad = False
-    model.fc2 = nn.Linear(128, 4)
-    model.fc2.requires_grad = True
+    # model.fc2 = nn.Linear(128, 4)
+    # model.fc2.requires_grad = True
     # model.fc2.requires_grad = True
     return model
 
@@ -285,11 +294,13 @@ def modify_mnistnet():
 def greedy_action(prob, nprandom):
     return nprandom.choice([0, 1, 2, 3], p=prob[0])
 
+
 def get_current_state(env, generator):
     image = env.get_images(env.state)
     # actions, fc = generator(image)
     # return env.state, torch.cat([fc, actions], dim=1), actions
     return env.state, image
+
 
 def generation(generator, env):
     # print(generator)
@@ -304,8 +315,9 @@ def generation(generator, env):
         s, _, _, done = env.step(action)
         j += 1
         image = env.get_images(s)
-        # actions, fc = generator(image)
-        actions, _ = generator(image)
+        print(image.shape)
+        actions, fc = generator(image)
+        # actions, _ = generator(image)
         state = get_current_state(env, generator)
         trace = trace_accumulator(trace, state)
         action = greedy_action(actions.data.numpy(), env.nprandom)
@@ -315,6 +327,7 @@ def generation(generator, env):
             break
     # print(trace['S'])
     return trace
+
 
 def recognition(trace):
     goalspec = 'F P_[S][5,none,==]'
@@ -344,7 +357,8 @@ def propogation(train_loader, recoginzer, optim, optimgen, error, gerror):
     total_step = len(train_loader)
     for epoch in range(num_epochs):
         for i, (images, labels) in enumerate(train_loader):
-            # images = images.reshape(-1, sequence_length, input_size).to(device)
+            # images = images.reshape(
+            # -1, sequence_length, input_size).to(device)
             # print(images.shape, labels.shape)
             shape = images.shape
             images = images.reshape(shape[1], shape[0], shape[2], shape[3])
@@ -355,26 +369,27 @@ def propogation(train_loader, recoginzer, optim, optimgen, error, gerror):
             # print(images.grad_fn, images.grad_fn.next_functions)
             outputs, actions = recoginzer(images)
             # print('recognizer', outputs.shape, actions.shape, labels.shape)
-            gloss = gerror(actions, labels)
+            # gloss = gerror(actions, labels)
 
             # Recognizer loss
-            loss = error(outputs, labels) # * sum(labels==0.0)
+            loss = error(outputs, labels)   # * sum(labels==0.0)
 
             # Backward and optimize
             optim.zero_grad()
             loss.backward(retain_graph=True)
             optim.step()
 
-            optimgen.zero_grad()
-            gloss.backward()
-            optimgen.step()
-
+            # optimgen.zero_grad()
+            # gloss.backward()
+            # optimgen.step()
 
             if (i+1) % 10 == 0:
-                print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
-                    .format(epoch+1, num_epochs, i+1, total_step, loss.item()))
+                print(
+                    'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(
+                        epoch+1, num_epochs, i+1, total_step, loss.item()))
         # print(epoch, generator.fc2.weight, generator.fc2.bias)
         # print(epoch, generator.fc2.bias)
+
 
 def create_trace_skeleton(state):
     # Create a skeleton for trace
@@ -385,6 +400,7 @@ def create_trace_skeleton(state):
         j += 1
     return trace
 
+
 def trace_accumulator(trace, state):
     for j in range(len(keys)):
         # Add the state variables to the trace
@@ -392,6 +408,7 @@ def trace_accumulator(trace, state):
         # temp.append(state[j])
         trace[keys[j]].append(state[j])
     return trace
+
 
 def create_trace_flloat(traceset, i):
     setslist = [create_sets(traceset[k][:i]) for k in keys]
@@ -404,8 +421,10 @@ def create_trace_flloat(traceset, i):
     t = FiniteTraceDict.fromDictSets(keydictlist)
     return t
 
+
 def create_sets(trace):
     return [set([l]) for l in trace]
+
 
 def create_trace_dict(trace, i):
     tracedict = dict()
@@ -436,25 +455,29 @@ def test_hardcoded(model, test_loader):
         correct = 0
         total = 0
         for images, labels in test_loader:
-            # images = images.reshape(-1, sequence_length, input_size).to(device)
+            # images = images.reshape(
+            # -1, sequence_length, input_size).to(device)
             shape = images.shape
             images = images.reshape(shape[1], shape[0], shape[2], shape[3])
             images = images.float()
             labels = labels.to(device)
             labels = labels.long()
-            outputs,_ = model(images)
+            outputs, _ = model(images)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             # print(predicted, labels)
             correct += (predicted == labels).sum().item()
 
-        print('Test Accuracy of the model on the {} test images: {} %'.format(total, 100 * correct / total))
+        print(
+            'Test Accuracy of the model on the {} test images: {} %'.format(
+                total, 100 * correct / total))
 
 
 def main():
     # Define neural nets
     generator = modify_mnistnet()
-    recognizer = Recognizer(input_size, hidden_size, num_layers, num_classes, generator).to(device)
+    recognizer = Recognizer(
+        input_size, hidden_size, num_layers, num_classes, generator).to(device)
 
     gerror = GeneratorLoss()
     # Loss and optimizer
@@ -464,15 +487,24 @@ def main():
         generator.parameters(), lr=learning_rate)
 
     optim = torch.optim.Adam(
-        list(recognizer.parameters()) + list(generator.parameters())
-        , lr=learning_rate)
-
+        list(recognizer.parameters()) +
+        list(generator.parameters()), lr=learning_rate
+        )
 
     env = EnvMNIST(render=False)
-    vloss = []
-    iloss = []
+    # vloss = []
+    # iloss = []
     for epoch in range(10):
-        valid_traces, invalid_traces = create_traces(env, generator, 200)
+        fname = 'data/'+str(epoch)+'t.pt'
+        if os.path.isfile(fname):
+            # valid_traces, invalid_traces = pickle.load(open(fname, 'rb'))
+            valid_traces, invalid_traces = torch.load(fname)
+        else:
+            # valid_traces, invalid_traces = create_traces(env, generator, 100)
+            valid_traces, invalid_traces = create_traces(env, recognizer, 100)
+            # pickle.dump((valid_traces, invalid_traces), open(fname, "wb"))
+            torch.save((valid_traces, invalid_traces), fname)
+
         print(epoch, len(valid_traces), len(invalid_traces))
         # print(valid_traces)
         # print(invalid_traces)
@@ -480,9 +512,10 @@ def main():
         # pickle.dump([valid_traces, invalid_traces], open(name, "wb" ))
         # exit()
         train_dataset = TraceEmbDS(valid_traces, invalid_traces)
-        train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
-                                                batch_size=1,
-                                                shuffle=True)
+        train_loader = torch.utils.data.DataLoader(
+            dataset=train_dataset,
+            batch_size=1,
+            shuffle=True)
         propogation(
             train_loader, recognizer,
             optim, optimgen, error, gerror)
@@ -493,9 +526,10 @@ def main():
         print(epoch, 'test', len(valid_traces), len(invalid_traces))
         test_dataset = TraceEmbDS(valid_traces, invalid_traces)
 
-        test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
-                                                batch_size=1,
-                                                shuffle=True)
+        test_loader = torch.utils.data.DataLoader(
+            dataset=test_dataset,
+            batch_size=1,
+            shuffle=True)
         test_hardcoded(recognizer, test_loader)
 
     # Save both the recognizer and generator
@@ -507,9 +541,10 @@ def main():
     # plt.plot(iloss, 'r')
     # plt.show()
 
+
 def test():
-    train_dataset = TraceEmbDS(name)
-    # pass
+    # train_dataset = TraceEmbDS(name)
+    pass
 
 
 if __name__ == "__main__":
