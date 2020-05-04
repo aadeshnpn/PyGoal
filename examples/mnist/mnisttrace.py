@@ -71,7 +71,7 @@ class TraceEmbDS(Dataset):
         # return d, l
         d = self.vdata[index]
         l = 1.0
-        return d,l
+        return d, l
 
     def __len__(self):
         return  len(self.vdata)
@@ -95,7 +95,7 @@ class EnvMNIST:
             labels = label
         idxs = []
         for i in range(10):
-            idx = torch.where(labels==i)[0].data.numpy()
+            idx = torch.where(labels == i)[0].data.numpy()
             # print(idx, idx.shape)
             idxs.append(idx)
         self.images = images
@@ -107,7 +107,7 @@ class EnvMNIST:
 
     def step(self, action):
         done = False
-        curr_state_image = self.get_images(self.state)
+        # curr_state_image = self.get_images(self.state)
         if action == 0:
             new_state = self.state - 1
         elif action == 1:
@@ -118,7 +118,7 @@ class EnvMNIST:
         self.state = new_state
         if self.state == 5:
             done = True
-        if self.render == True:
+        if self.render is True:
             # plt.imshow(curr_state_image.view(28,28))
             # plt.show()
             pass
@@ -127,7 +127,6 @@ class EnvMNIST:
     def reset(self):
         self.state = 0
         self.idxs = self.idxs_back.copy()
-
 
     def get_images(self, label):
         i = self.nprandom.choice(self.idxs[label], replace=False)

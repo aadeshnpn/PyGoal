@@ -4,8 +4,12 @@ import torchvision.transforms as transforms
 import torchvision.datasets as dsets
 import torch.nn.functional as F
 
+from generatorloss import (
+    EnvMNIST
+    )
 
-device = 'cuda:0'
+
+device = 'cpu'
 
 '''
 STEP 1: LOADING DATASET
@@ -42,10 +46,11 @@ def shuffel_labels(images, labels, i):
         return images[indx], labels[indx], torch.tensor([1])
     else:
         return images, labels, torch.tensor([0])
-    
+
 '''
 STEP 3: CREATE MODEL CLASS
 '''
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -79,46 +84,6 @@ def modify_mnistnet():
     return model
 
 
-# class RNNModel(nn.Module):
-#     def __init__(self, input_dim, hidden_dim, layer_dim, output_dim, generator):
-#         super(RNNModel, self).__init__()
-#         # Hidden dimensions
-#         self.hidden_dim = hidden_dim
-
-#         # Number of hidden layers
-#         self.layer_dim = layer_dim
-
-#         self.generator = generator
-#         # Building your RNN
-#         # batch_first=True causes input/output tensors to be of shape
-#         # (batch_dim, seq_dim, feature_dim)
-#         # self.rnn = nn.RNN(input_dim, hidden_dim, layer_dim, batch_first=True, nonlinearity='relu')
-#         # self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
-#         self.rnn = nn.LSTM(input_dim, hidden_dim, layer_dim, batch_first=True)
-
-#         # Readout layer
-#         self.fc = nn.Linear(hidden_dim, output_dim)
-
-#     def forward(self, x):
-
-#         _, x = self.generator(x)
-#         # print(x.shape)
-#         x = x.view(x.shape[0], 1, x.shape[1])
-#         # Initialize hidden state with zeros
-#         h0 = torch.zeros(self.layer_dim, x.size(0), self.hidden_dim).requires_grad_()
-
-#         # We need to detach the hidden state to prevent exploding/vanishing gradients
-#         # This is part of truncated backpropagation through time (BPTT)
-#         out, hn = self.rnn(x, h0.detach())
-
-#         # Index hidden state of last time step
-#         # out.size() --> 100, 28, 100
-#         # out[:, -1, :] --> 100, 100 --> just want last time step hidden states!
-#         out = self.fc(out[:, -1, :])
-#         # out.size() --> 100, 10
-#         return out
-
-
 # Recurrent neural network (many-to-one)
 class RNNModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes, generator):
@@ -127,14 +92,15 @@ class RNNModel(nn.Module):
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
-        self.fc1 = nn.Linear(hidden_size, 2)
+        # self.fc1 = nn.Linear(hidden_size, 2)
+        self.fc1 = nn.Linear(num_classes, 2)
         self.generator = generator
 
     def forward(self, x):
         # print(x.shape)
         # print(x.shape)
         _, x = self.generator(x)
-        x = x.view(1 , x.shape[0], x.shape[1])
+        x = x.view(1, x.shape[0], x.shape[1])
         # print(x.shape)
         # Set initial hidden and cell states
         h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
@@ -148,10 +114,17 @@ class RNNModel(nn.Module):
         # print(out.shape)
         out1 = self.fc(out)
         # print(out1.shape)
-        out = self.fc1(out[:, -1, :])
-        # print(out.shape)
+
+        # out = self.fc1(out1[:, -1, :])
+        out = self.fc1(out1)
+        # print(out.shape)  # 1, 2
         # exit()
-        return out1.squeeze(), F.softmax(out, dim=1)
+        # out = F.softmax(out, dim=1)
+        # print('final layer', out.shape)
+        x = F.adaptive_avg_pool2d(out, (1, 2)).view((1, 2))
+        # print(x.shape, F.softmax(x, dim=1).shape)
+        # print(x.shape)
+        return out1.squeeze(), x
 
 '''
 STEP 4: INSTANTIATE MODEL CLASS
@@ -191,6 +164,7 @@ STEP 7: TRAIN THE MODEL
 seq_dim = 1
 
 iter = 0
+print(num_epochs)
 for epoch in range(num_epochs):
     for i, (images, labels) in enumerate(train_loader):
         model.train()
@@ -210,15 +184,17 @@ for epoch in range(num_epochs):
         images = images.to(device)
         labels = labels.to(device)
         result = result.to(device)
+        # print(i, images.shape)
         # print(epoch, i, labels.shape, labels)
         outputs, temp = model(images.requires_grad_())
         # print(temp.shape, temp)
         # Calculate Loss: softmax --> cross entropy loss
         # print('temp, result', outputs.shape, labels.shape)
         loss1 = criterion(outputs, labels)
-        # print('temp, result',temp.shape, result.shape, temp, result)
         loss2 = criterion1(temp, result)
-        loss = loss1 + loss2
+        # print('temp, result',temp.shape, result.shape, temp, result)
+        # loss = loss1 + loss2
+        loss = loss2
         # Getting gradients w.r.t. parameters
         loss.backward()
 
@@ -244,14 +220,14 @@ for epoch in range(num_epochs):
                 result = result.to(device)
                 real.append(result.data.detach().item())
                 # Forward pass only to get logits/output
-                outputs,temp = model(images)
+                outputs, temp = model(images)
 
                 # Get predictions from the maximum value
                 _, predicted = torch.max(outputs.data, 1)
-                # _, predicted1 = torch.max(temp.data, 1)                
+                # _, predicted1 = torch.max(temp.data, 1)
                 #if torch.rand(1)[0] > 0.8:
                 # print(labels, predicted)
-                pred.append(torch.argmax(temp.data).detach().item())                
+                pred.append(torch.argmax(temp.data).detach().item())
                 # print(result.detach().item(), torch.argmax(temp.data).detach().item())
                 # Total number of labels
                 total += labels.size(0)

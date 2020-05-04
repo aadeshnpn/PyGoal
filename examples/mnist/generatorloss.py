@@ -292,7 +292,10 @@ def modify_mnistnet():
 
 
 def greedy_action(prob, nprandom):
-    return nprandom.choice([0, 1, 2, 3], p=prob[0])
+    # prob = F.softmax(prob.data)
+    # print('prob', prob)
+    # return nprandom.choice([0, 1, 2, 3], p=prob)
+    return np.argmax(prob)
 
 
 def get_current_state(env, generator):
@@ -315,7 +318,7 @@ def generation(generator, env):
         s, _, _, done = env.step(action)
         j += 1
         image = env.get_images(s)
-        print(image.shape)
+        # print(image.shape)
         actions, fc = generator(image)
         # actions, _ = generator(image)
         state = get_current_state(env, generator)
