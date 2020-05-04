@@ -18,16 +18,9 @@ from flloat.parser.ltlfg import LTLfGParser
 device = 'cpu'
 
 
-class TraceEmbDS(Dataset):
-    def __init__(self, valid, invalid):
-        # data = pickle.load(open(fname,'rb'))
-        # valid, invalid = data
-        invalid = [v['I'] for v in invalid]
+class TraceEmbDSV(Dataset):
+    def __init__(self, valid):
         valid = [v['I'] for v in valid]
-
-        for i in range(len(invalid)):
-            # print(i, invalid[i])
-            invalid[i] = torch.stack(invalid[i])
 
         for v in range(len(valid)):
             val = [valid[v][0]]
@@ -46,39 +39,35 @@ class TraceEmbDS(Dataset):
                 )
         else:
             self.vdata = []
-        # print(self.vdata.shape)
-        self.idata = torch.stack(invalid)
-        self.idata = self.idata.float()
-        shape = self.idata.shape
-        # print('shape',shape)
-        self.idata = self.idata.view(shape[0], shape[1], shape[4], shape[5])
-        # print(self.idata.shape)
-        # print(self.vdata.shape, self.idata.shape)
 
     def __getitem__(self, index):
-        # print(index)
-        if index < len(self.vdata):
-            try:
-                d = self.vdata[index]
-                l = 1.0     # noqa: E741
-            except KeyError:
-                d = self.vdata[0]
-                l = 1.0     # noqa: E741
-        else:
-            index -= len(self.vdata)
-            try:
-                d = self.idata[index]
-                l = 0.0     # noqa: E741
-            except KeyError:
-                d = self.idata[index]
-                l = 0.0     # noqa: E741
-        # return d, l
-        # d = self.vdata[index]
-        # l = 1.0
+        d = self.vdata[index]
+        l = 1.0     # noqa: E741
         return d, l
 
     def __len__(self):
-        return len(self.idata) // 2  # * 2 # + len(self.idata)
+        return len(self.vdata)  # * 2 # + len(self.idata)
+
+
+class TraceEmbDSI(Dataset):
+    def __init__(self, invalid):
+        invalid = [v['I'] for v in invalid]
+
+        for i in range(len(invalid)):
+            invalid[i] = torch.stack(invalid[i])
+
+        self.idata = torch.stack(invalid)
+        self.idata = self.idata.float()
+        shape = self.idata.shape
+        self.idata = self.idata.view(shape[0], shape[1], shape[4], shape[5])
+
+    def __getitem__(self, index):
+        d = self.idata[index]
+        l = 0.0     # noqa: E741
+        return d, l
+
+    def __len__(self):
+        return len(self.idata)
 
 
 class Generator(nn.Module):
@@ -245,6 +234,7 @@ def propogation(train_loader, recoginzer, optim, error, num_epochs=1):
     losses = []
     for epoch in range(num_epochs):
         losses = []
+        acc = []
         for i, (images, labels) in enumerate(train_loader):
             # images = images.reshape(
             # -1, sequence_length, input_size).to(device)
@@ -272,11 +262,17 @@ def propogation(train_loader, recoginzer, optim, error, num_epochs=1):
             # gloss.backward()
             # optimgen.step()
             losses.append(loss.item())
+            corr = torch.tensor(torch.argmax(outputs)) == torch.tensor(labels)
+            corr = corr * 1
+            acc.append(corr.item())
+            # print(corr)
+            # acc = torch.sum(corr)*100 / corr.shape[0]
             # if (i+1) % 10 == 0:
+        acc = sum(acc)*100 / len(acc)
         print(
-            'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(
+            'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Acc: {:.4f}'.format(
                 epoch+1, num_epochs, i+1, total_step,
-                sum(losses)*1.0/len(losses)))
+                sum(losses)*1.0/len(losses), acc))
         # print(epoch, generator.fc2.weight, generator.fc2.bias)
         # print(epoch, generator.fc2.bias)
 
@@ -316,10 +312,8 @@ def train():
             torch.save((valid_traces, invalid_traces), fname)
 
         print(epoch, len(valid_traces), len(invalid_traces))
-        if len(invalid_traces) <= 1:
-            pass
-        else:
-            train_dataset = TraceEmbDS(valid_traces, invalid_traces)
+        if len(invalid_traces) >= 1:
+            train_dataset = TraceEmbDSI(invalid_traces)
             train_loader = torch.utils.data.DataLoader(
                 dataset=train_dataset,
                 batch_size=1,
@@ -327,6 +321,16 @@ def train():
             propogation(
                 train_loader, model,
                 optimizer, criterion, num_epochs=1)
+
+        if len(valid_traces) >= 1:
+            train_dataset = TraceEmbDSV(valid_traces)
+            train_loader = torch.utils.data.DataLoader(
+                dataset=train_dataset,
+                batch_size=1,
+                shuffle=True)
+            propogation(
+                train_loader, model,
+                optimizer, criterion, num_epochs=5)
         # Save both the recognizer and generator
         torch.save(model.state_dict(), "rnnmodel.pt")
 
