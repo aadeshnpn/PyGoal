@@ -253,6 +253,8 @@ def propogation(train_loader, recoginzer, optim, error, num_epochs=1):
             # Recognizer loss
             loss = error(outputs, labels)   # * sum(labels==0.0)
 
+            # Next loss GenRecProp
+
             # Backward and optimize
             optim.zero_grad()
             loss.backward(retain_graph=True)
@@ -300,7 +302,7 @@ def train():
     # print(invalid_trace[0]['S'], invalid_trace[0]['I'][0].shape)
     # print(trace)
 
-    for epoch in range(10):
+    for epoch in range(100):
         fname = 'data/'+str(epoch)+'t.pt'
         if os.path.isfile(fname):
             # valid_traces, invalid_traces = pickle.load(open(fname, 'rb'))
@@ -330,7 +332,7 @@ def train():
                 shuffle=True)
             propogation(
                 train_loader, model,
-                optimizer, criterion, num_epochs=5)
+                optimizer, criterion, num_epochs=3)
         # Save both the recognizer and generator
         torch.save(model.state_dict(), "rnnmodel.pt")
 
