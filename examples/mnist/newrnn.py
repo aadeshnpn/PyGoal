@@ -18,6 +18,37 @@ from flloat.parser.ltlfg import LTLfGParser
 device = 'cpu'
 
 
+class GeneratorLoss(nn.Module):
+    def __init__(self):
+        super(GeneratorLoss, self).__init__()
+        self.error = nn.MSELoss()
+
+    def forward(self, action, label):
+        actions = action.clone().detach()
+        # print('generator loss', actions.shape, actions[0].sum())
+        # print(label)
+        # if label.item() == 1:
+        #     val, argmax = actions.max(-1)
+        #     actions[range(actions.shape[0]), argmax] = val + val * 0.25
+        #     actions = actions.T / actions.sum(1)
+        #     actions = actions.T
+        #     # print(action, actions)
+        # else:
+        if label.item() == 0:
+            val, argmax = actions.max(-1)
+            actions[range(actions.shape[0]), argmax] = val - val * 0.1
+            actions = actions.T / actions.sum(1)
+            actions = actions.T
+
+            # print(actions.shape, actions[0].sum())
+
+            loss = self.error(torch.log(action), torch.log(actions))
+            # print (loss)
+            return loss
+        else:
+            return torch.tensor(0.0)
+
+
 class TraceEmbDSV(Dataset):
     def __init__(self, valid):
         valid = [v['I'] for v in valid]
@@ -227,7 +258,7 @@ def recognition(trace):
     return result, create_trace_dict(trace, i)
 
 
-def propogation(train_loader, recoginzer, optim, error, num_epochs=1):
+def propogation(train_loader, recoginzer, optim, error, erro1, num_epochs=1):
     # Train the model
     total_step = len(train_loader)
     recoginzer.train()
@@ -301,6 +332,7 @@ def train():
     # valid_trace, invalid_trace = create_traces(env, model, 1)
     # print(invalid_trace[0]['S'], invalid_trace[0]['I'][0].shape)
     # print(trace)
+    criterion1 = GeneratorLoss()
 
     for epoch in range(100):
         fname = 'data/'+str(epoch)+'t.pt'
@@ -322,7 +354,7 @@ def train():
                 shuffle=True)
             propogation(
                 train_loader, model,
-                optimizer, criterion, num_epochs=1)
+                optimizer, criterion, criterion1, num_epochs=1)
 
         if len(valid_traces) >= 1:
             train_dataset = TraceEmbDSV(valid_traces)
