@@ -188,9 +188,9 @@ class EnvMNIST:
             new_state = self.state + 1
         else:
             new_state = self.state
-        new_state = np.clip(new_state, 0, 5)
+        new_state = np.clip(new_state, 0, 9)
         self.state = new_state
-        if self.state == 5:
+        if self.state == 9:
             done = True
         if self.render is True:
             # plt.imshow(curr_state_image.view(28,28))
@@ -333,7 +333,7 @@ def generation(generator, env):
 
 
 def recognition(trace):
-    goalspec = 'F P_[S][5,none,==]'
+    goalspec = 'F P_[S][9,none,==]'
     # parse the formula
     parser = LTLfGParser()
 

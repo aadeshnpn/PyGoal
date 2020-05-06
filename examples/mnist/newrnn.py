@@ -24,6 +24,9 @@ class GeneratorLoss(nn.Module):
         self.error = nn.MSELoss()
 
     def forward(self, action, label):
+        # sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True)
+        action = action.clone().detach()
+        action = F.softmax(action)
         actions = action.clone().detach()
         # print('generator loss', actions.shape, actions[0].sum())
         # print(label)
@@ -36,17 +39,36 @@ class GeneratorLoss(nn.Module):
         # else:
         if label.item() == 0:
             val, argmax = actions.max(-1)
-            actions[range(actions.shape[0]), argmax] = val - val * 0.1
+            actions[range(actions.shape[0]), argmax] = val - val * 0.2
             actions = actions.T / actions.sum(1)
             actions = actions.T
-
             # print(actions.shape, actions[0].sum())
-
             loss = self.error(torch.log(action), torch.log(actions))
-            # print (loss)
+            # loss = self.error(action, actions)
             return loss
         else:
             return torch.tensor(0.0)
+
+
+class MainLoss(nn.Module):
+    def __init__(self):
+        super(MainLoss, self).__init__()
+        self.error = nn.CrossEntropyLoss()
+
+    def forward(self, prediction, labels):
+        loss = self.error(prediction, labels)
+        predict = torch.argmax(prediction)
+        print(predict.item(), labels.item())
+        if predict.item() == 1 and labels.item() == 1:
+            pass
+        else:
+            loss = ((1 - predict.item()) + (1 - labels.item())) * loss
+        # if labels.item() == 1:
+        #     loss = self.error(prediction, labels) * 0.0
+        # else:
+        #     loss = self.error(prediction, labels)
+
+        return loss
 
 
 class TraceEmbDSV(Dataset):
@@ -99,6 +121,67 @@ class TraceEmbDSI(Dataset):
 
     def __len__(self):
         return len(self.idata)
+
+
+class TraceEmbDS(Dataset):
+    def __init__(self, valid, invalid):
+        # data = pickle.load(open(fname,'rb'))
+        # valid, invalid = data
+        invalid = [v['I'] for v in invalid]
+        valid = [v['I'] for v in valid]
+
+        for i in range(len(invalid)):
+            # print(i, invalid[i])
+            invalid[i] = torch.stack(invalid[i])
+
+        if len(invalid) >= 1:
+            # print(self.vdata.shape)
+            self.idata = torch.stack(invalid)
+            self.idata = self.idata.float()
+            shape = self.idata.shape
+            self.idata = self.idata.view(shape[0], shape[1], shape[4], shape[5])
+            ilabel = torch.zeros(self.idata.shape[0])
+        else:
+            self.idata = None
+
+        for v in range(len(valid)):
+            val = [valid[v][0]]
+            if len(valid[v]) != 17:
+                diff = 17-len(valid[v])
+                val = val * diff
+                valid[v] = val + valid[v]
+            valid[v] = torch.stack(valid[v])
+
+        if len(valid) >= 1:
+            self.vdata = torch.stack(valid)
+            self.vdata = self.vdata.float()
+            shape = self.vdata.shape
+            self.vdata = self.vdata.view(
+                shape[0], shape[1], shape[4], shape[5]
+                )
+            vlabel = torch.ones(self.vdata.shape[0])
+        else:
+            self.vdata = None
+        if self.idata is not None and self.vdata is not None:
+            self.data = torch.cat((self.idata, self.vdata), dim=0)
+            self.labels = torch.cat((ilabel, vlabel), dim=0)
+        elif self.idata is None:
+            self.data = self.vdata
+            self.labels = vlabel
+        elif self.vdata is None:
+            self.data = self.idata
+            self.labels = ilabel
+        else:
+            print('Zero data')
+            exit()
+        # print(self.idata.shape)
+        # print(self.vdata.shape, self.idata.shape)
+
+    def __getitem__(self, index):
+        return self.data[index], self.labels[index]
+
+    def __len__(self):
+        return len(self.data)
 
 
 class Generator(nn.Module):
@@ -174,7 +257,9 @@ class RNNModel(nn.Module):
         out = self.fc1(out1)
         # print(out.shape)
         # exit()
-        x = F.adaptive_avg_pool2d(out, (1, 2)).view((1, 2))
+        x = F.adaptive_max_pool2d(out, (1, 2)).view((1, 2))
+        # print(out.shape)
+        # x = F.conv2d()
         return out1.squeeze(), x
         # return out1.squeeze(), F.softmax(out, dim=1)
 
@@ -189,7 +274,8 @@ def init_model():
     model = RNNModel(input_dim, hidden_dim, layer_dim, output_dim, generator)
     model = model.to(device)
     # JUST PRINTING MODEL & PARAMETERS
-    criterion = nn.CrossEntropyLoss()
+    criterion = MainLoss()
+    # criterion = nn.CrossEntropyLoss()
     # criterion1 = nn.CrossEntropyLoss()
 
     learning_rate = 0.01
@@ -258,7 +344,7 @@ def recognition(trace):
     return result, create_trace_dict(trace, i)
 
 
-def propogation(train_loader, recoginzer, optim, error, erro1, num_epochs=1):
+def propogation(train_loader, recoginzer, optim, error, error1, num_epochs=1):
     # Train the model
     total_step = len(train_loader)
     recoginzer.train()
@@ -278,6 +364,7 @@ def propogation(train_loader, recoginzer, optim, error, erro1, num_epochs=1):
             # Forward pass
             # print(images.grad_fn, images.grad_fn.next_functions)
             actions, outputs = recoginzer(images)
+            # print(i, actions)
             # print('recognizer', outputs.shape, actions.shape, labels.shape)
             # gloss = gerror(actions, labels)
             # print(i, images.shape, outputs.shape, labels.shape, outputs, labels)
@@ -285,17 +372,20 @@ def propogation(train_loader, recoginzer, optim, error, erro1, num_epochs=1):
             loss = error(outputs, labels)   # * sum(labels==0.0)
 
             # Next loss GenRecProp
-
+            # if error1 is not None:
+            #     loss1 = error1(actions, labels)   # * sum(labels==0.0)
+            #     loss = loss + loss1
             # Backward and optimize
             optim.zero_grad()
-            loss.backward(retain_graph=True)
+            loss.backward()
             optim.step()
 
             # optimgen.zero_grad()
             # gloss.backward()
             # optimgen.step()
             losses.append(loss.item())
-            corr = torch.tensor(torch.argmax(outputs)) == torch.tensor(labels)
+            print(outputs, labels)
+            corr = torch.argmax(outputs) == labels
             corr = corr * 1
             acc.append(corr.item())
             # print(corr)
@@ -333,20 +423,31 @@ def train():
     # print(invalid_trace[0]['S'], invalid_trace[0]['I'][0].shape)
     # print(trace)
     criterion1 = GeneratorLoss()
-
-    for epoch in range(100):
+    valid = 5
+    invalid = 1
+    for epoch in range(20):
         fname = 'data/'+str(epoch)+'t.pt'
         if os.path.isfile(fname):
             # valid_traces, invalid_traces = pickle.load(open(fname, 'rb'))
             valid_traces, invalid_traces = torch.load(fname)
         else:
             # valid_traces, invalid_traces = create_traces(env, generator, 100)
-            valid_traces, invalid_traces = create_traces(env, model, 100)
+            valid_traces, invalid_traces = create_traces(env, model, 20)
             # pickle.dump((valid_traces, invalid_traces), open(fname, "wb"))
-            torch.save((valid_traces, invalid_traces), fname)
+            # torch.save((valid_traces, invalid_traces), fname)
 
         print(epoch, len(valid_traces), len(invalid_traces))
-        if len(invalid_traces) >= 1:
+        if len(valid_traces) >= 1:
+            train_dataset = TraceEmbDSV(valid_traces)
+            train_loader = torch.utils.data.DataLoader(
+                dataset=train_dataset,
+                batch_size=1,
+                shuffle=True)
+            propogation(
+                train_loader, model,
+                optimizer, criterion, None, num_epochs=1)
+
+        else:   # len(invalid_traces) >= 1:
             train_dataset = TraceEmbDSI(invalid_traces)
             train_loader = torch.utils.data.DataLoader(
                 dataset=train_dataset,
@@ -356,15 +457,15 @@ def train():
                 train_loader, model,
                 optimizer, criterion, criterion1, num_epochs=1)
 
-        if len(valid_traces) >= 1:
-            train_dataset = TraceEmbDSV(valid_traces)
-            train_loader = torch.utils.data.DataLoader(
-                dataset=train_dataset,
-                batch_size=1,
-                shuffle=True)
-            propogation(
-                train_loader, model,
-                optimizer, criterion, num_epochs=3)
+
+        # train_dataset = TraceEmbDS(valid_traces, invalid_traces)
+        # train_loader = torch.utils.data.DataLoader(
+        #     dataset=train_dataset,
+        #     batch_size=1,
+        #     shuffle=True)
+        # propogation(
+        #     train_loader, model,
+        #     optimizer, criterion, criterion1, num_epochs=1)
         # Save both the recognizer and generator
         torch.save(model.state_dict(), "rnnmodel.pt")
 
