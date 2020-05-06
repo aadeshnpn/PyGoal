@@ -478,5 +478,24 @@ def main():
     train()
 
 
+def test_model():
+    # Load model parameter
+    input_dim = 128
+    hidden_dim = 64
+    layer_dim = 1  # ONLY CHANGE IS HERE FROM ONE LAYER TO TWO LAYER
+    output_dim = 4
+    generator = modify_mnistnet()
+    model = RNNModel(input_dim, hidden_dim, layer_dim, output_dim, generator)
+    model.load_state_dict(torch.load("rnnmodel.pt"))
+    for param in model.parameters():
+        param.requires_grad = False
+
+    model.eval()
+    env = EnvMNIST()
+    valid, invalid = create_traces(env, model, n=10)
+    print(len(valid), len(invalid))
+
+
 if __name__ == "__main__":
-    main()
+    # main()
+    test_model()
