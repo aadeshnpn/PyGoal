@@ -35,6 +35,7 @@ class GeneratorLoss(nn.Module):
         # indx = torch.argmax(softmax, dim=1).item()
 
         actions = action.clone().detach()
+        action = F.softmax(action)
         actions = F.softmax(actions)
         # print(softmax.shape, softmax)
         # indx = torch.argmax(softmax, dim=1).item()
@@ -53,10 +54,10 @@ class GeneratorLoss(nn.Module):
             actions = actions[range(actions.shape[0]), argmax]
             # print(1, 1, action, actions)
             # loss = 1 + torch.dot(torch.log(action), torch.log(actions))
-            # loss = -1.0 * F.l1_log_loss(torch.log(action), torch.log(actions))
+            loss = F.l1_loss(torch.log(action), torch.log(actions))
             # loss = self.error(torch.log(action), torch.log(actions))
-            loss = self.error1(torch.log(action), torch.log(actions))
-            # print(1, 1, action, actions, loss)
+            # loss = self.error(torch.log(action), torch.log(actions))
+            # print(1, action, actions, loss.item())
         else:
             val, argmax = actions.max(-1)
             # sub = [range(action.shape[0]))
@@ -69,7 +70,7 @@ class GeneratorLoss(nn.Module):
             loss = self.error(torch.log(action), torch.log(actions))
             # loss = -1.0 * F.l1_log_loss(torch.log(action), torch.log(actions))
             # loss = 1 + torch.dot(torch.log(action), torch.log(actions))
-            # print(indx, label.item(), action, actions, loss)
+            # print(label.item(), action, actions, loss.item())
         # print(actions.shape, actions[0].sum())
         # loss = torch.dot(action, actions)   # self.error(torch.exp(action), torch.exp(actions))
         # loss = self.error(action, actions)
@@ -657,11 +658,17 @@ def train():
             dataset=train_dataset,
             batch_size=1,
             shuffle=True)
-        if epoch % 5 == 0:
+        if epoch % 3 == 0:
             propogation(
                 train_loader, recmodel,
                 recoptim, reccriter, num_epochs=1)
         else:
+            train_dataset = TraceEmbDS(randvalid, randinvalid[:1])
+
+            train_loader = torch.utils.data.DataLoader(
+                dataset=train_dataset,
+                batch_size=1,
+                shuffle=True)
             propogation(
                 train_loader, genmodel,
                 genoptim, gencriter, num_epochs=1)
