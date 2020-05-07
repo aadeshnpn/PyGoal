@@ -188,9 +188,9 @@ class EnvMNIST:
             new_state = self.state + 1
         else:
             new_state = self.state
-        new_state = np.clip(new_state, 0, 9)
+        new_state = np.clip(new_state, 0, 5)
         self.state = new_state
-        if self.state == 9:
+        if self.state == 5:
             done = True
         if self.render is True:
             # plt.imshow(curr_state_image.view(28,28))
