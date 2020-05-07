@@ -22,8 +22,10 @@ device = 'cpu'
 class GeneratorLoss(nn.Module):
     def __init__(self):
         super(GeneratorLoss, self).__init__()
-        self.error = nn.MSELoss()
+        self.error1 = nn.MSELoss()
+        self.error = nn.L1Loss()
         # self.error = nn.CosineEmbeddingLoss()
+        # self.error = nn.MarginRankingLoss()
 
     def forward(self, action, predict, label):
         # sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True)
@@ -39,7 +41,8 @@ class GeneratorLoss(nn.Module):
         if indx == 1 and label.item() == 1:
             # if label.item() == 1:
             val, argmax = actions.max(-1)
-            # actions[range(actions.shape[0]), argmax] = val + val * 0.5
+            # change = torch.tensor([pow(0.9,i) for i in range(actions.shape[0]+1,1, -1)]) * val
+            # actions[range(actions.shape[0]), argmax] = val + change
             # actions = actions.T / actions.sum(1)
             # actions = actions.T
             # print(action, actions)
@@ -48,11 +51,14 @@ class GeneratorLoss(nn.Module):
             # print(1, 1, action, actions)
             # loss = 1 + torch.dot(torch.log(action), torch.log(actions))
             # loss = -1.0 * F.l1_log_loss(torch.log(action), torch.log(actions))
-            loss = self.error(torch.log(action), torch.log(actions))
+            # loss = self.error(torch.log(action), torch.log(actions))
+            loss = self.error1(torch.log(action), torch.log(actions))
             # print(1, 1, action, actions, loss)
         else:
             val, argmax = actions.max(-1)
-            actions[range(actions.shape[0]), argmax] = val - val * 0.2
+            # sub = [range(action.shape[0]))
+            change = torch.tensor([pow(0.9,i) for i in range(actions.shape[0]+1,1, -1)]) * val
+            actions[range(actions.shape[0]), argmax] = val - change
             actions = actions.T / actions.sum(1)
             actions = actions.T
             action = action[range(action.shape[0]), argmax]
@@ -290,8 +296,8 @@ class RNNModel(nn.Module):
         self.lstm = nn.LSTM(
             input_size, hidden_size, num_layers, batch_first=True)
         self.fc = nn.Linear(hidden_size, num_classes)
-        self.fc1 = nn.Linear(hidden_size, 2)
-        # self.fc1 = nn.Linear(num_classes, 2)
+        # self.fc1 = nn.Linear(hidden_size, 2)
+        self.fc1 = nn.Linear(num_classes, 2)
         self.generator = generator
 
     def forward(self, x):
@@ -316,7 +322,8 @@ class RNNModel(nn.Module):
         actions = self.fc(out)
         # print(out1.shape)
         # out = self.fc1(out[:, -1, :])
-        out = self.fc1(out)
+        # out = self.fc1(out)
+        out = self.fc1(actions)
         # print(out.shape)
         # exit()
         x = F.adaptive_avg_pool2d(out, (1, 2)).view((1, 2))
@@ -407,71 +414,74 @@ def recognition(trace):
     return result, create_trace_dict(trace, i)
 
 
-def propogation(train_loader, recoginzer, optim, error, errorgen, num_epochs=1):
+def propogation(train_loader, recoginzer, optim, error, errorgen, recprop, num_epochs=1):
     # Train the model
     total_step = len(train_loader)
     recoginzer.train()
     losses = []
-    for epoch in range(num_epochs):
-        acc = []
-        for i, (images, labels) in enumerate(train_loader):
-            # images = images.reshape(
-            # -1, sequence_length, input_size).to(device)
-            # print(images.shape, labels.shape)
-            shape = images.shape
-            images = images.reshape(shape[1], shape[0], shape[2], shape[3])
-            images = images.float()
-            labels = labels.to(device)
-            labels = labels.long()
-            # Forward pass
-            # print(images.grad_fn, images.grad_fn.next_functions)
-            # print(images.shape)
-            actions, outputs = recoginzer(images)
-            # print(i, actions)
-            # print('recognizer', outputs.shape, actions.shape, labels.shape)
-            # gloss = gerror(actions, labels)
-            # print(i, images.shape, outputs.shape, labels.shape, outputs, labels)
-            # Recognizer loss
-            # if genprop:
-            #    loss = error(actions, outputs, labels)
-            # else:
-            loss2 = error(outputs, labels)   # * sum(labels==0.0)
-            loss1 = errorgen(actions, outputs, labels)
-            # loss2 = error(outputs, labels)
-            loss = loss2 + loss1
-            # print(loss, loss2, loss1)
-            # Next loss GenRecProp
-            # if error1 is not None:
-            #     loss1 = error1(actions, labels)   # * sum(labels==0.0)
-            #     loss = loss + loss1
-            # Backward and optimize
-            # optim.zero_grad()
-            # loss.backward()
-            # optim.step()
+    # for epoch in range(num_epochs):
+    acc = []
+    epoch = 0
+    for i, (images, labels) in enumerate(train_loader):
+        # images = images.reshape(
+        # -1, sequence_length, input_size).to(device)
+        # print(images.shape, labels.shape)
+        shape = images.shape
+        images = images.reshape(shape[1], shape[0], shape[2], shape[3])
+        images = images.float()
+        labels = labels.to(device)
+        labels = labels.long()
+        # Forward pass
+        # print(images.grad_fn, images.grad_fn.next_functions)
+        # print(images.shape)
+        actions, outputs = recoginzer(images)
+        # print(i, actions)
+        # print('recognizer', outputs.shape, actions.shape, labels.shape)
+        # gloss = gerror(actions, labels)
+        # print(i, images.shape, outputs.shape, labels.shape, outputs, labels)
+        # Recognizer loss
+        # if genprop:
+        #    loss = error(actions, outputs, labels)
+        # else:
+        # if recprop:
+        loss1 = error(outputs, labels)   # * sum(labels==0.0)
+        #else:
+        loss2 = errorgen(actions, outputs, labels)
+        # loss2 = error(outputs, labels)
+        loss = loss2 + loss1
+        # print('rec, gen:', loss2.item(), loss1.item())
+        # Next loss GenRecProp
+        # if error1 is not None:
+        #     loss1 = error1(actions, labels)   # * sum(labels==0.0)
+        #     loss = loss + loss1
+        # Backward and optimize
+        # optim.zero_grad()
+        # loss.backward()
+        # optim.step()
 
-            losses.append(loss)
-            # print(outputs, labels)
-            corr = torch.argmax(outputs) == labels
-            corr = corr * 1
-            acc.append(corr.item())
-            # print(corr)
-            # acc = torch.sum(corr)*100 / corr.shape[0]
-            # if (i+1) % 10 == 0:
-        optim.zero_grad()
-        losses = torch.stack(losses)
-        # print(losses)
-        loss = torch.mean(losses)
-        # print('loss', loss)
-        loss.backward()
-        optim.step()
-        acc = sum(acc)*100 / len(acc)
-        print(
-            'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Acc: {:.4f}'.format(
-                epoch+1, num_epochs, i+1, total_step,
-                loss.item(), acc))
-        # print(epoch, generator.fc2.weight, generator.fc2.bias)
-        # print(epoch, generator.fc2.bias)
-        # return losses
+        losses.append(loss)
+        # print(outputs, labels)
+        corr = torch.argmax(outputs) == labels
+        corr = corr * 1
+        acc.append(corr.item())
+        # print(corr)
+        # acc = torch.sum(corr)*100 / corr.shape[0]
+        # if (i+1) % 10 == 0:
+    optim.zero_grad()
+    losses = torch.stack(losses)
+    # print(losses)
+    loss = torch.mean(losses)
+    # print('loss', loss)
+    loss.backward()
+    optim.step()
+    acc = sum(acc)*100 / len(acc)
+    print(
+        'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Acc: {:.4f}'.format(
+            epoch+1, num_epochs, i+1, total_step,
+            loss.item(), acc))
+    # print(epoch, generator.fc2.weight, generator.fc2.bias)
+    # print(epoch, generator.fc2.bias)
+    # return losses
 
 
 def create_traces(env, generator, n=500):
@@ -516,9 +526,9 @@ def train():
     # valid_trace, invalid_trace = create_traces(env, model, 1)
     # print(invalid_trace[0]['S'], invalid_trace[0]['I'][0].shape)
     # print(trace)
-    # learning_rate = 0.01
+    learning_rate = 0.01
     # model = grad_option_model(model, False)
-    # optimizergen = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizergen = torch.optim.SGD(model.parameters(), lr=learning_rate)
     criteriongen = GeneratorLoss()
 
     allvalid = []
@@ -582,9 +592,14 @@ def train():
             dataset=train_dataset,
             batch_size=1,
             shuffle=True)
-        propogation(
-            train_loader, model,
-            optimizer, criterion, criteriongen, num_epochs=1)
+        if epoch % 5 == 0:
+            propogation(
+                train_loader, model,
+                optimizer, criterion, criteriongen, recprop= True, num_epochs=1)
+        else:
+            propogation(
+                train_loader, model,
+                optimizergen, criterion, criteriongen, recprop= False, num_epochs=1)
 
         # model = grad_option_model(model, False)
         # propogation(
