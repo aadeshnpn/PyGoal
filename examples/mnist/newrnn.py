@@ -491,6 +491,7 @@ def propogation(train_loader, model, optim, error, num_epochs=1):
         shape = images.shape
         images = images.reshape(shape[1], shape[0], shape[2], shape[3])
         images = images.float()
+        images = images.to(device)
         labels = labels.to(device)
         labels = labels.long()
         # Forward pass
