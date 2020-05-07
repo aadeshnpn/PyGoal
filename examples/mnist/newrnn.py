@@ -2,6 +2,7 @@
 import os
 import torch
 import torch.nn as nn
+import numpy as np
 from torch.utils.data import Dataset
 # import torchvision.transforms as transforms
 # import torchvision.datasets as dsets
@@ -50,24 +51,67 @@ class GeneratorLoss(nn.Module):
             return torch.tensor(0.0)
 
 
+class CrossEntropyLoss1(nn.Module):
+    def __init__(self, input=None, target=None):
+        #  # self.init_params = locals()
+        super(CrossEntropyLoss1, self).__init__()
+        self.__dict__.update(locals())
+        self.error = nn.CrossEntropyLoss()
+
+    def forward(self, prediction, labels):
+        softmax = torch.softmax(prediction, dim=1)
+        indx = torch.argmax(softmax, dim=1).item()
+        mloss = (1-indx) * torch.log(softmax) + indx * (torch.log(softmax))
+        # loss = self.error(prediction, labels)
+        mloss = -1.0 * mloss
+        # print('A', indx, labels.item(), mloss.data, loss.data)
+        if indx == 0 and labels.item() == 0:
+            mloss = torch.sum(mloss).squeeze()
+        elif indx == 1 and labels.item() == 1:
+            mloss = 0.0 * mloss[0][labels.item()]
+        else:
+            mloss = torch.sum(mloss).squeeze()
+            # mloss = mloss[0][labels.item()]
+            # mloss = mloss[0][indx]
+        # print(indx, labels.item(), mloss)
+        # print('B', indx, labels.item(), mloss.data, loss.data)
+        return mloss
+
+
 class MainLoss(nn.Module):
     def __init__(self):
         super(MainLoss, self).__init__()
         self.error = nn.CrossEntropyLoss()
 
     def forward(self, prediction, labels):
+        print(prediction, labels)
+        softmax = torch.softmax(prediction, dim=1)
+        print('softmax', softmax)
+        indx = torch.argmax(softmax, dim=1).item()
+        # score = softmax[0][indx]
+        # if indx.item() == 0:
+        # match = indx != labels
+        # match = match * 1.0
+        # mloss = -1.0 * (match * torch.log(score))
+        print(1-indx, softmax[0][0])
+        mloss = (1-indx) * torch.log(softmax) + indx * (1-torch.log(softmax))
+        mloss = -1.0 * mloss[0][indx]
         loss = self.error(prediction, labels)
+        print('loss', mloss, loss)
+        exit()
         predict = torch.argmax(prediction)
-        print(predict.item(), labels.item())
+
         if predict.item() == 1 and labels.item() == 1:
-            pass
-        else:
-            loss = ((1 - predict.item()) + (1 - labels.item())) * loss
+            loss = loss / 2.0
+        else:   # predict.item() == 0 and labels.item() == 0:
+            loss = ((1 - predict.item()) + (1 - labels.item())) + loss
+        # else:
+        #    loss = ((1 - predict.item()) + (1 - labels.item())) * loss
         # if labels.item() == 1:
         #     loss = self.error(prediction, labels) * 0.0
         # else:
         #     loss = self.error(prediction, labels)
-
+        print('predict, true, loss:',predict.item(), labels.item(), loss)
         return loss
 
 
@@ -274,9 +318,9 @@ def init_model():
     model = RNNModel(input_dim, hidden_dim, layer_dim, output_dim, generator)
     model = model.to(device)
     # JUST PRINTING MODEL & PARAMETERS
-    criterion = MainLoss()
-    # criterion = nn.CrossEntropyLoss()
-    # criterion1 = nn.CrossEntropyLoss()
+    # criterion = MainLoss()
+    # criterion = CrossEntropyLoss1()
+    criterion = nn.CrossEntropyLoss()
 
     learning_rate = 0.01
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
@@ -363,6 +407,7 @@ def propogation(train_loader, recoginzer, optim, error, error1, num_epochs=1):
             labels = labels.long()
             # Forward pass
             # print(images.grad_fn, images.grad_fn.next_functions)
+            # print(images.shape)
             actions, outputs = recoginzer(images)
             # print(i, actions)
             # print('recognizer', outputs.shape, actions.shape, labels.shape)
@@ -384,7 +429,7 @@ def propogation(train_loader, recoginzer, optim, error, error1, num_epochs=1):
             # gloss.backward()
             # optimgen.step()
             losses.append(loss.item())
-            print(outputs, labels)
+            # print(outputs, labels)
             corr = torch.argmax(outputs) == labels
             corr = corr * 1
             acc.append(corr.item())
@@ -415,6 +460,14 @@ def create_traces(env, generator, n=500):
     return valid_trace, invalid_trace
 
 
+def random_sample(lists, n):
+    alist = []
+    index = np.random.randint(0, len(lists), n)
+    for i in index:
+        alist.append(lists[i])
+    return alist
+
+
 def train():
     env = EnvMNIST()
     model, criterion, optimizer = init_model()
@@ -423,8 +476,10 @@ def train():
     # print(invalid_trace[0]['S'], invalid_trace[0]['I'][0].shape)
     # print(trace)
     criterion1 = GeneratorLoss()
-    valid = 5
-    invalid = 1
+    allvalid = []
+    allinvalid = []
+    # valid = 5
+    invalid = 0
     for epoch in range(20):
         fname = 'data/'+str(epoch)+'t.pt'
         if os.path.isfile(fname):
@@ -436,36 +491,54 @@ def train():
             # pickle.dump((valid_traces, invalid_traces), open(fname, "wb"))
             # torch.save((valid_traces, invalid_traces), fname)
 
-        print(epoch, len(valid_traces), len(invalid_traces))
-        if len(valid_traces) >= 1:
-            train_dataset = TraceEmbDSV(valid_traces)
-            train_loader = torch.utils.data.DataLoader(
-                dataset=train_dataset,
-                batch_size=1,
-                shuffle=True)
-            propogation(
-                train_loader, model,
-                optimizer, criterion, None, num_epochs=1)
+        # if len(valid_traces) >= 1:
+        #     allvalid += valid_traces
+        #     train_dataset = TraceEmbDSV(allvalid)
+        #     train_loader = torch.utils.data.DataLoader(
+        #         dataset=train_dataset,
+        #         batch_size=1,
+        #         shuffle=True)
+        #     propogation(
+        #         train_loader, model,
+        #         optimizer, criterion, None, num_epochs=1)
 
-        else:   # len(invalid_traces) >= 1:
-            train_dataset = TraceEmbDSI(invalid_traces)
-            train_loader = torch.utils.data.DataLoader(
-                dataset=train_dataset,
-                batch_size=1,
-                shuffle=True)
-            propogation(
-                train_loader, model,
-                optimizer, criterion, criterion1, num_epochs=1)
+        # else:   # len(invalid_traces) >= 1:
+        #     if invalid <= 5:
+        #         train_dataset = TraceEmbDSI(invalid_traces)
+        #         train_loader = torch.utils.data.DataLoader(
+        #             dataset=train_dataset,
+        #             batch_size=1,
+        #             shuffle=True)
+        #         propogation(
+        #             train_loader, model,
+        #             optimizer, criterion, criterion1, num_epochs=1)
+        #         invalid += 1
+        allvalid += valid_traces
+        allinvalid += invalid_traces
+        print(epoch, len(valid_traces), len(invalid_traces), len(allvalid))
+        # n = np.clip(len(allinvalid), 1, 20)
+        if len(allvalid) >= 1:
+            n = np.clip(len(allvalid), 1, 20)
+            randvalid = random_sample(allvalid, n)
+        else:
+            randvalid = valid_traces
 
+        if len(allinvalid) >= 1:
+            n = np.clip(len(allvalid), 15, 20)
+            randinvalid = random_sample(allinvalid, n)
+        else:
+            randinvalid = invalid_traces
 
-        # train_dataset = TraceEmbDS(valid_traces, invalid_traces)
-        # train_loader = torch.utils.data.DataLoader(
-        #     dataset=train_dataset,
-        #     batch_size=1,
-        #     shuffle=True)
-        # propogation(
-        #     train_loader, model,
-        #     optimizer, criterion, criterion1, num_epochs=1)
+        print(len(randvalid), len(randinvalid))
+        train_dataset = TraceEmbDS(randvalid, randinvalid)
+
+        train_loader = torch.utils.data.DataLoader(
+            dataset=train_dataset,
+            batch_size=1,
+            shuffle=True)
+        propogation(
+            train_loader, model,
+            optimizer, criterion, criterion1, num_epochs=1)
         # Save both the recognizer and generator
         torch.save(model.state_dict(), "rnnmodel.pt")
 
@@ -497,5 +570,5 @@ def test_model():
 
 
 if __name__ == "__main__":
-    # main()
-    test_model()
+    main()
+    # test_model()
