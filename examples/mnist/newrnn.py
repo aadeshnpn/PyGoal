@@ -22,7 +22,7 @@ device = 'cpu'
 class GeneratorLoss(nn.Module):
     def __init__(self):
         super(GeneratorLoss, self).__init__()
-        # self.error = nn.MSELoss()
+        self.error = nn.MSELoss()
         # self.error = nn.CosineEmbeddingLoss()
 
     def forward(self, action, predict, label):
@@ -36,32 +36,42 @@ class GeneratorLoss(nn.Module):
         actions = action.clone().detach()
         # print('generator loss', actions.shape, actions[0].sum())
         # print(label)
-        # if label.item() == 1:
-        #     val, argmax = actions.max(-1)
-        #     actions[range(actions.shape[0]), argmax] = val + val * 0.5
-        #     actions = actions.T / actions.sum(1)
-        #     actions = actions.T
-        #     # print(action, actions)
-        #     action = action[range(action.shape[0]), argmax]
-        #     actions = actions[range(actions.shape[0]), argmax]
-        # else:
-        val, argmax = actions.max(-1)
-        actions[range(actions.shape[0]), argmax] = val - val * 0.2
-        actions = actions.T / actions.sum(1)
-        actions = actions.T
-        action = action[range(action.shape[0]), argmax]
-        actions = actions[range(actions.shape[0]), argmax]
-
+        if indx == 1 and label.item() == 1:
+            # if label.item() == 1:
+            val, argmax = actions.max(-1)
+            # actions[range(actions.shape[0]), argmax] = val + val * 0.5
+            # actions = actions.T / actions.sum(1)
+            # actions = actions.T
+            # print(action, actions)
+            action = action[range(action.shape[0]), argmax]
+            actions = actions[range(actions.shape[0]), argmax]
+            # print(1, 1, action, actions)
+            # loss = 1 + torch.dot(torch.log(action), torch.log(actions))
+            # loss = -1.0 * F.l1_log_loss(torch.log(action), torch.log(actions))
+            loss = self.error(torch.log(action), torch.log(actions))
+            # print(1, 1, action, actions, loss)
+        else:
+            val, argmax = actions.max(-1)
+            actions[range(actions.shape[0]), argmax] = val - val * 0.2
+            actions = actions.T / actions.sum(1)
+            actions = actions.T
+            action = action[range(action.shape[0]), argmax]
+            actions = actions[range(actions.shape[0]), argmax]
+            loss = self.error(torch.log(action), torch.log(actions))
+            # loss = -1.0 * F.l1_log_loss(torch.log(action), torch.log(actions))
+            # loss = 1 + torch.dot(torch.log(action), torch.log(actions))
+            # print(indx, label.item(), action, actions, loss)
         # print(actions.shape, actions[0].sum())
         # loss = torch.dot(action, actions)   # self.error(torch.exp(action), torch.exp(actions))
         # loss = self.error(action, actions)
         # print(action, actions)
-        if indx == 1 and label.item() == 1:
-            loss = -1.0 * F.l1_loss(action, actions)
-        elif indx == 0 and label.item() == 0:
-            loss = 0.0 * F.l1_loss(action, actions)
-        else:
-            loss = F.l1_loss(action, actions)
+        # if indx == 1 and label.item() == 1:
+        #     loss = -1.0 * F.l1_loss(action, actions)
+        # # elif indx == 0 and label.item() == 0:
+        # #    loss = 0.0 * F.l1_loss(action, actions)
+        # else:
+        #     loss = F.l1_loss(action, actions)
+
         return loss
         # else:
         #    return torch.tensor(0.0)
@@ -330,8 +340,9 @@ def init_model():
     # criterion = CrossEntropyLoss1()
     criterion = nn.CrossEntropyLoss()
 
-    learning_rate = 0.01
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    learning_rate = 0.001
+    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     return model, criterion, optimizer
 
@@ -396,13 +407,12 @@ def recognition(trace):
     return result, create_trace_dict(trace, i)
 
 
-def propogation(train_loader, recoginzer, optim, error, genprop=False, num_epochs=1):
+def propogation(train_loader, recoginzer, optim, error, errorgen, num_epochs=1):
     # Train the model
     total_step = len(train_loader)
     recoginzer.train()
     losses = []
     for epoch in range(num_epochs):
-        losses = []
         acc = []
         for i, (images, labels) in enumerate(train_loader):
             # images = images.reshape(
@@ -422,25 +432,24 @@ def propogation(train_loader, recoginzer, optim, error, genprop=False, num_epoch
             # gloss = gerror(actions, labels)
             # print(i, images.shape, outputs.shape, labels.shape, outputs, labels)
             # Recognizer loss
-            if genprop:
-                loss = error(actions, outputs, labels)
-            else:
-                loss = error(outputs, labels)   # * sum(labels==0.0)
+            # if genprop:
+            #    loss = error(actions, outputs, labels)
+            # else:
+            loss2 = error(outputs, labels)   # * sum(labels==0.0)
+            loss1 = errorgen(actions, outputs, labels)
             # loss2 = error(outputs, labels)
-            # loss = loss1 + loss2
+            loss = loss2 + loss1
+            # print(loss, loss2, loss1)
             # Next loss GenRecProp
             # if error1 is not None:
             #     loss1 = error1(actions, labels)   # * sum(labels==0.0)
             #     loss = loss + loss1
             # Backward and optimize
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
+            # optim.zero_grad()
+            # loss.backward()
+            # optim.step()
 
-            # optimgen.zero_grad()
-            # gloss.backward()
-            # optimgen.step()
-            losses.append(loss.item())
+            losses.append(loss)
             # print(outputs, labels)
             corr = torch.argmax(outputs) == labels
             corr = corr * 1
@@ -448,13 +457,21 @@ def propogation(train_loader, recoginzer, optim, error, genprop=False, num_epoch
             # print(corr)
             # acc = torch.sum(corr)*100 / corr.shape[0]
             # if (i+1) % 10 == 0:
+        optim.zero_grad()
+        losses = torch.stack(losses)
+        # print(losses)
+        loss = torch.mean(losses)
+        # print('loss', loss)
+        loss.backward()
+        optim.step()
         acc = sum(acc)*100 / len(acc)
         print(
             'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Acc: {:.4f}'.format(
                 epoch+1, num_epochs, i+1, total_step,
-                sum(losses)*1.0/len(losses), acc))
+                loss.item(), acc))
         # print(epoch, generator.fc2.weight, generator.fc2.bias)
         # print(epoch, generator.fc2.bias)
+        # return losses
 
 
 def create_traces(env, generator, n=500):
@@ -499,16 +516,16 @@ def train():
     # valid_trace, invalid_trace = create_traces(env, model, 1)
     # print(invalid_trace[0]['S'], invalid_trace[0]['I'][0].shape)
     # print(trace)
-    learning_rate = 0.01
+    # learning_rate = 0.01
     # model = grad_option_model(model, False)
-    optimizergen = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    # optimizergen = torch.optim.SGD(model.parameters(), lr=learning_rate)
     criteriongen = GeneratorLoss()
 
     allvalid = []
     allinvalid = []
     # valid = 5
     # invalid = 0
-    for epoch in range(20):
+    for epoch in range(40):
         # model = grad_option_model(model, True)
         fname = 'data/'+str(epoch)+'t.pt'
         if os.path.isfile(fname):
@@ -558,7 +575,7 @@ def train():
         else:
             randinvalid = invalid_traces
 
-        print(len(randvalid), len(randinvalid))
+        # print(len(randvalid), len(randinvalid))
         train_dataset = TraceEmbDS(randvalid, randinvalid)
 
         train_loader = torch.utils.data.DataLoader(
@@ -567,12 +584,12 @@ def train():
             shuffle=True)
         propogation(
             train_loader, model,
-            optimizer, criterion, num_epochs=1)
+            optimizer, criterion, criteriongen, num_epochs=1)
 
         # model = grad_option_model(model, False)
-        propogation(
-            train_loader, model,
-            optimizergen, criteriongen, genprop=True, num_epochs=1)
+        # propogation(
+        #     train_loader, model,
+        #     optimizergen, criteriongen, genprop=True, num_epochs=1)
         # Save both the recognizer and generator
         torch.save(model.state_dict(), "rnnmodel.pt")
 
