@@ -23,7 +23,7 @@ test_dataset = dsets.MNIST(root='./data',
 STEP 2: MAKING DATASET ITERABLE
 '''
 
-batch_size = 100
+batch_size = 64
 n_iters = 9000
 num_epochs = n_iters / (len(train_dataset) / batch_size)
 num_epochs = int(num_epochs)
@@ -88,6 +88,7 @@ class Attention(nn.Module):
         weighted_input = x * torch.unsqueeze(a, -1)
         return torch.sum(weighted_input, 1)
 
+
 # Recurrent neural network (many-to-one)
 class RNNModel(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes):
@@ -95,48 +96,23 @@ class RNNModel(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
-        self.fc = nn.Linear(hidden_size*2, hidden_size*2)
         self.attention_layer = Attention(hidden_size*2, 28)
+        self.fc = nn.Linear(hidden_size*2, hidden_size*2)
         self.fc1 = nn.Linear(hidden_size*2, num_classes)
-        # self.fc1 = nn.Linear(num_classes, 2)
-        # self.generator = generator
 
     def forward(self, x):
-        # print(x.shape)
-        # print(x.shape)
-        # _, x = self.generator(x)
-        # x = x.view(x.shape[0], x.shape[2], x.shape[3])
-        # print(x.shape)
         # Set initial hidden and cell states
         h0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device).requires_grad_()
         c0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device).requires_grad_()
 
         # Forward propagate LSTM
         out, _ = self.lstm(x, (h0.detach(), c0.detach()))  # out: tensor of shape (batch_size, seq_length, hidden_size)
-
+        print(out.shape, hidden_dim*2, 28)
         out = F.relu(self.attention_layer(out))
-        # print('LSTM output',out.shape)
-        # Decode the hidden state of the last time step
-        # print(out.shape)
-
-
-
-        # out1 = self.fc(out[:, -1, :])
         out = self.fc(out)
-        # print(out.shape)
         out = self.fc1(out)
-        # print(out1.shape)
-
-        # out = self.fc1(out1[:, -1, :])
-        # out = self.fc1(out1)
-        # print(out.shape)  # 1, 2
-        # exit()
-        # out = F.softmax(out, dim=1)
-        # print('final layer', out.shape)
-        # x = F.adaptive_avg_pool2d(out, (1, 2)).view((1, 2))
-        # print(x.shape, F.softmax(x, dim=1).shape)
-        # print(x.shape)
         return out.squeeze()
+
 
 '''
 STEP 4: INSTANTIATE MODEL CLASS
@@ -151,11 +127,6 @@ model = RNNModel(input_dim, hidden_dim, layer_dim, output_dim)
 model = model.to(device)
 # JUST PRINTING MODEL & PARAMETERS
 print(model)
-# print(len(list(model.parameters())))
-# for i in range(len(list(model.parameters()))):
-#     print(list(model.parameters())[i].size())
-
-
 
 
 '''
@@ -184,35 +155,12 @@ print(num_epochs)
 for epoch in range(num_epochs):
     for i, (images, labels) in enumerate(train_loader):
         model.train()
-        # print(images.shape)
-        # Load images as tensors with gradient accumulation abilities
-        # images = images.view(-1, seq_dim, input_dim).requires_grad_()
         images = images.view(-1, seq_dim, input_dim).requires_grad_()
-        # print(images.shape)
+
         # Clear gradients w.r.t. parameters
         optimizer.zero_grad()
-
-        # Forward pass to get output/logits
-        # outputs.size() --> 100, 10
-        # print(images.shape)
-        # images, labels =  100, 10
-        # print(images.shape)
-        # images, labels  = shuffel_labels(images, labels, i % 9)
-        # images = images.to(device)
-        # labels = labels.to(device)
-        # result = result.to(device)
-        # print(i, images.shape)
-        # print(epoch, i, labels.shape, labels)
-        # outputs = model(images.requires_grad_())
         outputs = model(images)
-        # print(temp.shape, temp)
-        # Calculate Loss: softmax --> cross entropy loss
-        # print('temp, result', outputs.shape, labels.shape)
         loss = criterion(outputs, labels)
-        # loss2 = criterion1(temp, result)
-        # print('temp, result',temp.shape, result.shape, temp, result)
-        # loss = loss1 + loss2
-        # loss = loss2
         # Getting gradients w.r.t. parameters
         loss.backward()
 
@@ -232,30 +180,18 @@ for epoch in range(num_epochs):
             for images, labels in test_loader:
                 # Resize images
                 images = images.view(-1, seq_dim, input_dim)
-                # images, labels, result = shuffel_labels(images, labels, i % 9)
-                # images = images.to(device)
-                # labels = labels.to(device)
-                # result = result.to(device)
-                # real.append(result.data.detach().item())
                 # Forward pass only to get logits/output
                 outputs = model(images)
 
                 # Get predictions from the maximum value
                 _, predicted = torch.max(outputs.data, 1)
-                # _, predicted1 = torch.max(temp.data, 1)
-                # if torch.rand(1)[0] > 0.8:
-                # print(labels, predicted)
-                # pred.append(torch.argmax(temp.data).detach().item())
-                # print(result.detach().item(), torch.argmax(temp.data).detach().item())
-                # Total number of labels
+
                 total += labels.size(0)
 
                 # Total correct predictions
                 correct += (predicted == labels).sum()
 
             accuracy = 100 * correct / total
-            # corr = torch.tensor(real) == torch.tensor(pred)
-            # print(corr)
-            # acc = torch.sum(corr)*100 / corr.shape[0]
+
             # Print Loss
             print('Iteration: {}. Loss: {}. Accuracy: {}'.format(iter, loss.item(), accuracy))
