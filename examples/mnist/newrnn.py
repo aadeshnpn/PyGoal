@@ -61,7 +61,7 @@ class GeneratorLoss(nn.Module):
         else:
             val, argmax = actions.max(-1)
             # sub = [range(action.shape[0]))
-            change = torch.tensor([pow(0.9, i) for i in range(actions.shape[0]+1,1, -1)]) * val
+            change = torch.tensor([pow(0.9, i) for i in range(actions.shape[0]+1,1, -1)]).to(device) * val
             actions[range(actions.shape[0]), argmax] = val - change
             actions = actions.T / actions.sum(1)
             actions = actions.T
@@ -286,6 +286,7 @@ def modify_mnistnet():
     model.load_state_dict(torch.load("mnist_cnn.pt"))
     for param in model.parameters():
         param.requires_grad = False
+    model = model.to(device)
     return model
 
 
@@ -347,7 +348,7 @@ class RNNModelGen(nn.Module):
         self.num_layers = num_layers
         self.lstm = nn.LSTM(
             input_size, hidden_size, num_layers, batch_first=True)
-        self.fc = nn.Linear(hidden_size, num_classes)
+        self.fc = nn.Linear(128, num_classes)
         # self.fc1 = nn.Linear(hidden_size, 2)
         # self.fc1 = nn.Linear(num_classes, 2)
         self.generator = generator
@@ -359,19 +360,19 @@ class RNNModelGen(nn.Module):
         x = x.view(1, x.shape[0], x.shape[1])
         # print(x.shape)
         # Set initial hidden and cell states
-        h0 = torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size).to(device)
-        c0 = torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size).to(device)
+        # h0 = torch.zeros(
+        #     self.num_layers, x.size(0), self.hidden_size).to(device)
+        # c0 = torch.zeros(
+        #     self.num_layers, x.size(0), self.hidden_size).to(device)
 
         # Forward propagate LSTM
-        out, _ = self.lstm(x, (h0, c0))
+        # out, _ = self.lstm(x, (h0, c0))
         # out: tensor of shape (batch_size, seq_length, hidden_size)
 
         # print('LSTM output',out.shape)
         # Decode the hidden state of the last time step
         # print(out.shape)
-        actions = self.fc(out)
+        actions = self.fc(x)
         # print(out1.shape)
         # out = self.fc1(out[:, -1, :])
         # out = self.fc1(out)
@@ -402,7 +403,7 @@ def init_model():
     # criterion = MainLoss()
     # criterion = CrossEntropyLoss1()
     criterionrec = nn.CrossEntropyLoss()
-
+    criterionrec = criterionrec.to(device)
     learning_rate = 0.001
     # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
     optimizerrec = torch.optim.Adam(modelrec.parameters(), lr=learning_rate)
@@ -411,7 +412,7 @@ def init_model():
     # model = grad_option_model(model, False)
     optimizergen = torch.optim.SGD(modelgen.parameters(), lr=learning_rate)
     criteriongen = GeneratorLoss()
-
+    criteriongen = criteriongen.to(device)
     return (modelgen, modelrec), (criteriongen, criterionrec), (
         optimizergen, optimizerrec)
 
@@ -438,13 +439,14 @@ def generation(generator, env):
         j += 1
         image = env.get_images(s)
         # print(j, image.shape)
+        image = image.to(device)
         actions = generator(image)
         # print(j, actions)
         # actions, _ = generator(image)
         state = get_current_state(env, generator)
         # print(state)
         trace = trace_accumulator(trace, state)
-        action = greedy_action(actions.data.numpy(), env.nprandom)
+        action = greedy_action(actions.cpu().data.numpy(), env.nprandom)
         if done:
             break
         if j > 15:
