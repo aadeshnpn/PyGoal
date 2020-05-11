@@ -29,7 +29,7 @@ STEP 2: MAKING DATASET ITERABLE
 batch_size = 100
 n_iters = 9000
 num_epochs = n_iters / (len(train_dataset) / batch_size)
-num_epochs = 20  # int(num_epochs)
+num_epochs = 60  # int(num_epochs)
 
 train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                            batch_size=batch_size,
@@ -134,10 +134,12 @@ class RNNModel(nn.Module):
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
         self.fc = nn.Linear(hidden_size*2, num_classes)
-        # self.fc1 = nn.Linear(hidden_size, 2)
+        # self.fc1 = nn.Linear(num_classes*5, 2)
         self.fc1 = nn.Linear(hidden_size*2, 2)
         self.generator = generator
+        # self.attention_layer = Attention(128,  5)
         self.attention_layer = Attention(128,  5)
+        self.al = Attention(128,  1)
 
     def forward(self, x):
         # print(x.shape)
@@ -155,13 +157,18 @@ class RNNModel(nn.Module):
         # print('LSTM output',out.shape)
         # Decode the hidden state of the last time step
         # print(out.shape)
-        out1 = self.fc(out)
+        # out = out.view(out.shape[1], out.shape[0], out.shape[2])
+        out1 = F.relu(self.al(out))
+        # print(out.shape, out1.shape)
+        out1 = self.fc(out1)
         # print(out1.shape)
         # print(out.shape)
         # out = self.fc1(out1[:, -1, :])
-        out = F.relu(self.attention_layer(out))
+        # out = F.relu(self.attention_layer(out))
         # print(out.shape)
+        out = F.relu(self.attention_layer(out))
         out = self.fc1(out)
+        # print(out1.shape, out.shape)
         # print(out.shape)
         # print(out.shape)  # 1, 2
         # exit()
@@ -170,7 +177,7 @@ class RNNModel(nn.Module):
         # x = F.adaptive_max_pool2d(out, (1, 2)).view((1, 2))
         # print(x.shape, F.softmax(x, dim=1).shape)
         # print(x.shape)
-        return out1.squeeze(), out
+        return out1, out
 
 '''
 STEP 4: INSTANTIATE MODEL CLASS
@@ -198,9 +205,10 @@ criterion1 = nn.CrossEntropyLoss()
 '''
 STEP 6: INSTANTIATE OPTIMIZER CLASS
 '''
-learning_rate = 0.01
+learning_rate = 0.001
 
-optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+# optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
 '''
 STEP 7: TRAIN THE MODEL
@@ -241,11 +249,11 @@ for epoch in range(num_epochs):
         # print(temp.shape, temp)
         # Calculate Loss: softmax --> cross entropy loss
         # print('temp, result', outputs.shape, labels.shape)
-        loss1 = criterion(outputs, labels)
+        # loss1 = criterion(outputs, labels)
         loss2 = criterion1(temp, result)
         # print('temp, result',temp.shape, result.shape, temp, result)
-        loss = loss1 + loss2
-        # loss = loss2
+        # loss = loss1 + loss2
+        loss = loss2
         # Getting gradients w.r.t. parameters
         loss.backward()
 
@@ -276,7 +284,7 @@ for epoch in range(num_epochs):
 
                 # Forward pass only to get logits/output
                 outputs, temp = model(images)
-
+                # print(outputs.shape)
                 # Get predictions from the maximum value
                 _, predicted = torch.max(outputs.data, 1)
                 # _, predicted1 = torch.max(temp.data, 1)
@@ -318,7 +326,7 @@ for images, labels in test_loader:
 
     # Forward pass only to get logits/output
     outputs, temp = model(images)
-
+    # print(outputs)
     # Get predictions from the maximum value
     _, predicted = torch.max(outputs.data, 1)
     # _, predicted1 = torch.max(temp.data, 1)
