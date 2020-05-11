@@ -256,6 +256,48 @@ class TraceEmbDS(Dataset):
         return len(self.data)
 
 
+class Attention(nn.Module):
+    def __init__(self, feature_dim, step_dim, bias=True, **kwargs):
+        super(Attention, self).__init__(**kwargs)
+
+        self.supports_masking = True
+
+        self.bias = bias
+        self.feature_dim = feature_dim
+        self.step_dim = step_dim
+        self.features_dim = 0
+
+        weight = torch.zeros(feature_dim, 1)
+        nn.init.kaiming_uniform_(weight)
+        self.weight = nn.Parameter(weight)
+
+        if bias:
+            self.b = nn.Parameter(torch.zeros(step_dim))
+
+    def forward(self, x, mask=None):
+        feature_dim = self.feature_dim
+        step_dim = self.step_dim
+
+        eij = torch.mm(
+            x.contiguous().view(-1, feature_dim),
+            self.weight
+        ).view(-1, step_dim)
+
+        if self.bias:
+            eij = eij + self.b
+
+        eij = torch.tanh(eij)
+        a = torch.exp(eij)
+
+        if mask is not None:
+            a = a * mask
+
+        a = a / (torch.sum(a, 1, keepdim=True) + 1e-10)
+
+        weighted_input = x * torch.unsqueeze(a, -1)
+        return torch.sum(weighted_input, 1)
+
+
 class Generator(nn.Module):
     def __init__(self):
         super(Generator, self).__init__()
@@ -291,51 +333,64 @@ def modify_mnistnet():
 
 
 # Recurrent neural network (many-to-one)
-class RNNModelRec(nn.Module):
-    def __init__(
-            self, input_size, hidden_size, num_layers,
-            num_classes, generator):
-        super(RNNModelRec, self).__init__()
+class RNNModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes, generator):
+        super(RNNModel, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
-        self.lstm = nn.LSTM(
-            input_size, hidden_size, num_layers, batch_first=True)
-        # self.fc = nn.Linear(hidden_size, num_classes)
-        self.fc1 = nn.Linear(hidden_size, 2)
-        # self.fc1 = nn.Linear(num_classes, 2)
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(hidden_size*2, num_classes)
+        # self.fc1 = nn.Linear(num_classes*5, 2)
+        self.fc1 = nn.Linear(hidden_size*2, 2)
         self.generator = generator
+        # self.attention_layer = Attention(128,  5)
+        self.attention_layer = Attention(512,  1)
+        self.al = Attention(512,  1)
+        self.fc2 = nn.Linear(17*2, 2)
 
     def forward(self, x):
         # print(x.shape)
         # print(x.shape)
+        # print(x.shape)
         _, x = self.generator(x)
-        x = x.view(1, x.shape[0], x.shape[1])
+        # print(x.shape)
+        x = x.view(x.shape[0], 1, x.shape[1])
         # print(x.shape)
         # Set initial hidden and cell states
-        h0 = torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size).to(device)
-        c0 = torch.zeros(
-            self.num_layers, x.size(0), self.hidden_size).to(device)
-
+        h0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device)
+        c0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device)
+        # [1, 1, 512 ]
         # Forward propagate LSTM
-        out, _ = self.lstm(x, (h0, c0))
-        # out: tensor of shape (batch_size, seq_length, hidden_size)
+        out, _ = self.lstm(x, (h0.detach(), c0.detach()))  # out: tensor of shape (batch_size, seq_length, hidden_size)
 
         # print('LSTM output',out.shape)
         # Decode the hidden state of the last time step
+        # print(out.shape)    # [1, 1, 512 ]
+        # out = out.view(out.shape[1], out.shape[0], out.shape[2])
         # print(out.shape)
-        # actions = self.fc(out)
+        out1 = F.relu(self.al(out))
+        # print(out.shape, out1.shape)
+        out1 = self.fc(out1)
         # print(out1.shape)
-        # out = self.fc1(out[:, -1, :])
+        # print(out.shape)
+        # out = self.fc1(out1[:, -1, :])
+        # out = F.relu(self.attention_layer(out))
+        # print(out.shape)
+        out = F.relu(self.attention_layer(out))
         out = self.fc1(out)
-        # out = self.fc1(actions)
+        if out.shape[0] != 1:
+            out = self.fc2(out.view(out.shape[0] * out.shape[1]))
+        # print(out1.shape, out.shape)
         # print(out.shape)
+        # print(out.shape)  # 1, 2
         # exit()
-        out = F.adaptive_avg_pool2d(out, (1, 2)).view((1, 2))
-        # print(out.shape)
-        # x = F.conv2d()
-        return out
-        # return out1.squeeze(), F.softmax(out, dim=1)
+        # out = F.softmax(out, dim=1)
+        # print('final layer', out.shape)
+        # x = F.adaptive_max_pool2d(out, (1, 2)).view((1, 2))
+        # print(x.shape, F.softmax(x, dim=1).shape)
+        # print(x.shape)
+        # print(out1.shape, out.shape)
+        return out1, out
 
 
 # Recurrent neural network (many-to-one)
@@ -388,33 +443,36 @@ class RNNModelGen(nn.Module):
 
 def init_model():
     input_dim = 128
-    hidden_dim = 64
+    hidden_dim = 256
     layer_dim = 1  # ONLY CHANGE IS HERE FROM ONE LAYER TO TWO LAYER
     output_dim = 4
 
     generator = modify_mnistnet()
-    modelgen = RNNModelGen(
-        input_dim, hidden_dim, layer_dim, output_dim, generator)
-    modelrec = RNNModelRec(
-        input_dim, hidden_dim, layer_dim, output_dim, generator)
-    modelgen = modelgen.to(device)
-    modelrec = modelrec.to(device)
-    # JUST PRINTING MODEL & PARAMETERS
+    # modelgen = RNNModelGen(
+    #     input_dim, hidden_dim, layer_dim, output_dim, generator)
+    # modelrec = RNNModelRec(
+    #     input_dim, hidden_dim, layer_dim, output_dim, generator)
+    # modelgen = modelgen.to(device)
+    # modelrec = modelrec.to(device)
+    # # JUST PRINTING MODEL & PARAMETERS
     # criterion = MainLoss()
     # criterion = CrossEntropyLoss1()
-    criterionrec = nn.CrossEntropyLoss()
-    criterionrec = criterionrec.to(device)
+    model = RNNModel(
+        input_dim, hidden_dim, layer_dim, output_dim, generator)
+    criterion = nn.CrossEntropyLoss()
+    criterion = criterion.to(device)
     learning_rate = 0.001
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    optimizerrec = torch.optim.Adam(modelrec.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    # optimizerrec = torch.optim.Adam(modelrec.parameters(), lr=learning_rate)
 
     learning_rate = 0.01
     # model = grad_option_model(model, False)
-    optimizergen = torch.optim.SGD(modelgen.parameters(), lr=learning_rate)
-    criteriongen = GeneratorLoss()
-    criteriongen = criteriongen.to(device)
-    return (modelgen, modelrec), (criteriongen, criterionrec), (
-        optimizergen, optimizerrec)
+    # optimizergen = torch.optim.SGD(modelgen.parameters(), lr=learning_rate)
+    # criteriongen = GeneratorLoss()
+    # criteriongen = criteriongen.to(device)
+    # return (modelgen, modelrec), (criteriongen, criterionrec), (
+    #    optimizergen, optimizerrec)
+    return model, criterion, optimizer
 
 
 def get_current_state(env, generator):
@@ -440,7 +498,7 @@ def generation(generator, env):
         image = env.get_images(s)
         # print(j, image.shape)
         image = image.to(device)
-        actions = generator(image)
+        actions, _ = generator(image)
         # print(j, actions)
         # actions, _ = generator(image)
         state = get_current_state(env, generator)
@@ -490,6 +548,7 @@ def propogation(train_loader, model, optim, error, num_epochs=1):
         # images = images.reshape(
         # -1, sequence_length, input_size).to(device)
         # print(images.shape, labels.shape)
+        # print(images.shape, labels.shape, labels)
         shape = images.shape
         images = images.reshape(shape[1], shape[0], shape[2], shape[3])
         images = images.float()
@@ -499,15 +558,17 @@ def propogation(train_loader, model, optim, error, num_epochs=1):
         # Forward pass
         # print(images.grad_fn, images.grad_fn.next_functions)
         # print(images.shape)
-        if type(model).__name__ == 'RNNModelRec':
-            outputs = model(images)
-            loss = error(outputs, labels)
-            corr = torch.argmax(outputs) == labels
-            corr = corr * 1
-            acc.append(corr.item())
-        else:
-            actions = model(images)
-            loss = error(actions, labels)
+        # if type(model).__name__ == 'RNNModelRec':
+        #     outputs = model(images)
+        #     loss = error(outputs, labels)
+        #     corr = torch.argmax(outputs) == labels
+        #     corr = corr * 1
+        #     acc.append(corr.item())
+        # else:
+        actions, result = model(images)
+        result = result.view(1, 2)
+        # print(images.shape, actions.shape, result.shape, labels.shape)
+        loss = error(result, labels)
         # print(i, actions)
         # print('recognizer', outputs.shape, actions.shape, labels.shape)
         # gloss = gerror(actions, labels)
@@ -592,10 +653,10 @@ def grad_option_model(model, default=True):
 def train():
     env = EnvMNIST()
     model, criterion, optimizer = init_model()
-    genmodel, recmodel = model
-    gencriter, reccriter = criterion
-    genoptim, recoptim = optimizer
-    # trace = generation(model, env)
+    # genmodel, recmodel = model
+    # gencriter, reccriter = criterion
+    # genoptim, recoptim = optimizer
+    # # trace = generation(model, env)
     # valid_trace, invalid_trace = create_traces(env, model, 1)
     # print(invalid_trace[0]['S'], invalid_trace[0]['I'][0].shape)
     # print(trace)
@@ -612,7 +673,7 @@ def train():
             valid_traces, invalid_traces = torch.load(fname)
         else:
             # valid_traces, invalid_traces = create_traces(env, generator, 100)
-            valid_traces, invalid_traces = create_traces(env, genmodel, 20)
+            valid_traces, invalid_traces = create_traces(env, model, 2)
             # pickle.dump((valid_traces, invalid_traces), open(fname, "wb"))
             # torch.save((valid_traces, invalid_traces), fname)
 
@@ -661,27 +722,28 @@ def train():
             dataset=train_dataset,
             batch_size=1,
             shuffle=True)
-        if epoch % 3 == 0:
-            propogation(
-                train_loader, recmodel,
-                recoptim, reccriter, num_epochs=1)
-        else:
-            train_dataset = TraceEmbDS(randvalid, randinvalid[:1])
 
-            train_loader = torch.utils.data.DataLoader(
-                dataset=train_dataset,
-                batch_size=1,
-                shuffle=True)
-            propogation(
-                train_loader, genmodel,
-                genoptim, gencriter, num_epochs=1)
+        # if epoch % 3 == 0:
+        #     propogation(
+        #         train_loader, recmodel,
+        #         recoptim, reccriter, num_epochs=1)
+        # else:
+        #     train_dataset = TraceEmbDS(randvalid, randinvalid[:1])
+
+        #     train_loader = torch.utils.data.DataLoader(
+        #         dataset=train_dataset,
+        #         batch_size=1,
+        #         shuffle=True)
+        #     propogation(
+        #         train_loader, genmodel,
+        #         genoptim, gencriter, num_epochs=1)
 
         # model = grad_option_model(model, False)
-        # propogation(
-        #     train_loader, model,
-        #     optimizergen, criteriongen, genprop=True, num_epochs=1)
+        propogation(
+            train_loader, model,
+            optimizer, criterion, num_epochs=1)
         # Save both the recognizer and generator
-        torch.save(genmodel.state_dict(), "rnnmodel.pt")
+        # torch.save(genmodel.state_dict(), "rnnmodel.pt")
 
 
 def inference():
@@ -712,4 +774,4 @@ def test_model():
 
 if __name__ == "__main__":
     main()
-    # test_model()
+1    # test_model()
