@@ -90,15 +90,15 @@ class Attention(nn.Module):
 
 
 # Recurrent neural network (many-to-one)
-class RNNModel(nn.Module):
+class RNNModelRec(nn.Module):
     def __init__(self, input_size, hidden_size, num_layers, num_classes):
-        super(RNNModel, self).__init__()
+        super(RNNModelRec, self).__init__()
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
         self.attention_layer = Attention(hidden_size*2, 28)
         self.fc = nn.Linear(hidden_size*2, hidden_size*2)
-        self.fc1 = nn.Linear(hidden_size*2, num_classes)
+        self.fc1 = nn.Linear(hidden_size*2, 2)
 
     def forward(self, x):
         # Set initial hidden and cell states
@@ -114,6 +114,30 @@ class RNNModel(nn.Module):
         return out.squeeze()
 
 
+class RNNModelGen(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(RNNModelGen, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
+        self.attention_layer = Attention(hidden_size*2, 28)
+        self.fc = nn.Linear(hidden_size*2, hidden_size*2)
+        self.fc1 = nn.Linear(hidden_size*2, num_classes)
+
+    def forward(self, x):
+        # Set initial hidden and cell states
+        h0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device).requires_grad_()
+        c0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device).requires_grad_()
+
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0.detach(), c0.detach()))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+        # print(out.shape, hidden_dim*2, 28)
+        out = F.relu(self.attention_layer(out))
+        out = self.fc(out)
+        out = self.fc1(out)
+        return out.squeeze()
+
+
 '''
 STEP 4: INSTANTIATE MODEL CLASS
 '''
@@ -123,7 +147,7 @@ layer_dim = 1  # ONLY CHANGE IS HERE FROM ONE LAYER TO TWO LAYER
 output_dim = 10
 
 # generator = modify_mnistnet()
-model = RNNModel(input_dim, hidden_dim, layer_dim, output_dim)
+model = RNNModelGen(input_dim, hidden_dim, layer_dim, output_dim)
 model = model.to(device)
 # JUST PRINTING MODEL & PARAMETERS
 print(model)
