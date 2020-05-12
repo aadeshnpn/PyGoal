@@ -303,7 +303,7 @@ for epoch in range(num_epochs):
             acc = torch.sum(corr)*100 / corr.shape[0]
             # Print Loss
             print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
-
+    # print(i)
 
 model.eval()
 # Calculate Accuracy

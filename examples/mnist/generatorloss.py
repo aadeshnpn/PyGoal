@@ -295,7 +295,8 @@ def greedy_action(prob, nprandom):
     # prob = F.softmax(prob.data)
     # print('prob', prob)
     # return nprandom.choice([0, 1, 2, 3], p=prob)
-    return np.argmax(prob)
+    # return np.argmax(prob)
+    return prob
 
 
 def get_current_state(env, generator):
@@ -323,7 +324,7 @@ def generation(generator, env):
         # actions, _ = generator(image)
         state = get_current_state(env, generator)
         trace = trace_accumulator(trace, state)
-        action = greedy_action(actions.data.numpy(), env.nprandom)
+        action = greedy_action(actions.data.item(), env.nprandom)
         if done:
             break
         if j > 15:

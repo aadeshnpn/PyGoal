@@ -100,9 +100,14 @@ class CrossEntropyLoss1(nn.Module):
         mloss = (1-indx) * torch.log(softmax) + indx * (torch.log(softmax))
         mloss = -1.0 * mloss
         if indx == 1 and labels.item() == 1:
-            mloss = -1.0 * mloss[0][labels.item()]
+            # mloss = -1.0 * mloss[0][labels.item()]
+            mloss = self.error(prediction, labels)
+        elif indx == 0 and labels.item() == 0:
+            # mloss = -1.0 * mloss[0][labels.item()]
+            mloss = self.error(prediction, labels) * 16
         else:
-            mloss = torch.sum(mloss).squeeze() * 2
+            # mloss = torch.sum(mloss).squeeze() * 2
+            mloss = self.error(prediction, labels) * 24
         return mloss
 
 
@@ -390,7 +395,7 @@ class RNNModel(nn.Module):
         # print(x.shape, F.softmax(x, dim=1).shape)
         # print(x.shape)
         # print(out1.shape, out.shape)
-        return out1, out
+        return torch.argmax(out1), out
 
 
 # Recurrent neural network (many-to-one)
@@ -459,10 +464,11 @@ def init_model():
     # criterion = CrossEntropyLoss1()
     model = RNNModel(
         input_dim, hidden_dim, layer_dim, output_dim, generator)
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
+    criterion = CrossEntropyLoss1()
     criterion = criterion.to(device)
     learning_rate = 0.001
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
     # optimizerrec = torch.optim.Adam(modelrec.parameters(), lr=learning_rate)
 
     learning_rate = 0.01
@@ -504,7 +510,7 @@ def generation(generator, env):
         state = get_current_state(env, generator)
         # print(state)
         trace = trace_accumulator(trace, state)
-        action = greedy_action(actions.cpu().data.numpy(), env.nprandom)
+        action = greedy_action(actions.cpu().item(), env.nprandom)
         if done:
             break
         if j > 15:
@@ -544,6 +550,7 @@ def propogation(train_loader, model, optim, error, num_epochs=1):
     # for epoch in range(num_epochs):
     acc = []
     epoch = 0
+    correct = 0
     for i, (images, labels) in enumerate(train_loader):
         # images = images.reshape(
         # -1, sequence_length, input_size).to(device)
@@ -567,7 +574,7 @@ def propogation(train_loader, model, optim, error, num_epochs=1):
         # else:
         actions, result = model(images)
         result = result.view(1, 2)
-        # print(images.shape, actions.shape, result.shape, labels.shape)
+        # print(images.shape, actions.shape, torch.argmax(result).item(), labels.item())
         loss = error(result, labels)
         # print(i, actions)
         # print('recognizer', outputs.shape, actions.shape, labels.shape)
@@ -592,7 +599,7 @@ def propogation(train_loader, model, optim, error, num_epochs=1):
         # optim.zero_grad()
         # loss.backward()
         # optim.step()
-
+        correct += (torch.argmax(result).item() == labels.item()) * 1.0
         losses.append(loss)
         # print(outputs, labels)
         # print(corr)
@@ -605,7 +612,8 @@ def propogation(train_loader, model, optim, error, num_epochs=1):
     # print('loss', loss)
     loss.backward()
     optim.step()
-    acc = (sum(acc)*100) / (len(acc)+1)
+    acc = (correct * 100) / (losses.shape[0])
+    # acc = (sum(acc)*100) / (len(acc)+1)
     print(
         'Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}, Acc: {:.4f}'.format(
             epoch+1, num_epochs, i+1, total_step,
@@ -665,17 +673,18 @@ def train():
     allinvalid = []
     # valid = 5
     # invalid = 0
-    for epoch in range(40):
+    for epoch in range(1, 150):
         # model = grad_option_model(model, True)
-        fname = 'data/'+str(epoch)+'t.pt'
+        # fname = 'data/'+str(epoch)+'t.pt'
+        fname = 'data/1t.pt'
         if os.path.isfile(fname):
             # valid_traces, invalid_traces = pickle.load(open(fname, 'rb'))
             valid_traces, invalid_traces = torch.load(fname)
         else:
             # valid_traces, invalid_traces = create_traces(env, generator, 100)
-            valid_traces, invalid_traces = create_traces(env, model, 2)
+            valid_traces, invalid_traces = create_traces(env, model, 80//epoch)
             # pickle.dump((valid_traces, invalid_traces), open(fname, "wb"))
-            # torch.save((valid_traces, invalid_traces), fname)
+            torch.save((valid_traces, invalid_traces), fname)
 
         # if len(valid_traces) >= 1:
         #     allvalid += valid_traces
@@ -699,18 +708,18 @@ def train():
         #             train_loader, model,
         #             optimizer, criterion, criterion1, num_epochs=1)
         #         invalid += 1
-        allvalid += valid_traces
-        allinvalid += invalid_traces
-        print(epoch, len(valid_traces), len(invalid_traces), len(allvalid))
+        allvalid = valid_traces
+        allinvalid = invalid_traces
+        print(epoch, len(valid_traces), len(invalid_traces), len(allvalid), end=' -> ')
         # n = np.clip(len(allinvalid), 1, 20)
         if len(allvalid) >= 1:
-            n = np.clip(len(allvalid), 1, 20)
+            n = np.clip(len(allvalid), 1, 10)
             randvalid = random_sample(allvalid, n)
         else:
             randvalid = valid_traces
 
         if len(allinvalid) >= 1:
-            n = np.clip(len(allvalid), 10, 20)
+            n = np.clip(len(allvalid), 1, 2)
             randinvalid = random_sample(allinvalid, n)
         else:
             randinvalid = invalid_traces
@@ -743,7 +752,9 @@ def train():
             train_loader, model,
             optimizer, criterion, num_epochs=1)
         # Save both the recognizer and generator
-        # torch.save(genmodel.state_dict(), "rnnmodel.pt")
+    torch.save(model.state_dict(), "rnnmodel.pt")
+    valid_traces, invalid_traces = create_traces(env, model, 20)
+    print('Generator Performance', len(valid_traces), len(invalid_traces))
 
 
 def inference():
