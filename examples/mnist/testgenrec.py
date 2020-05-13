@@ -63,7 +63,7 @@ def sequence_labels(images, labels, i, model):
     if torch.rand(1)[0] <= 0.5:
         image = []
         label = []
-        for j in range(5):
+        for j in range(7):
             indx = labels == j
             image.append(images[indx][:1])
             label.append(labels[indx][:1])
@@ -74,8 +74,8 @@ def sequence_labels(images, labels, i, model):
         actions = model(images)
         # return images[indx][:5], labels[indx][:5], torch.tensor([1])
     else:
-        images = images[:5]
-        labels = labels[:5]
+        images = images[:7]
+        labels = labels[:7]
         result = torch.tensor([0])
         actions = model(images)
         # return images[:5], labels[:5], torch.tensor([0])
@@ -268,8 +268,57 @@ class RNNModelRec(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
+        self.lstm_label = nn.LSTM(2, 50, 1, batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(hidden_size*2, 2)
+        # self.fc1 = nn.Linear(hidden_size*2, 2)
+        self.fc1 = nn.Linear(100, 2)
+        self.generator = generator
+        self.attention_layer = Attention(100,  7)
+        # self.al = Attention(128,  1)
+
+    def forward(self, x):
+        _, x = self.generator(x)
+        # x = torch.cat((actions, x), dim=1)
+        x = x.view(1, x.shape[0], x.shape[1])
+        # print(x.shape)
+        # print(x.shape, actions.shape, torch.cat((actions, x), dim=1).shape)
+        # exit()
+        # print(x.shape, actions.shape, .shape)
+        # Set initial hidden and cell states
+        h0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device)
+        c0 = torch.zeros(self.num_layers*2, x.size(0), self.hidden_size).to(device)
+
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0.detach(), c0.detach()))  # out: tensor of shape (batch_size, seq_length, hidden_size)
+
+        # Decode the hidden state of the last time step
+        # out1 = F.relu(self.al(out))
+        out1 = self.fc(out)
+        out, _ = self.lstm_label(out1)
+        # print('model', out.shape)
+        if out.shape[1] != 1:
+            # out, _ = self.lstm_label(out)
+            out = F.relu(self.attention_layer(out))
+            out = self.fc1(out)
+            # print('model out', out.shape)
+        # print('after lstm label',out.shape)
+        # exit()
+
+        # print(out.shape)
+        # exit()
+        # return out1, out
+        return out1, out
+
+
+# Recurrent neural network (many-to-one)
+class RNNModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, num_classes, generator):
+        super(RNNModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
         self.lstm_label = nn.LSTM(input_size, 50, 1, batch_first=True, bidirectional=True)
-        self.fc = nn.Linear(hidden_size*2, 4)
+        self.fc = nn.Linear(hidden_size*2, 2)
         # self.fc1 = nn.Linear(hidden_size*2, 2)
         self.fc1 = nn.Linear(input_size, 2)
         self.generator = generator
@@ -277,7 +326,7 @@ class RNNModelRec(nn.Module):
         # self.al = Attention(128,  1)
 
     def forward(self, x):
-        _, x = self.generator(x)
+        # _, x = self.generator(x)
         # x = torch.cat((actions, x), dim=1)
         x = x.view(1, x.shape[0], x.shape[1])
         # print(x.shape)
@@ -376,8 +425,14 @@ for epoch in range(num_epochs):
         images, labels, result, actions = env(images, labels, i % 9, model)
         # print(i, images.shape, labels.shape, labels)
         if images.shape[0] != 7:
-            # print(images.shape)
-            break
+            img = images[0].clone()
+            img = img.view(1, *img.shape)
+            images = torch.cat((img, images))
+            lab = labels[0].view(1)
+            labels = torch.cat((lab, labels))
+            # print(images.shape, labels.shape, result, labels)
+            # print(result, end=' ')
+            # break
         # pyt   pprint(images.shape)
         images = images.to(device)
         labels = labels.to(device)
@@ -422,7 +477,14 @@ for epoch in range(num_epochs):
                 # print(labels, result)
                 if images.shape[0] != 7:
                     # print(images.shape)
-                    continue
+                    img = images[0].clone()
+                    img = img.view(1, *img.shape)
+                    images = torch.cat((img, images))
+                    lab = labels[0].view(1)
+                    labels = torch.cat((lab, labels))
+                    # print(result, end=' ')
+                    # print(images.shape, labels.shape)
+                    # continue
                 images = images.to(device)
                 labels = labels.to(device)
                 result = result.to(device)
@@ -451,52 +513,52 @@ for epoch in range(num_epochs):
             # accuracy = 100 * correct / total
             # print(real, pred)
             corr = torch.tensor(real) == torch.tensor(pred)
-            print(real, len(real))
+            print(real, len(real), sum(real))
             acc = torch.sum(corr)*100 / corr.shape[0]
             # Print Loss
             # print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
             print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), correct, acc))
     # print(i)
 
-# model.eval()
-# # Calculate Accuracy
-# correct = 0
-# total = 0
-# real = []
-# pred = []
-# # Iterate through test dataset
-# for images, labels in test_loader:
-#     # Resize images
-#     # images = images.view(-1, seq_dim, input_dim)
-#     images, labels, result, actions = sequence_labels(images, labels, i % 9, modelgen)
-#     if images.shape[0] != 5:
-#         # print(images.shape)
-#         continue
-#     images = images.to(device)
-#     labels = labels.to(device)
-#     result = result.to(device)
-#     actions = actions.to(device)
-#     real.append(result.data.detach().item())
+model.eval()
+# Calculate Accuracy
+correct = 0
+total = 0
+real = []
+pred = []
+# Iterate through test dataset
+for images, labels in test_loader:
+    # Resize images
+    # images = images.view(-1, seq_dim, input_dim)
+    images, labels, result, actions = env(images, labels, i % 9, model)
+    if images.shape[0] != 5:
+        # print(images.shape)
+        continue
+    images = images.to(device)
+    labels = labels.to(device)
+    result = result.to(device)
+    actions = actions.to(device)
+    real.append(result.data.detach().item())
 
-#     # Forward pass only to get logits/output
-#     temp = model(images, actions)
-#     outputs = modelgen(images)
-#     # print(outputs)
-#     # Get predictions from the maximum value
-#     _, predicted = torch.max(outputs.data, 1)
-#     # _, predicted1 = torch.max(temp.data, 1)
-#     #if torch.rand(1)[0] > 0.8:
-#     # print(labels, predicted)
-#     pred.append(torch.argmax(temp.data).detach().item())
-#     # print(result.detach().item(), torch.argmax(temp.data).detach().item())
-#     # Total number of labels
-#     total += labels.size(0)
-#     # Total correct predictions
-#     print(predicted, labels, torch.argmax(temp.detach()).item(), result.item())
-#     correct += (predicted == labels).sum()
-# accuracy = 100 * correct / total
-# corr = torch.tensor(real) == torch.tensor(pred)
-# # print(corr)
-# acc = torch.sum(corr)*100 / corr.shape[0]
-# # Print Loss
-# print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
+    # Forward pass only to get logits/output
+    temp = model(images, actions)
+    outputs = modelgen(images)
+    # print(outputs)
+    # Get predictions from the maximum value
+    _, predicted = torch.max(outputs.data, 1)
+    # _, predicted1 = torch.max(temp.data, 1)
+    #if torch.rand(1)[0] > 0.8:
+    # print(labels, predicted)
+    pred.append(torch.argmax(temp.data).detach().item())
+    # print(result.detach().item(), torch.argmax(temp.data).detach().item())
+    # Total number of labels
+    total += labels.size(0)
+    # Total correct predictions
+    print(predicted, labels, torch.argmax(temp.detach()).item(), result.item())
+    correct += (predicted == labels).sum()
+accuracy = 100 * correct / total
+corr = torch.tensor(real) == torch.tensor(pred)
+# print(corr)
+acc = torch.sum(corr)*100 / corr.shape[0]
+# Print Loss
+print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
