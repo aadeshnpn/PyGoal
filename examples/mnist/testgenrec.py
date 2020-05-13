@@ -3,6 +3,7 @@ import torch.nn as nn
 import torchvision.transforms as transforms
 import torchvision.datasets as dsets
 import torch.nn.functional as F
+import numpy as np
 
 from generatorloss import (
     EnvMNIST
@@ -29,7 +30,7 @@ STEP 2: MAKING DATASET ITERABLE
 batch_size = 100
 n_iters = 9000
 num_epochs = n_iters / (len(train_dataset) / batch_size)
-num_epochs = 10  # int(num_epochs)
+num_epochs = 20  # int(num_epochs)
 
 train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
                                            batch_size=batch_size,
@@ -81,19 +82,74 @@ def sequence_labels(images, labels, i, model):
     return images, labels, result, actions
 
 
+def env(images, labels, i, model):
+    image = []
+    label = []
+    action = []
+    state = 0
+    indx = labels == state
+    image.append(images[indx][:1])
+    label.append(labels[indx][:1])
+    done = False
+    j = 0
+    # 0 - left, 1 - right, 2 - down and 3 - up
+    while True:
+        actions, _ = model(image[-1])
+        act = torch.argmax(actions).item()
+        # print(j, act)
+        if act == 1:
+            state = state + 1
+        elif act == 0:
+            state = state - 1
+
+        state = np.clip(state, 0, 5)
+        indx = labels == state
+        image.append(images[indx][:1])
+        label.append(labels[indx][:1])
+        action.append(actions)
+        if state == 5:
+            done = True
+        if done:
+            break
+        if j >= 5:
+            break
+        j += 1
+
+    if done:
+        return torch.cat(image), torch.cat(label), torch.tensor([1]), torch.cat(action)
+    else:
+        return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
+
+
 class CrossEntropyLoss1(nn.Module):
     def __init__(self):
         #  # self.init_params = locals()
         super(CrossEntropyLoss1, self).__init__()
         self.__dict__.update(locals())
-        # self.error = nn.CrossEntropyLoss()
+        self.error = nn.CrossEntropyLoss()
 
-    def forward(self, loss, result):
+    def forward(self, action, result, pred):
         # loss = self.error(temp, result)
         # print(loss)
-        # loss = loss * torch.exp(-1.0 * result)
+        # print(loss, result, end=' ')
+        # pred = pred.squeeze()
+        indx = torch.argmax(pred)
+        # print(pred)
+        # loss = torch.pow(loss, loss * torch.exp(-1.0 * pred[indx]))
         # print(loss)
+        action = action.squeeze()
+        actions = action.clone().detach()
+        # loss = 1.0 / (indx + result + 0.1)
+        loss = (indx + result - 1.1)
+        # print(loss, indx, result)
+        for i in range(action.shape[0]):
+            actions[i] = actions[i] + loss * actions[i] * i
+        # print('action from loss', action.shape, action[2], actions[2])
+        # return loss
+        target = torch.argmax(actions, dim=1)
+        loss = self.error(action, target)
         return loss
+        # print(action.shape, actions.shape, torch.argmax(action, dim=1), torch.argmax(actions, dim=1))
 '''
 STEP 3: CREATE MODEL CLASS
 '''
@@ -180,7 +236,7 @@ class RNNModelGen(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
-        self.fc = nn.Linear(hidden_size*2, num_classes)
+        self.fc = nn.Linear(hidden_size*2, 4)
         self.fc1 = nn.Linear(hidden_size*2, 2)
         self.generator = generator
         # self.attention_layer = Attention(128,  5)
@@ -212,15 +268,15 @@ class RNNModelRec(nn.Module):
         self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.lstm = nn.LSTM(input_size, hidden_size, num_layers, batch_first=True, bidirectional=True)
-        self.lstm_label = nn.LSTM(10, 50, 1, batch_first=True, bidirectional=True)
-        self.fc = nn.Linear(hidden_size*2, num_classes)
+        self.lstm_label = nn.LSTM(input_size, 50, 1, batch_first=True, bidirectional=True)
+        self.fc = nn.Linear(hidden_size*2, 4)
         # self.fc1 = nn.Linear(hidden_size*2, 2)
-        self.fc1 = nn.Linear(100, 2)
+        self.fc1 = nn.Linear(input_size, 2)
         self.generator = generator
-        self.attention_layer = Attention(100,  5)
+        self.attention_layer = Attention(128,  7)
         # self.al = Attention(128,  1)
 
-    def forward(self, x, actions):
+    def forward(self, x):
         _, x = self.generator(x)
         # x = torch.cat((actions, x), dim=1)
         x = x.view(1, x.shape[0], x.shape[1])
@@ -237,17 +293,21 @@ class RNNModelRec(nn.Module):
 
         # Decode the hidden state of the last time step
         # out1 = F.relu(self.al(out))
-        out = self.fc(out)
-        # print(out.shape)
-        out, _ = self.lstm_label(out)
-        out = F.relu(self.attention_layer(out))
+        out1 = self.fc(out)
+        out, _ = self.lstm(out)
+        # print('model', out.shape)
+        if out.shape[1] != 1:
+            # out, _ = self.lstm_label(out)
+            out = F.relu(self.attention_layer(out))
+            out = self.fc1(out)
+            # print('model out', out.shape)
         # print('after lstm label',out.shape)
         # exit()
-        out = self.fc1(out)
+
         # print(out.shape)
         # exit()
         # return out1, out
-        return out
+        return out1, out
 
 '''
 STEP 4: INSTANTIATE MODEL CLASS
@@ -277,14 +337,14 @@ criterion1 = CrossEntropyLoss1()
 '''
 STEP 6: INSTANTIATE OPTIMIZER CLASS
 '''
-learning_rate = 0.001
+learning_rate = 0.0001
 
 optimizergen = torch.optim.SGD(modelgen.parameters(), lr=learning_rate)
-#  optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-optimizer = torch.optim.Adam(
-    list(model.parameters()) + list(modelgen.parameters()),
-    lr=learning_rate
-    )
+optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+# optimizer = torch.optim.Adam(
+#     list(model.parameters()) + list(modelgen.parameters()),
+#     lr=learning_rate
+#     )
 
 '''
 STEP 7: TRAIN THE MODEL
@@ -304,7 +364,7 @@ for epoch in range(num_epochs):
         # print(images.shape)
         # Clear gradients w.r.t. parameters
         optimizer.zero_grad()
-        optimizergen.zero_grad()
+        # optimizergen.zero_grad()
 
         # Forward pass to get output/logits
         # outputs.size() --> 100, 10
@@ -312,8 +372,10 @@ for epoch in range(num_epochs):
         # images, labels =  100, 10
         # print(images.shape)
         # images, labels, result, actions = shuffel_labels(images, labels, i % 9, modelgen)
-        images, labels, result, actions = sequence_labels(images, labels, i % 9, modelgen)
-        if images.shape[0] != 5:
+        # images, labels, result, actions = sequence_labels(images, labels, i % 9, modelgen)
+        images, labels, result, actions = env(images, labels, i % 9, model)
+        # print(i, images.shape, labels.shape, labels)
+        if images.shape[0] != 7:
             # print(images.shape)
             break
         # pyt   pprint(images.shape)
@@ -322,22 +384,23 @@ for epoch in range(num_epochs):
         result = result.to(device)
         actions = actions.to(device)
         # print(i, images.shape)
-        # print(epoch, i, labels.shape, labels)
-        temp = model(images.requires_grad_(), actions)
+        # print(epoch, i, labels.shape, labels, images.shape, result)
+        action, temp = model(images.requires_grad_())
         # print(temp.shape, temp)
         # Calculate Loss: softmax --> cross entropy loss
         # print('temp, result', outputs.shape, labels.shape)
         # loss1 = criterion(outputs, labels)
-        loss = criterion(temp, result)
-        # loss = criterion1(loss1, result)
+        # print(epoch, 'temp result', temp, result)
+        loss1 = criterion(temp, result)
+        loss2 = criterion1(action, result, temp)
         # print('temp, result', i, labels, result)
 
-        # loss = loss1 + loss2
+        loss = loss1 + loss2
         # loss = loss2
         # Getting gradients w.r.t. parameters
         # loss.backward(retain_graph=True)
         loss.backward()
-
+        # print(epoch, loss)
         # Updating parameters
         optimizer.step()
         # optimizergen.step()
@@ -354,8 +417,10 @@ for epoch in range(num_epochs):
             for images, labels in test_loader:
                 # Resize images
                 # images = images.view(-1, seq_dim, input_dim)
-                images, labels, result, actions = sequence_labels(images, labels, i % 9, modelgen)
-                if images.shape[0] != 5:
+                # images, labels, result, actions = sequence_labels(images, labels, i % 9, modelgen)
+                images, labels, result, actions = env(images, labels, i % 9, model)
+                # print(labels, result)
+                if images.shape[0] != 7:
                     # print(images.shape)
                     continue
                 images = images.to(device)
@@ -366,11 +431,11 @@ for epoch in range(num_epochs):
                 real.append(result.data.detach().item())
 
                 # Forward pass only to get logits/output
-                temp = model(images, actions)
-                outputs = modelgen(images)
+                outputs, temp = model(images)
+                # outputs = modelgen(images)
                 # print(outputs.shape)
                 # Get predictions from the maximum value
-                _, predicted = torch.max(outputs.data, 1)
+                # _, predicted = torch.max(outputs.data, 1)
                 # _, predicted1 = torch.max(temp.data, 1)
                 #if torch.rand(1)[0] > 0.8:
                 # print(labels, predicted)
@@ -379,56 +444,59 @@ for epoch in range(num_epochs):
                 # Total number of labels
                 total += labels.size(0)
                 # Total correct predictions
-                correct += (predicted == labels).sum()
+                # correct += (predicted == labels).sum()
+                correct += result.item()
 
-            accuracy = 100 * correct / total
+            # accuracy = 100 * correct / total
+            # accuracy = 100 * correct / total
             # print(real, pred)
             corr = torch.tensor(real) == torch.tensor(pred)
-            # print(corr)
+            print(real, len(real))
             acc = torch.sum(corr)*100 / corr.shape[0]
             # Print Loss
-            print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
+            # print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
+            print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), correct, acc))
     # print(i)
 
-model.eval()
-# Calculate Accuracy
-correct = 0
-total = 0
-real = []
-pred = []
-# Iterate through test dataset
-for images, labels in test_loader:
-    # Resize images
-    # images = images.view(-1, seq_dim, input_dim)
-    images, labels, result, actions = sequence_labels(images, labels, i % 9, modelgen)
-    if images.shape[0] != 5:
-        # print(images.shape)
-        continue
-    images = images.to(device)
-    labels = labels.to(device)
-    result = result.to(device)
-    actions = actions.to(device)
-    real.append(result.data.detach().item())
+# model.eval()
+# # Calculate Accuracy
+# correct = 0
+# total = 0
+# real = []
+# pred = []
+# # Iterate through test dataset
+# for images, labels in test_loader:
+#     # Resize images
+#     # images = images.view(-1, seq_dim, input_dim)
+#     images, labels, result, actions = sequence_labels(images, labels, i % 9, modelgen)
+#     if images.shape[0] != 5:
+#         # print(images.shape)
+#         continue
+#     images = images.to(device)
+#     labels = labels.to(device)
+#     result = result.to(device)
+#     actions = actions.to(device)
+#     real.append(result.data.detach().item())
 
-    # Forward pass only to get logits/output
-    temp = model(images, actions)
-    outputs = modelgen(images)
-    # print(outputs)
-    # Get predictions from the maximum value
-    _, predicted = torch.max(outputs.data, 1)
-    # _, predicted1 = torch.max(temp.data, 1)
-    #if torch.rand(1)[0] > 0.8:
-    # print(labels, predicted)
-    pred.append(torch.argmax(temp.data).detach().item())
-    # print(result.detach().item(), torch.argmax(temp.data).detach().item())
-    # Total number of labels
-    total += labels.size(0)
-    # Total correct predictions
-    print(predicted, labels, torch.argmax(temp.detach()).item(), result.item())
-    correct += (predicted == labels).sum()
-accuracy = 100 * correct / total
-corr = torch.tensor(real) == torch.tensor(pred)
-# print(corr)
-acc = torch.sum(corr)*100 / corr.shape[0]
-# Print Loss
-print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
+#     # Forward pass only to get logits/output
+#     temp = model(images, actions)
+#     outputs = modelgen(images)
+#     # print(outputs)
+#     # Get predictions from the maximum value
+#     _, predicted = torch.max(outputs.data, 1)
+#     # _, predicted1 = torch.max(temp.data, 1)
+#     #if torch.rand(1)[0] > 0.8:
+#     # print(labels, predicted)
+#     pred.append(torch.argmax(temp.data).detach().item())
+#     # print(result.detach().item(), torch.argmax(temp.data).detach().item())
+#     # Total number of labels
+#     total += labels.size(0)
+#     # Total correct predictions
+#     print(predicted, labels, torch.argmax(temp.detach()).item(), result.item())
+#     correct += (predicted == labels).sum()
+# accuracy = 100 * correct / total
+# corr = torch.tensor(real) == torch.tensor(pred)
+# # print(corr)
+# acc = torch.sum(corr)*100 / corr.shape[0]
+# # Print Loss
+# print('Iteration: {}. Loss: {}. Accuracy: {}, Acc: {}'.format(iter, loss.item(), accuracy, acc))
