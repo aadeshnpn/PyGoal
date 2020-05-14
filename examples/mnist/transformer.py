@@ -9,6 +9,48 @@ import numpy as np
 device = 'cuda:0'
 
 
+class Attention(nn.Module):
+    def __init__(self, feature_dim, step_dim, bias=True, **kwargs):
+        super(Attention, self).__init__(**kwargs)
+
+        self.supports_masking = True
+
+        self.bias = bias
+        self.feature_dim = feature_dim
+        self.step_dim = step_dim
+        self.features_dim = 0
+
+        weight = torch.zeros(feature_dim, 1)
+        nn.init.kaiming_uniform_(weight)
+        self.weight = nn.Parameter(weight)
+
+        if bias:
+            self.b = nn.Parameter(torch.zeros(step_dim))
+
+    def forward(self, x, mask=None):
+        feature_dim = self.feature_dim
+        step_dim = self.step_dim
+
+        eij = torch.mm(
+            x.contiguous().view(-1, feature_dim),
+            self.weight
+        ).view(-1, step_dim)
+
+        if self.bias:
+            eij = eij + self.b
+
+        eij = torch.tanh(eij)
+        a = torch.exp(eij)
+
+        if mask is not None:
+            a = a * mask
+
+        a = a / (torch.sum(a, 1, keepdim=True) + 1e-10)
+
+        weighted_input = x * torch.unsqueeze(a, -1)
+        return torch.sum(weighted_input, 1)
+
+
 class TransFeedForwd(nn.Module):
     def __init__(self):
         super(TransFeedForwd, self).__init__()
@@ -80,6 +122,7 @@ class TransformerModel(nn.Module):
         # src = self.pos_encoder(src)
         # print(src.shape)
         src = src.view((1, *src.shape))
+        # src = src.view((1, src.shape[1], src.shape[0]))
         output = self.transformer_encoder(src)
         # output = self.decoder(output)
         return output
@@ -220,6 +263,7 @@ def env(images, labels, i, embedder, policy):
         return torch.cat(states).to(device), torch.tensor([0]).to(device)
 
 
+
 def embeddings():
     model = modify_mnistnet()
     return model
@@ -232,13 +276,29 @@ def main():
     policy = policy.to(device)
     transformer = TransformerModel(500, 132, 2, 200, 2)
     transformer = transformer.to(device)
+    selfatt = Attention(6,  132)
+    selfatt = selfatt.to(device)
     for i, (images, labels) in enumerate(train_loader):
         images = images.to(device)
         labels = labels.to(device)
         states, labels = env(images, labels, i, embedder, policy)
-        print(states.shape)
-        output = transformer(states)
-        print(output.shape)
+        print(len(states))
+        # hidden = []
+        # for i in range(1, len(states)+1):
+        #     state = states[:i]
+        #     print(state.shape, end=' ')
+        #     h = transformer(state)
+        #     print(h.shape)
+        #     hidden.append(h)
+        hidden = transformer(states).squeeze()
+        hidden = hidden.transpose(1, 0)
+        # hidden = torch.cat(hidden, dim=1)
+        print(hidden.shape)
+        z = torch.sigmoid(selfatt(hidden))
+        # z = z.view(z.shape[1], z.shape[0])
+        print('z', z.shape, z)
+        hidden_sum = hidden * z
+        print(hidden_sum.shape)
         if True:
             break
 
