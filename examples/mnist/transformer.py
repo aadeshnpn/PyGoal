@@ -53,9 +53,9 @@ class TransformerModel(nn.Module):
         # self.pos_encoder = PositionalEncoding(ninp, dropout)
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        # self.encoder = nn.Embedding(ntoken, ninp)
+        self.encoder = nn.Embedding(ntoken, ninp)
         self.ninp = ninp
-        self.decoder = nn.Linear(ninp, ntoken)
+        # self.decoder = nn.Linear(ninp, ntoken)
 
         self.init_weights()
 
@@ -78,7 +78,9 @@ class TransformerModel(nn.Module):
 
         # src = self.encoder(src) * math.sqrt(self.ninp)
         # src = self.pos_encoder(src)
-        output = self.transformer_encoder(src, self.src_mask)
+        # print(src.shape)
+        src = src.view((1, *src.shape))
+        output = self.transformer_encoder(src)
         # output = self.decoder(output)
         return output
 
@@ -213,9 +215,9 @@ def env(images, labels, i, embedder, policy):
     #     return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
 
     if done:
-        return states, torch.tensor([1])
+        return torch.cat(states).to(device), torch.tensor([1]).to(device)
     else:
-        return states, torch.tensor([0])
+        return torch.cat(states).to(device), torch.tensor([0]).to(device)
 
 
 def embeddings():
@@ -228,11 +230,15 @@ def main():
     train_loader, test_loader = load_dataset()
     policy = PolicyNetwork(state_dim=128, action_dim=4)
     policy = policy.to(device)
+    transformer = TransformerModel(500, 132, 2, 200, 2)
+    transformer = transformer.to(device)
     for i, (images, labels) in enumerate(train_loader):
         images = images.to(device)
         labels = labels.to(device)
         states, labels = env(images, labels, i, embedder, policy)
-        print(states, len(states))
+        print(states.shape)
+        output = transformer(states)
+        print(output.shape)
         if True:
             break
 
