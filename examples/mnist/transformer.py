@@ -3,10 +3,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+device = 'cuda:0'
+
 
 class TransFeedForwd(nn.Module):
     def __init__(self):
-        super(Generator, self).__init__()
+        super(TransFeedForwd, self).__init__()
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
         self.conv2 = nn.Conv2d(32, 64, 3, 1)
         self.dropout1 = nn.Dropout2d(0.25)
@@ -30,7 +32,7 @@ class TransFeedForwd(nn.Module):
 
 
 def modify_mnistnet():
-    model = Generator()
+    model = TransFeedForwd()
     model.load_state_dict(torch.load("mnist_cnn.pt"))
     for param in model.parameters():
         param.requires_grad = False
@@ -78,9 +80,141 @@ class TransformerModel(nn.Module):
         return output
 
 
+def load_dataset():
+    train_dataset = dsets.MNIST(root='./data',
+                                train=True,
+                                transform=transforms.ToTensor(),
+                                download=True)
+
+    test_dataset = dsets.MNIST(root='./data',
+                            train=False,
+                            transform=transforms.ToTensor())
+
+    batch_size = 100
+    # n_iters = 9000
+    # num_epochs = n_iters / (len(train_dataset) / batch_size)
+    # num_epochs = 20  # int(num_epochs)
+
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,
+                                            batch_size=batch_size,
+                                            shuffle=False)
+
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,
+                                            batch_size=batch_size,
+                                            shuffle=False)
+
+    return train_loader, test_loader
+
+
+class PolicyNetwork(nn.Module):
+    """Policy Network."""
+
+    def __init__(self, state_dim=4, action_dim=2):
+        super(PolicyNetwork, self).__init__()
+        self._net = nn.Sequential(
+            nn.Linear(state_dim, 10),
+            nn.ReLU(),
+            nn.Linear(10, 10),
+            nn.ReLU(),
+            nn.Linear(10, 10),
+            nn.ReLU(),
+            nn.Linear(10, action_dim)
+        )
+        self._softmax = nn.Softmax(dim=1)
+
+    def forward(self, x, get_action=True):
+        """Receives input x of shape [batch, state_dim].
+        Outputs action distribution (categorical distribution) of shape [batch, action_dim],
+        as well as a sampled action (optional).
+        """
+        scores = self._net(x)
+        probs = self._softmax(scores)
+
+        if not get_action:
+            return probs
+
+        batch_size = x.shape[0]
+        actions = np.empty((batch_size, 1), dtype=np.uint8)
+        probs_np = probs.cpu().detach().numpy()
+        for i in range(batch_size):
+            action_one_hot = np.random.multinomial(1, probs_np[i])
+            action_idx = np.argmax(action_one_hot)
+            actions[i, 0] = action_idx
+        return probs, actions
+
+
+class ValueNetwork(nn.Module):
+    """Approximates the value of a particular state."""
+
+    def __init__(self, state_dim=4):
+        super(ValueNetwork, self).__init__()
+        self._net = nn.Sequential(
+            nn.Linear(state_dim, 10),
+            nn.ReLU(),
+            nn.Linear(10, 10),
+            nn.ReLU(),
+            nn.Linear(10, 10),
+            nn.ReLU(),
+            nn.Linear(10, 1)
+        )
+
+    def forward(self, x):
+        """Receives an observation of shape [batch, state_dim].
+        Returns the value of each state, in shape [batch, 1]
+        """
+        return self._net(x)
+
+
+def env(images, labels, i, model):
+    image = []
+    label = []
+    action = []
+    state = 0
+    indx = labels == state
+    image.append(images[indx][:1])
+    label.append(labels[indx][:1])
+    done = False
+    j = 0
+    # 0 - left, 1 - right, 2 - down and 3 - up
+    while True:
+        actions, _ = model(image[-1])
+        act = torch.argmax(actions).item()
+        # print(j, act)
+        if act == 1:
+            state = state + 1
+        elif act == 0:
+            state = state - 1
+
+        state = np.clip(state, 0, 5)
+        indx = labels == state
+        image.append(images[indx][:1])
+        label.append(labels[indx][:1])
+        action.append(actions)
+        if state == 5:
+            done = True
+        if done:
+            break
+        if j >= 5:
+            break
+        j += 1
+
+    if done:
+        return torch.cat(image), torch.cat(label), torch.tensor([1]), torch.cat(action)
+    else:
+        return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
+
+
+def transform():
+    model = modify_mnistnet()
+    return model
+
 
 def main():
-    pass
+    embedder = transform()
+    train_loader, test_loader = load_dataset()
+    for i, (images, labels) in enumerate(train_loader):
+        print(i, images.shape)
+
 
 
 if __name__ == '__main__':
