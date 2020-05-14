@@ -2,6 +2,9 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.datasets as dsets
+import torchvision.transforms as transforms
+import numpy as np
 
 device = 'cuda:0'
 
@@ -28,7 +31,7 @@ class TransFeedForwd(nn.Module):
         x1 = torch.tanh(x1)
         x = self.fc2(x1)
         output = F.softmax(x, dim=1)
-        return output, x1
+        return x1
 
 
 def modify_mnistnet():
@@ -50,7 +53,7 @@ class TransformerModel(nn.Module):
         # self.pos_encoder = PositionalEncoding(ninp, dropout)
         encoder_layers = TransformerEncoderLayer(ninp, nhead, nhid, dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        self.encoder = nn.Embedding(ntoken, ninp)
+        # self.encoder = nn.Embedding(ntoken, ninp)
         self.ninp = ninp
         self.decoder = nn.Linear(ninp, ntoken)
 
@@ -64,19 +67,19 @@ class TransformerModel(nn.Module):
     def init_weights(self):
         initrange = 0.1
         self.encoder.weight.data.uniform_(-initrange, initrange)
-        self.decoder.bias.data.zero_()
-        self.decoder.weight.data.uniform_(-initrange, initrange)
+        # self.decoder.bias.data.zero_()
+        # self.decoder.weight.data.uniform_(-initrange, initrange)
 
     def forward(self, src):
-        if self.src_mask is None or self.src_mask.size(0) != len(src):
-            device = src.device
-            mask = self._generate_square_subsequent_mask(len(src)).to(device)
-            self.src_mask = mask
+        # if self.src_mask is None or self.src_mask.size(0) != len(src):
+        #     device = src.device
+        #     mask = self._generate_square_subsequent_mask(len(src)).to(device)
+        #     self.src_mask = mask
 
-        src = self.encoder(src) * math.sqrt(self.ninp)
-        src = self.pos_encoder(src)
+        # src = self.encoder(src) * math.sqrt(self.ninp)
+        # src = self.pos_encoder(src)
         output = self.transformer_encoder(src, self.src_mask)
-        output = self.decoder(output)
+        # output = self.decoder(output)
         return output
 
 
@@ -165,7 +168,7 @@ class ValueNetwork(nn.Module):
         return self._net(x)
 
 
-def env(images, labels, i, model):
+def env(images, labels, i, embedder, policy):
     image = []
     label = []
     action = []
@@ -175,10 +178,15 @@ def env(images, labels, i, model):
     label.append(labels[indx][:1])
     done = False
     j = 0
+    states = []
     # 0 - left, 1 - right, 2 - down and 3 - up
     while True:
-        actions, _ = model(image[-1])
-        act = torch.argmax(actions).item()
+        # state =
+        embedding = embedder(image[-1])
+        probs = policy(embedding, False)
+        # actions, _ = model(image[-1])
+        act = torch.argmax(probs).item()
+        # print(probs, act)
         # print(j, act)
         if act == 1:
             state = state + 1
@@ -189,7 +197,8 @@ def env(images, labels, i, model):
         indx = labels == state
         image.append(images[indx][:1])
         label.append(labels[indx][:1])
-        action.append(actions)
+        states.append(torch.cat((embedding, probs), dim=1))
+        action.append(act)
         if state == 5:
             done = True
         if done:
@@ -198,22 +207,34 @@ def env(images, labels, i, model):
             break
         j += 1
 
+    # if done:
+    #     return torch.cat(image), torch.cat(label), torch.tensor([1]), torch.cat(action)
+    # else:
+    #     return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
+
     if done:
-        return torch.cat(image), torch.cat(label), torch.tensor([1]), torch.cat(action)
+        return states, torch.tensor([1])
     else:
-        return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
+        return states, torch.tensor([0])
 
 
-def transform():
+def embeddings():
     model = modify_mnistnet()
     return model
 
 
 def main():
-    embedder = transform()
+    embedder = embeddings()
     train_loader, test_loader = load_dataset()
+    policy = PolicyNetwork(state_dim=128, action_dim=4)
+    policy = policy.to(device)
     for i, (images, labels) in enumerate(train_loader):
-        print(i, images.shape)
+        images = images.to(device)
+        labels = labels.to(device)
+        states, labels = env(images, labels, i, embedder, policy)
+        print(states, len(states))
+        if True:
+            break
 
 
 
