@@ -9,6 +9,33 @@ import numpy as np
 device = 'cuda:0'
 
 
+class RegressionLoss(nn.Module):
+    def __init__(self):
+        #  # self.init_params = locals()
+        super(RegressionLoss, self).__init__()
+        # self.__dict__.update(locals())
+        self.error = torch.nn.MSELoss()
+
+    def forward(self, out, reward):
+        # out = out.squeeze()
+        out = torch.sum(out)
+        out = out.view(1)
+        # print('loss',out, reward)
+        # print('loss',out, torch.sum(out))
+        # print('loss',out, out.shape, reward.shape)
+        return self.error(out, reward)
+
+
+class Regression(torch.nn.Module):
+    def __init__(self, inputSize, outputSize):
+        super(Regression, self).__init__()
+        self.linear = torch.nn.Linear(inputSize, outputSize)
+
+    def forward(self, x):
+        out = self.linear(x)
+        return out
+
+
 class Attention(nn.Module):
     def __init__(self, feature_dim, step_dim, bias=True, **kwargs):
         super(Attention, self).__init__(**kwargs)
@@ -258,9 +285,9 @@ def env(images, labels, i, embedder, policy):
     #     return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
 
     if done:
-        return torch.cat(states).to(device), torch.tensor([1]).to(device)
+        return torch.cat(states).to(device), torch.tensor([1.0]).to(device)
     else:
-        return torch.cat(states).to(device), torch.tensor([0]).to(device)
+        return torch.cat(states).to(device), torch.tensor([0.0]).to(device)
 
 
 
@@ -278,11 +305,19 @@ def main():
     transformer = transformer.to(device)
     selfatt = Attention(6,  132)
     selfatt = selfatt.to(device)
+    lregression = Regression(132, 1)
+    lregression = lregression.to(device)
+    crieteria = RegressionLoss()
+    modelpara = (
+        list(lregression.parameters()) +
+        list(transformer.parameters()) + list(selfatt.parameters())
+        )
+    optimizer = torch.optim.SGD(modelpara, lr=0.01)
     for i, (images, labels) in enumerate(train_loader):
         images = images.to(device)
         labels = labels.to(device)
         states, labels = env(images, labels, i, embedder, policy)
-        print(len(states))
+        # print(len(states))
         # hidden = []
         # for i in range(1, len(states)+1):
         #     state = states[:i]
@@ -293,12 +328,21 @@ def main():
         hidden = transformer(states).squeeze()
         hidden = hidden.transpose(1, 0)
         # hidden = torch.cat(hidden, dim=1)
-        print(hidden.shape)
+        # print(hidden.shape)
         z = torch.sigmoid(selfatt(hidden))
         # z = z.view(z.shape[1], z.shape[0])
-        print('z', z.shape, z)
+        # print('z', z.shape, z.data.cpu())
         hidden_sum = hidden * z
-        print(hidden_sum.shape)
+        # print(hidden_sum.shape)
+        hidden_sum = torch.reshape(hidden_sum, (hidden_sum.shape[1], hidden_sum.shape[0]))
+        out = lregression(hidden_sum)
+        optimizer.zero_grad()
+        # print(out.shape, out)
+        loss = crieteria(out, labels)
+        loss.backward()
+        optimizer.step()
+        # print(loss)
+        print('optimized')
         if True:
             break
 
