@@ -251,13 +251,19 @@ def env(images, labels, i, embedder, policy):
     done = False
     j = 0
     states = []
+    # embedding = embedder(image[-1])
+    # probs = policy(embedding, False)
+    # states.append(torch.cat((embedding, probs), dim=1))
     # 0 - left, 1 - right, 2 - down and 3 - up
+
     while True:
         # state =
         embedding = embedder(image[-1])
-        probs = policy(embedding, False)
-        # actions, _ = model(image[-1])
-        act = torch.argmax(probs).item()
+        # probs = policy(embedding, False)
+        # act = torch.argmax(probs).item()
+        probs = [0.10, 0.70, 0.10, 0.10]
+        act = np.random.choice(list(range(4)), p=probs)
+        probs = torch.tensor([probs]).to(device)
         # print(probs, act)
         # print(j, act)
         if act == 1:
@@ -269,16 +275,19 @@ def env(images, labels, i, embedder, policy):
         indx = labels == state
         image.append(images[indx][:1])
         label.append(labels[indx][:1])
-        states.append(torch.cat((embedding, probs), dim=1))
+        actions = torch.tensor([act * 1.0]).to(device)
+        actions = actions.view(1, 1)
+        # states.append(torch.cat((embedding, probs), dim=1))
+        states.append(torch.cat((embedding, actions), dim=1))
         action.append(act)
-        if state == 5:
-            done = True
         if done:
             break
+        if state == 5:
+            done = True
         if j >= 5:
             break
         j += 1
-
+    # print(len(states), [l.item() for l in label])
     # if done:
     #     return torch.cat(image), torch.cat(label), torch.tensor([1]), torch.cat(action)
     # else:
@@ -299,53 +308,60 @@ def embeddings():
 def main():
     embedder = embeddings()
     train_loader, test_loader = load_dataset()
-    policy = PolicyNetwork(state_dim=128, action_dim=4)
+    policy = PolicyNetwork(state_dim=129, action_dim=4)
     policy = policy.to(device)
-    transformer = TransformerModel(500, 132, 2, 200, 2)
+    transformer = TransformerModel(500, 129, 3, 200, 2)
     transformer = transformer.to(device)
-    selfatt = Attention(6,  132)
+    selfatt = Attention(6,  129)
     selfatt = selfatt.to(device)
-    lregression = Regression(132, 1)
+    lregression = Regression(129, 1)
     lregression = lregression.to(device)
     crieteria = RegressionLoss()
     modelpara = (
         list(lregression.parameters()) +
         list(transformer.parameters()) + list(selfatt.parameters())
         )
-    optimizer = torch.optim.SGD(modelpara, lr=0.01)
-    for i, (images, labels) in enumerate(train_loader):
-        images = images.to(device)
-        labels = labels.to(device)
-        states, labels = env(images, labels, i, embedder, policy)
-        # print(len(states))
-        # hidden = []
-        # for i in range(1, len(states)+1):
-        #     state = states[:i]
-        #     print(state.shape, end=' ')
-        #     h = transformer(state)
-        #     print(h.shape)
-        #     hidden.append(h)
-        hidden = transformer(states).squeeze()
-        hidden = hidden.transpose(1, 0)
-        # hidden = torch.cat(hidden, dim=1)
-        # print(hidden.shape)
-        z = torch.sigmoid(selfatt(hidden))
-        # z = z.view(z.shape[1], z.shape[0])
-        # print('z', z.shape, z.data.cpu())
-        hidden_sum = hidden * z
-        # print(hidden_sum.shape)
-        hidden_sum = torch.reshape(hidden_sum, (hidden_sum.shape[1], hidden_sum.shape[0]))
-        out = lregression(hidden_sum)
-        optimizer.zero_grad()
-        # print(out.shape, out)
-        loss = crieteria(out, labels)
-        loss.backward()
-        optimizer.step()
-        # print(loss)
-        print('optimized')
-        if True:
-            break
-
+    optimizer = torch.optim.SGD(modelpara, lr=0.001)
+    epochs = 20
+    for epoch in range(epochs):
+        losses = []
+        la = []
+        for i, (images, labels) in enumerate(train_loader):
+            images = images.to(device)
+            labels = labels.to(device)
+            states, labels = env(images, labels, i, embedder, policy)
+            # print(states.shape)
+            # print(len(states))
+            # hidden = []
+            # for i in range(1, len(states)+1):
+            #     state = states[:i]
+            #     print(state.shape, end=' ')
+            #     h = transformer(state)
+            #     print(h.shape)
+            #     hidden.append(h)
+            hidden = transformer(states).squeeze()
+            hidden = hidden.transpose(1, 0)
+            # hidden = torch.cat(hidden, dim=1)
+            # print(hidden.shape)
+            z = torch.sigmoid(selfatt(hidden))
+            # z = z.view(z.shape[1], z.shape[0])
+            # print('z', z.shape, z.data.cpu())
+            hidden_sum = hidden * z
+            # print(hidden_sum.shape)
+            hidden_sum = torch.reshape(hidden_sum, (hidden_sum.shape[1], hidden_sum.shape[0]))
+            out = lregression(hidden_sum)
+            optimizer.zero_grad()
+            # print(out.shape, out)
+            loss = crieteria(out, labels)
+            loss.backward()
+            optimizer.step()
+            losses.append(loss.detach().cpu().item())
+            la.append(labels.detach().cpu().item())
+            # print(loss)
+            # print('optimized')
+            if True:
+                break
+        print('epoch, loss', epoch, np.mean(losses), la)
 
 
 if __name__ == '__main__':
