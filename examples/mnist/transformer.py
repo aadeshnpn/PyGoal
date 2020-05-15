@@ -330,7 +330,7 @@ def main():
         list(transformer.parameters()) + list(selfatt.parameters())
         )
     optimizer = torch.optim.Adam(modelpara, lr=0.0001)
-    epochs = 20
+    epochs = 30
     for epoch in range(epochs):
         losses = []
         la = []
@@ -386,12 +386,14 @@ def test_dataset(test_loader, embedder):
         action = []
         state = []
         for i in range(6):
+            i = np.random.randint(0, 6)
             indx = labels == i
             img = images[indx][:1]
             lab = labels[indx][:1]
             embedding = embedder(img)
-            for a in range(4):
-                print(i, a)
+            # print(i, end=' ')
+            for a in range(1):
+                a = 1
                 actions = torch.tensor([a * 1.0]).to(device)
                 actions = actions.view(1, 1)
                 states = torch.cat((embedding, actions), dim=1)
@@ -402,9 +404,22 @@ def test_dataset(test_loader, embedder):
 def test():
     embedder = embeddings()
     train_loader, test_loader = load_dataset()
-    test_dataset(test_loader, embedder)
+    states, _ = test_dataset(test_loader, embedder)
+    transformer = TransformerModel(500, 129, 3, 200, 2)
+    transformer = transformer.to(device)
+    selfatt = Attention(6,  129)
+    selfatt = selfatt.to(device)
+    lregression = Regression(129, 1)
+    lregression = lregression.to(device)
+    crieteria = RegressionLoss()
+    valuenet = ValueNetwork(transformer, selfatt, lregression)
+    valuenet = valuenet.to(device)
+    valuenet.load_state_dict(torch.load("valuenet.pt"))
+    # torch.load(valuenet, "valuenet.pt")
+    print('load success')
+    print(valuenet(states))
 
 
 if __name__ == '__main__':
-    main()
-    # test()
+    # main()
+    test()
