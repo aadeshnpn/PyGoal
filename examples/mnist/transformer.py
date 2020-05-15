@@ -221,23 +221,30 @@ class PolicyNetwork(nn.Module):
 class ValueNetwork(nn.Module):
     """Approximates the value of a particular state."""
 
-    def __init__(self, state_dim=4):
+    def __init__(
+            self, transformer, selfatten, regression):
         super(ValueNetwork, self).__init__()
-        self._net = nn.Sequential(
-            nn.Linear(state_dim, 10),
-            nn.ReLU(),
-            nn.Linear(10, 10),
-            nn.ReLU(),
-            nn.Linear(10, 10),
-            nn.ReLU(),
-            nn.Linear(10, 1)
-        )
+        self.transformer = transformer
+        self.regression = regression
+        self.selfatten = selfatten
 
     def forward(self, x):
         """Receives an observation of shape [batch, state_dim].
         Returns the value of each state, in shape [batch, 1]
         """
-        return self._net(x)
+        # return self._net(x)
+        # print(x.shape)
+        hidden = self.transformer(x).squeeze()
+        hidden = hidden.transpose(1, 0)
+        z = torch.sigmoid(self.selfatten(hidden))
+        # hidden = self.selfatten(hidden)
+        # print(hidden.shape, z.shape)
+        hidden_sum = hidden * z
+        hidden_sum = torch.reshape(
+            hidden_sum, (hidden_sum.shape[1], hidden_sum.shape[0]))
+        # print(hidden_sum.shape)
+        out = self.regression(hidden_sum)
+        return out
 
 
 def env(images, labels, i, embedder, policy):
@@ -294,10 +301,9 @@ def env(images, labels, i, embedder, policy):
     #     return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
 
     if done:
-        return torch.cat(states).to(device), torch.tensor([1.0]).to(device)
+        return torch.cat(states).to(device), torch.tensor([100.0]).to(device)
     else:
         return torch.cat(states).to(device), torch.tensor([0.0]).to(device)
-
 
 
 def embeddings():
@@ -317,11 +323,13 @@ def main():
     lregression = Regression(129, 1)
     lregression = lregression.to(device)
     crieteria = RegressionLoss()
+    valuenet = ValueNetwork(transformer, selfatt, lregression)
+    valuenet = valuenet.to(device)
     modelpara = (
         list(lregression.parameters()) +
         list(transformer.parameters()) + list(selfatt.parameters())
         )
-    optimizer = torch.optim.SGD(modelpara, lr=0.001)
+    optimizer = torch.optim.Adam(modelpara, lr=0.0001)
     epochs = 20
     for epoch in range(epochs):
         losses = []
@@ -339,17 +347,21 @@ def main():
             #     h = transformer(state)
             #     print(h.shape)
             #     hidden.append(h)
-            hidden = transformer(states).squeeze()
-            hidden = hidden.transpose(1, 0)
-            # hidden = torch.cat(hidden, dim=1)
-            # print(hidden.shape)
-            z = torch.sigmoid(selfatt(hidden))
-            # z = z.view(z.shape[1], z.shape[0])
-            # print('z', z.shape, z.data.cpu())
-            hidden_sum = hidden * z
-            # print(hidden_sum.shape)
-            hidden_sum = torch.reshape(hidden_sum, (hidden_sum.shape[1], hidden_sum.shape[0]))
-            out = lregression(hidden_sum)
+
+            # hidden = transformer(states).squeeze()
+            # hidden = hidden.transpose(1, 0)
+            # # hidden = torch.cat(hidden, dim=1)
+            # # print(hidden.shape)
+            # z = torch.sigmoid(selfatt(hidden))
+            # # z = z.view(z.shape[1], z.shape[0])
+            # # print('z', z.shape, z.data.cpu())
+            # print(hidden.shape, z.shape)
+            # hidden_sum = hidden * z
+            # # print(hidden_sum.shape)
+            # hidden_sum = torch.reshape(hidden_sum, (hidden_sum.shape[1], hidden_sum.shape[0]))
+            # out = lregression(hidden_sum)
+
+            out = valuenet(states)
             optimizer.zero_grad()
             # print(out.shape, out)
             loss = crieteria(out, labels)
@@ -359,10 +371,40 @@ def main():
             la.append(labels.detach().cpu().item())
             # print(loss)
             # print('optimized')
-            if True:
-                break
-        print('epoch, loss', epoch, np.mean(losses), la)
+            # if True:
+            #    break
+        print('epoch, loss', epoch, np.mean(losses))
+    torch.save(valuenet.state_dict(), "valuenet.pt")
+
+
+def test_dataset(test_loader, embedder):
+    for images, labels in test_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+        image = []
+        label = []
+        action = []
+        state = []
+        for i in range(6):
+            indx = labels == i
+            img = images[indx][:1]
+            lab = labels[indx][:1]
+            embedding = embedder(img)
+            for a in range(4):
+                print(i, a)
+                actions = torch.tensor([a * 1.0]).to(device)
+                actions = actions.view(1, 1)
+                states = torch.cat((embedding, actions), dim=1)
+                state.append(states)
+        return torch.cat(state).to(device), torch.tensor([1.0]).to(device)
+
+
+def test():
+    embedder = embeddings()
+    train_loader, test_loader = load_dataset()
+    test_dataset(test_loader, embedder)
 
 
 if __name__ == '__main__':
     main()
+    # test()
