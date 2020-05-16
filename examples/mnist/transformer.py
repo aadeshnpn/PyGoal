@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torchvision.datasets as dsets
 import torchvision.transforms as transforms
 import numpy as np
-
+from itertools import chain
 device = 'cuda:0'
 
 
@@ -189,8 +189,8 @@ class PolicyNetwork(nn.Module):
         self._net = nn.Sequential(
             nn.Linear(state_dim, 10),
             nn.ReLU(),
-            nn.Linear(10, 10),
-            nn.ReLU(),
+            # nn.Linear(10, 10),
+            # nn.ReLU(),
             nn.Linear(10, 10),
             nn.ReLU(),
             nn.Linear(10, action_dim)
@@ -348,7 +348,7 @@ def main():
     train_loader, test_loader = load_dataset()
     policy = PolicyNetwork(state_dim=128, action_dim=2)
     policy = policy.to(device)
-    transformer = TransformerModel(500, 129, 3, 200, 2)
+    transformer = TransformerModel(200, 129, 3, 200, 2)
     transformer = transformer.to(device)
     selfatt = Attention(6,  129)
     selfatt = selfatt.to(device)
@@ -357,11 +357,12 @@ def main():
     crieteria = RegressionLoss()
     valuenet = ValueNetwork(transformer, selfatt, lregression)
     valuenet = valuenet.to(device)
-    modelpara = (
-        list(lregression.parameters()) +
-        list(transformer.parameters()) + list(selfatt.parameters())
-        + list(valuenet.parameters()) + list(policy.parameters())
-        )
+    # modelpara = (
+    #     list(lregression.parameters()) +
+    #     list(transformer.parameters()) + list(selfatt.parameters())
+    #     + list(valuenet.parameters()) + list(policy.parameters())
+    #     )
+    modelpara = chain(valuenet.parameters(), policy.parameters())
     # Parameters
     epochs = 30
     epsilon = 0.2
@@ -379,6 +380,8 @@ def main():
         losses = []
         la = []
         rewards = []
+        ploss = []
+        vloss = []
         for i, (images, labels) in enumerate(train_loader):
             images = images.to(device)
             labels = labels.to(device)
@@ -429,11 +432,13 @@ def main():
             optimizer.step()
             losses.append(loss.detach().cpu().item())
             la.append(labels.detach().cpu().item())
+            vloss.append(val_loss.detach().cpu().item())
+            ploss.append(policy_loss.detach().cpu().item())
             # print(loss)
             # print('optimized')
             # if True:
             #    break
-        print('epoch, loss, reward', epoch, np.mean(losses), np.mean(la))
+        print('epoch, loss, reward, value loss, policy loss', epoch, np.mean(losses), np.mean(la), np.mean(vloss), np.mean(ploss))
     torch.save(valuenet.state_dict(), "valuenet.pt")
 
 
