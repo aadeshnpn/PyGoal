@@ -184,7 +184,7 @@ def load_dataset():
 class PolicyNetwork(nn.Module):
     """Policy Network."""
 
-    def __init__(self, state_dim=4, action_dim=2):
+    def __init__(self, state_dim=128, action_dim=2):
         super(PolicyNetwork, self).__init__()
         self._net = nn.Sequential(
             nn.Linear(state_dim, 10),
@@ -233,7 +233,6 @@ class ValueNetwork(nn.Module):
         Returns the value of each state, in shape [batch, 1]
         """
         # return self._net(x)
-        # print(x.shape)
         hidden = self.transformer(x).squeeze()
         hidden = hidden.transpose(1, 0)
         z = torch.sigmoid(self.selfatten(hidden))
@@ -247,10 +246,22 @@ class ValueNetwork(nn.Module):
         return out
 
 
+def calculate_returns(tracelen, gamma, finalrew):
+    # current_return = 0
+    ret = finalrew
+    returns = []
+    returns.append(ret)
+    for i in reversed(range(tracelen)):
+        ret = ret * gamma
+        returns.append(ret)
+    return torch.tensor(returns)
+
+
 def env(images, labels, i, embedder, policy):
     image = []
     label = []
     action = []
+    action_dist = []
     state = 0
     indx = labels == state
     image.append(images[indx][:1])
@@ -266,11 +277,12 @@ def env(images, labels, i, embedder, policy):
     while True:
         # state =
         embedding = embedder(image[-1])
-        # probs = policy(embedding, False)
+        actions_dist, act = policy(embedding)
+        actions_dist, act = actions_dist[0], act[0]
         # act = torch.argmax(probs).item()
-        probs = [0.10, 0.70, 0.10, 0.10]
-        act = np.random.choice(list(range(4)), p=probs)
-        probs = torch.tensor([probs]).to(device)
+        # probs = [0.10, 0.70, 0.10, 0.10]
+        # act = np.random.choice(list(range(4)), p=probs)
+        # probs = torch.tensor([probs]).to(device)
         # print(probs, act)
         # print(j, act)
         if act == 1:
@@ -280,13 +292,15 @@ def env(images, labels, i, embedder, policy):
 
         state = np.clip(state, 0, 5)
         indx = labels == state
-        image.append(images[indx][:1])
+        # image.append(images[indx][:1])
         label.append(labels[indx][:1])
-        actions = torch.tensor([act * 1.0]).to(device)
+
+        actions = torch.tensor([act * 1.0]).to(device).to(torch.float32)
         actions = actions.view(1, 1)
-        # states.append(torch.cat((embedding, probs), dim=1))
+        # print(embedding, actions)
         states.append(torch.cat((embedding, actions), dim=1))
-        action.append(act)
+        action.append(torch.tensor(act))
+        action_dist.append(actions_dist)
         if done:
             break
         if state == 5:
@@ -301,9 +315,27 @@ def env(images, labels, i, embedder, policy):
     #     return torch.cat(image), torch.cat(label), torch.tensor([0]), torch.cat(action)
 
     if done:
-        return torch.cat(states).to(device), torch.tensor([100.0]).to(device)
+        returns = calculate_returns(5, 0.99, 100.0)
+        return (
+            torch.cat(states).to(device),
+            torch.tensor([100.0]).to(device),
+            torch.cat(action).to(device),
+            torch.stack(action_dist).to(device),
+            returns.to(device)
+            )
     else:
-        return torch.cat(states).to(device), torch.tensor([0.0]).to(device)
+        returns = calculate_returns(5, 0.99, 0.0)
+        return (
+            torch.cat(states).to(device),
+            torch.tensor([0.0]).to(device),
+            torch.cat(action).to(device),
+            torch.stack(action_dist).to(device),
+            returns.to(device)
+            )
+
+
+def likelihood_fn(dist, idx):
+    return dist[range(dist.shape[0]), idx.long()[:, 0]].unsqueeze(1)
 
 
 def embeddings():
@@ -314,7 +346,7 @@ def embeddings():
 def main():
     embedder = embeddings()
     train_loader, test_loader = load_dataset()
-    policy = PolicyNetwork(state_dim=129, action_dim=4)
+    policy = PolicyNetwork(state_dim=128, action_dim=2)
     policy = policy.to(device)
     transformer = TransformerModel(500, 129, 3, 200, 2)
     transformer = transformer.to(device)
@@ -328,17 +360,31 @@ def main():
     modelpara = (
         list(lregression.parameters()) +
         list(transformer.parameters()) + list(selfatt.parameters())
+        + list(valuenet.parameters()) + list(policy.parameters())
         )
-    optimizer = torch.optim.Adam(modelpara, lr=0.0001)
+    # Parameters
     epochs = 30
+    epsilon = 0.2
+    gamma = 0.99
+    lr = 1e-3
+    betas = (0.9, 0.999)
+    weight_decay = 0.01
+    optimizer = torch.optim.Adam(modelpara, lr=lr, betas=betas, weight_decay=weight_decay)
+
+    # Calculate the upper and lower bound for PPO
+    ppo_lower_bound = 1 - epsilon
+    ppo_upper_bound = 1 + epsilon
+
     for epoch in range(epochs):
         losses = []
         la = []
+        rewards = []
         for i, (images, labels) in enumerate(train_loader):
             images = images.to(device)
             labels = labels.to(device)
-            states, labels = env(images, labels, i, embedder, policy)
-            # print(states.shape)
+            states, labels, action, action_dist, returns = env(images, labels, i, embedder, policy)
+            # print(states.shape, labels.shape, action.shape, action_dist.shape, returns.shape)
+            # exit()
             # print(len(states))
             # hidden = []
             # for i in range(1, len(states)+1):
@@ -360,11 +406,25 @@ def main():
             # # print(hidden_sum.shape)
             # hidden_sum = torch.reshape(hidden_sum, (hidden_sum.shape[1], hidden_sum.shape[0]))
             # out = lregression(hidden_sum)
+            current_action_dist = policy(states[:,:128], False)
+            current_action_dist = current_action_dist # .squeeze()
+            action = action.view(action.shape[0], 1)
+            # print('curr action dist', current_action_dist.shape, action.shape)
+            current_likelihood = likelihood_fn(current_action_dist, action)
+            old_likelihood = likelihood_fn(action_dist, action)
+            ratio = (current_likelihood / old_likelihood)
 
             out = valuenet(states)
             optimizer.zero_grad()
             # print(out.shape, out)
-            loss = crieteria(out, labels)
+            val_loss = crieteria(out, labels)
+
+            advantage = returns.squeeze() - out.detach().squeeze()
+            # print(ratio.shape, advantage.shape)
+            lhs = ratio * advantage
+            rhs = torch.clamp(ratio, ppo_lower_bound, ppo_upper_bound) * advantage
+            policy_loss = -torch.mean(torch.min(lhs, rhs))
+            loss = val_loss + policy_loss
             loss.backward()
             optimizer.step()
             losses.append(loss.detach().cpu().item())
@@ -373,7 +433,7 @@ def main():
             # print('optimized')
             # if True:
             #    break
-        print('epoch, loss', epoch, np.mean(losses))
+        print('epoch, loss, reward', epoch, np.mean(losses), np.mean(la))
     torch.save(valuenet.state_dict(), "valuenet.pt")
 
 
@@ -421,5 +481,5 @@ def test():
 
 
 if __name__ == '__main__':
-    # main()
-    test()
+    main()
+    # test()
