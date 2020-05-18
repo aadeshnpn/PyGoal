@@ -266,9 +266,9 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 
     # Collect parameters
     params = chain(policy.parameters(), value.parameters())
-    if embedding_net:
-        embedding_net = embedding_net.to(device)
-        params = chain(params, embedding_net.parameters())
+    # if embedding_net:
+    #     embedding_net = embedding_net.to(device)
+    #     params = chain(params, embedding_net.parameters())
 
     # Set up optimization
     # optimizer = optim.Adam(params, lr=lr, betas=betas, weight_decay=weight_decay)
@@ -288,6 +288,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
     rollout_nums = ([rollouts_per_thread + 1] * remainder) + ([rollouts_per_thread] * (environment_threads - remainder))
 
     for e in range(epochs):
+        embedding_net = embedding_net.to('cpu')
         # Run the environments
         experience_queue = Queue()
         reward_queue = Queue()
@@ -321,6 +322,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                                  pin_memory=True)
         avg_policy_loss = 0
         avg_val_loss = 0
+        # embedding_net = embedding_net.to(device)
         for _ in range(policy_epochs):
             avg_policy_loss = 0
             avg_val_loss = 0
@@ -331,7 +333,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 ret = prepare_tensor_batch(ret, device).unsqueeze(1)
                 s1 = prepare_tensor_batch(s1, device)
                 optimizer.zero_grad()
-                if state.shape[0] != 250:
+                if state.shape[0] != 80:
                     continue
                 # If there is an embedding net, carry out the embedding
                 if embedding_net:
@@ -349,6 +351,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 # print(s1.shape)
                 expected_returns = value(s1)
                 # print(expected_returns.shape, ret.shape)
+                # print(expected_returns, ret)
                 val_loss = value_criteria(expected_returns, ret)
                 # val_loss = value_criteria(expected_returns, reward.sum().detach())
 
@@ -383,7 +386,7 @@ def main():
     factory = MnistEnvironmentFactory()
     policy = MnistPolicyNetwork()
     transformer = TransformerModel(500, 129, 1, 200, 2)
-    selfatt = Attention(250, 129)
+    selfatt = Attention(80, 129)
     lregression = Regression(129, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     embeddnet = modify_mnistnet()

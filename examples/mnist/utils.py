@@ -102,13 +102,18 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             if type(r) != float:
                 print('run envs:', r, type(r))
             # print(input_state.dtype)
-            s1 = torch.cat((input_state, torch.tensor([action*1.0], dtype=torch.float32)), dim=1)
+            act = torch.tensor([action*1.0], dtype=torch.float32).to(device)
+            s1 = torch.cat((input_state, act), dim=1)
             current_rollout.append((s.squeeze(0), action_dist.cpu().detach().numpy(), action, r, s1))
             episode_reward += r
             if t:
                 break
             s = s_prime
         # print(current_rollout, gamma, episode_reward)
+        # if episode_reward == 0:
+        #     episode_reward = -1
+        # elif episode_reward == 1:
+        #     episode_reward = 100
         calculate_returns(current_rollout, gamma, episode_reward)
         # print(current_rollout)
         experience_queue.put(current_rollout)
