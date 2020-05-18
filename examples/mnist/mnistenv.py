@@ -67,14 +67,16 @@ class MNISTEnv(gym.Env):
                  use this for learning.
         """
         done = False
+        reward = 0.0
         self._take_action(action)
-        if self.state == 5:
+        if self.state == 9:
             done = True
+            reward = 1.0
         # self.status = self.env.step()
         # reward = self._get_reward()
         # ob = self.env.getState()
         # episode_over = self.status != hfo_py.IN_GAME
-        return self.get_images(self.state), 0.0, done, {}
+        return self.get_images(self.state), reward, done, {}
 
     def reset(self):
         self.state = 0
@@ -90,13 +92,13 @@ class MNISTEnv(gym.Env):
             new_state = self.state + 1
         else:
             new_state = self.state
-        new_state = np.clip(new_state, 0, 5)
+        new_state = np.clip(new_state, 0, 9)
         self.state = new_state
 
     def get_images(self, label):
         i = self.nprandom.choice(self.idxs[label], replace=False)
         image = self.images[i]
-        return image.view(*image.shape)
+        return image.view(1, *image.shape)
 
     def _get_reward(self):
         pass
