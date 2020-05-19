@@ -253,7 +253,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=4,
+        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=1,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 

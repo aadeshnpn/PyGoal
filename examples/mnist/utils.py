@@ -73,22 +73,33 @@ def get_log_p(data, mu, sigma):
 #         current_return = ret
 
 
-def calculate_returns(trajectory, gamma, finalrwd):
-    ret = finalrwd
+def calculate_returns(trajectory, gamma, trace, keys):
+    # ret = finalrwd
+    result, j = recognition(trace, keys)
+    # print(result, j)
+    ret = 1 if result == True else 0
+    episode_reward = 1 if result == True else 0
+    # print(len(trajectory))
+    # trajectory = trajectory[:j]
+    # print(trajectory[0][0])
+    # print(len(trajectory))
     for i in reversed(range(len(trajectory))):
         state, action_dist, action, rwd, s1 = trajectory[i]
         # print(i, state, action, rwd, s1)
         trajectory[i] = (state, action_dist, action, rwd, ret, s1)
         # print(i, ret, end=' ')
         ret = ret * gamma
+    return episode_reward
 
 
 def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 num_rollouts, max_episode_length, gamma, device):
+    keys = ['G']
     for _ in range(num_rollouts):
         current_rollout = []
         s, g = env.reset()
         episode_reward = 0
+        trace = create_trace_skeleton([g], keys)
         for _ in range(max_episode_length):
             # print(s.shape)
             # input_state = prepare_numpy(s, device)
@@ -105,10 +116,11 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             if type(r) != float:
                 print('run envs:', r, type(r))
             # print(input_state.dtype)
+            trace = trace_accumulator(trace, [goal], keys)
             act = torch.tensor([action*1.0], dtype=torch.float32).to(device)
             s1 = torch.cat((input_state, act), dim=1)
             current_rollout.append((s.squeeze(0), action_dist.cpu().detach().numpy(), action, r, s1))
-            episode_reward += r
+            # episode_reward += r
             if t:
                 break
             s = s_prime
@@ -117,7 +129,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         #     episode_reward = -1
         # elif episode_reward == 1:
         #     episode_reward = 100
-        calculate_returns(current_rollout, gamma, episode_reward)
+        episode_reward = calculate_returns(current_rollout, gamma, trace, keys)
         # print(current_rollout)
         experience_queue.put(current_rollout)
         reward_queue.put(episode_reward)
@@ -228,8 +240,8 @@ def trace_accumulator(trace, state, keys):
     return trace
 
 
-def recognition(trace):
-    goalspec = 'F P_[S][9,none,==]'
+def recognition(trace, keys):
+    goalspec = 'F P_[G][True,none,==]'
     # parse the formula
     parser = LTLfGParser()
 
@@ -242,10 +254,10 @@ def recognition(trace):
     # print('recognizer', traceset)
     # Loop through the trace to find the shortest best trace
     for i in range(0, len(traceset[akey])+1):
-        t = create_trace_flloat(traceset, i)
+        t = create_trace_flloat(traceset, i, keys)
         result = parsed_formula.truth(t)
         if result is True:
             # self.set_state(self.env, trace, i)
-            return True, create_trace_dict(trace, i)
+            return True, i
 
-    return result, create_trace_dict(trace, i)
+    return result, i
