@@ -44,7 +44,7 @@ class MnistEnvironment(RLEnvironment):
         # print(s, r)
         self.ereward += r
         # if t:
-        return s, self.ereward, t, info['goal']
+        return s, self.ereward, t, (info['goal'], info['grid'])
         # else:
         #    return s, 0.0, t
 
