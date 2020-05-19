@@ -32,6 +32,7 @@ class MNISTEnv(gym.Env):
         self.idxs = []
         self.state = 0
         self.labels = torch.tensor(self.labels)
+        self.goal = False
         for i in range(10):
             idx = torch.where(self.labels == i)[0].data.numpy()
             # print(idx, idx.shape)
@@ -71,16 +72,18 @@ class MNISTEnv(gym.Env):
         self._take_action(action)
         if self.state == 9:
             done = True
+            self.goal = True
             reward = 1.0
         # self.status = self.env.step()
         # reward = self._get_reward()
         # ob = self.env.getState()
         # episode_over = self.status != hfo_py.IN_GAME
-        return self.get_images(self.state), reward, done, {}
+        return self.get_images(self.state), reward, done, {'goal': self.goal}
 
     def reset(self):
         self.state = 0
-        return self.get_images(self.state)
+        self.goal = False
+        return self.get_images(self.state), self.goal
 
     def _render(self, mode='human', close=False):
         pass

@@ -7,6 +7,9 @@ from torch.utils.data import Dataset, DataLoader
 import matplotlib.pyplot as plt
 import pandas as pd
 
+from flloat.parser.ltlfg import LTLfGParser
+from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
+
 
 class RLEnvironment(object):
     """An RL Environment, used for wrapping environments to run PPO on."""
@@ -84,7 +87,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 num_rollouts, max_episode_length, gamma, device):
     for _ in range(num_rollouts):
         current_rollout = []
-        s = env.reset()
+        s, g = env.reset()
         episode_reward = 0
         for _ in range(max_episode_length):
             # print(s.shape)
@@ -97,7 +100,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
 
             action_dist, action = policy(input_state)
             action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
-            s_prime, r, t = env.step(action)
+            s_prime, r, t, goal = env.step(action)
             # print(_, s_prime, r)
             if type(r) != float:
                 print('run envs:', r, type(r))
@@ -181,3 +184,68 @@ class LossPlot:
         return data
 
 
+#### Trace Related Functions
+
+def create_trace_flloat(traceset, i, keys):
+    setslist = [create_sets(traceset[k][:i]) for k in keys]
+    dictlist = [FiniteTrace.fromStringSets(s) for s in setslist]
+    keydictlist = dict()
+    j = 0
+    for k in keys:
+        keydictlist[k] = dictlist[j]
+        j += 1
+    t = FiniteTraceDict.fromDictSets(keydictlist)
+    return t
+
+
+def create_sets(trace):
+    return [set([l]) for l in trace]
+
+
+def create_trace_dict(trace, i, keys):
+    tracedict = dict()
+    for k in keys:
+        tracedict[k] = trace[k][:i+1]
+    return tracedict
+
+
+def create_trace_skeleton(state, keys):
+    # Create a skeleton for trace
+    trace = dict(zip(keys, [list() for i in range(len(keys))]))
+    j = 0
+    for k in keys:
+        trace[k].append(state[j])
+        j += 1
+    return trace
+
+
+def trace_accumulator(trace, state, keys):
+    for j in range(len(keys)):
+        # Add the state variables to the trace
+        # temp = trace[keys[j]][-1].copy()
+        # temp.append(state[j])
+        trace[keys[j]].append(state[j])
+    return trace
+
+
+def recognition(trace):
+    goalspec = 'F P_[S][9,none,==]'
+    # parse the formula
+    parser = LTLfGParser()
+
+    # Define goal formula/specification
+    parsed_formula = parser(goalspec)
+
+    # Change list of trace to set
+    traceset = trace.copy()
+    akey = list(traceset.keys())[0]
+    # print('recognizer', traceset)
+    # Loop through the trace to find the shortest best trace
+    for i in range(0, len(traceset[akey])+1):
+        t = create_trace_flloat(traceset, i)
+        result = parsed_formula.truth(t)
+        if result is True:
+            # self.set_state(self.env, trace, i)
+            return True, create_trace_dict(trace, i)
+
+    return result, create_trace_dict(trace, i)

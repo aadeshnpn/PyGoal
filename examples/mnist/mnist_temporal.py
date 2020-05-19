@@ -40,11 +40,11 @@ class MnistEnvironment(RLEnvironment):
         """action is type np.ndarray of shape [1] and type np.uint8.
         Returns observation (np.ndarray), r (float), t (boolean)
         """
-        s, r, t, _ = self._env.step(action.item())
+        s, r, t, info = self._env.step(action.item())
         # print(s, r)
         self.ereward += r
         # if t:
-        return s, self.ereward, t
+        return s, self.ereward, t, info['goal']
         # else:
         #    return s, 0.0, t
 
