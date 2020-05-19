@@ -7,6 +7,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+# import torch.multiprocessing as mp
 from tqdm import tqdm
 import numpy as np
 from queue import Queue
@@ -252,7 +253,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=1,
+        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=4,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -260,14 +261,19 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
     with open(csv_file, 'w') as f:
         f.write('avg_reward, value_loss, policy_loss\n')
 
-    # Move networks to the correct device
-    policy = policy.to(device)
-    value = value.to(device)
+    # Multi-processing
+    # mp.set_start_method('spawn', force=True)
 
+    # Move networks to the correct device
+    # policy = policy.to(device)
+    # policy.share_memory()
+    value = value.to(device)
+    # value.share_memory()
     # Collect parameters
     params = chain(policy.parameters(), value.parameters())
     # if embedding_net:
     #     embedding_net = embedding_net.to(device)
+        # embedding_net.share_memory()
     #     params = chain(params, embedding_net.parameters())
 
     # Set up optimization
@@ -289,6 +295,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 
     for e in range(epochs):
         embedding_net = embedding_net.to('cpu')
+        policy = policy.to('cpu')
         # Run the environments
         experience_queue = Queue()
         reward_queue = Queue()
@@ -300,11 +307,28 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                                                   rollout_nums[i],
                                                   max_episode_length,
                                                   gamma,
-                                                  device)) for i in range(environment_threads)]
+                                                  'cpu')) for i in range(environment_threads)]
         for x in threads:
             x.start()
         for x in threads:
             x.join()
+        # experience_queue = mp.Queue()
+        # reward_queue = mp.Queue()
+        # threads = [mp.Process(target=run_envs, args=(environments[i],
+        #                                           embedding_net,
+        #                                           policy,
+        #                                           experience_queue,
+        #                                           reward_queue,
+        #                                           1, #rollout_nums[i],
+        #                                           max_episode_length,
+        #                                           gamma,
+        #                                           device)) for i in range(environment_threads)]
+        # for x in threads:
+        #     x.start()
+        #     print('threads started')
+        # for x in threads:
+        #     x.join()
+        #     print('treads ended')
 
         # Collect the experience
         rollouts = list(experience_queue.queue)
@@ -315,6 +339,9 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         # if gif_epochs and e % gif_epochs == 0:
         #     make_gif(rollouts[0], gif_name + '%d.gif' % e)
 
+        # Move the network to GPU
+        policy = policy.to(device)
+        embedding_net = embedding_net.to(device)
         # Update the policy
         experience_dataset = ExperienceDataset(rollouts)
         data_loader = DataLoader(experience_dataset, num_workers=data_loader_threads, batch_size=batch_size,
@@ -322,7 +349,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                                  pin_memory=True)
         avg_policy_loss = 0
         avg_val_loss = 0
-        # embedding_net = embedding_net.to(device)
+
         for _ in range(policy_epochs):
             avg_policy_loss = 0
             avg_val_loss = 0
@@ -333,7 +360,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 ret = prepare_tensor_batch(ret, device).unsqueeze(1)
                 s1 = prepare_tensor_batch(s1, device)
                 optimizer.zero_grad()
-                if state.shape[0] != 80:
+                if state.shape[0] != 40:
                     continue
                 # If there is an embedding net, carry out the embedding
                 if embedding_net:
@@ -386,14 +413,14 @@ def main():
     factory = MnistEnvironmentFactory()
     policy = MnistPolicyNetwork()
     transformer = TransformerModel(500, 129, 1, 200, 2)
-    selfatt = Attention(80, 129)
+    selfatt = Attention(40, 129)
     lregression = Regression(129, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     embeddnet = modify_mnistnet()
     ppo(factory, policy, value, multinomial_likelihood, epochs=200,
-        rollouts_per_epoch=100, max_episode_length=50,
-        gamma=0.9, policy_epochs=5, batch_size=80,
-        device='cpu', valueloss=RegressionLoss(), embedding_net=embeddnet)
+        rollouts_per_epoch=100, max_episode_length=30,
+        gamma=0.9, policy_epochs=5, batch_size=40,
+        device='cuda:0', valueloss=RegressionLoss(), embedding_net=embeddnet)
 
     draw_losses()
 
