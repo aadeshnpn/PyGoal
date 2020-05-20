@@ -11,6 +11,7 @@ from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
 
 
+
 class RLEnvironment(object):
     """An RL Environment, used for wrapping environments to run PPO on."""
 
@@ -157,10 +158,12 @@ def prepare_tensor_batch(tensor, device):
     return tensor.detach().float().to(device)
 
 
-# def make_gif(rollout, filename):
-#     with imageio.get_writer(filename, mode='I', duration=1 / 30) as writer:
-#         for x in rollout:
-#             writer.append_data((x[0][:, :, 0] * 255).astype(np.uint8)
+def make_gif(rollout, filename):
+    with imageio.get_writer(
+            filename, mode='I', duration=1 / 30) as writer:
+        for x in rollout:
+            writer.append_data((x[0][:, :, 0] * 255).astype(np.uint8))
+
 
 class LossPlot:
 

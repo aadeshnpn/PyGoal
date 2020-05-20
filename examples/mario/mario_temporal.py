@@ -18,7 +18,7 @@ from gym_minigrid.minigrid import Grid, OBJECT_TO_IDX, Key, Door, Goal
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
     multinomial_likelihood, EnvironmentFactory, RLEnvironment,
-    DataLoader, LossPlot
+    DataLoader, LossPlot, prepare_numpy, make_gif
     )
 import gym_super_mario_bros
 from gym_super_mario_bros import actions
@@ -263,7 +263,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=0,
+        batch_size=50, epsilon=0.2, environment_threads=8, data_loader_threads=0,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -346,8 +346,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         loop.set_description('avg reward: % 6.2f' % (avg_r))
 
         # Make gifs
-        # if gif_epochs and e % gif_epochs == 0:
-        #     make_gif(rollouts[0], gif_name + '%d.gif' % e)
+        #if gif_epochs and e % gif_epochs == 0:
+        # make_gif(rollouts[0], gif_name + '%d.gif' % e)
 
         # Move the network to GPU
         policy = policy.to(device)
@@ -412,6 +412,10 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
             # Log info
             avg_val_loss /= len(data_loader)
             avg_policy_loss /= len(data_loader)
+            torch.save(policy.state_dict(), "policy.pt")
+            torch.save(embedding_net.state_dict(), "embedded.pt")
+            # Render the mario game after training one policy
+            # Render
             loop.set_description(
                 'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f' % (avg_r, avg_val_loss, avg_policy_loss))
         with open(csv_file, 'a+') as f:
@@ -423,17 +427,30 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 def main():
     factory = MarioEnvironmentFactory()
     policy = MarioPolicyNetwork()
-    transformer = TransformerModel(500, 149, 1, 200, 2)
-    selfatt = Attention(40, 149)
-    lregression = Regression(149, 1)
+    transformer = TransformerModel(500, 129, 1, 200, 2)
+    selfatt = Attention(40, 129)
+    lregression = Regression(129, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     embeddnet = Generator()
-    ppo(factory, policy, value, multinomial_likelihood, epochs=200,
-        rollouts_per_epoch=200, max_episode_length=100,
+    ppo(factory, policy, value, multinomial_likelihood, epochs=100,
+        rollouts_per_epoch=200, max_episode_length=500,
         gamma=0.9, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=embeddnet)
 
     draw_losses()
+
+
+def render(policy, embedding_net, device):
+    env = MarioEnvironment()
+    s = env.reset()
+    for _ in range(300):
+        env.render()
+        input_state = prepare_numpy(s, device)
+        input_state = embedding_net(input_state)
+        action_dist, action = policy(input_state)
+        action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
+        s_prime, r, t, coins = env.step(action)
+        s = s_prime
 
 
 def draw_losses():
