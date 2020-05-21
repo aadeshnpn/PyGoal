@@ -56,6 +56,8 @@ class MarioEnvironment(RLEnvironment):
         """
         s, _, t, info = self._env.step(action.item())
         # print(s, r)
+        if info['coins'] != 0:
+            print(_, info['coins'])
         # self.ereward += r
         # if t:
         # carry = True if isinstance(self._env.carrying, Key) else False
@@ -263,7 +265,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=8, data_loader_threads=0,
+        batch_size=50, epsilon=0.2, environment_threads=8, data_loader_threads=8,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -433,7 +435,7 @@ def main():
     value = ValueNetwork(transformer, selfatt, lregression)
     embeddnet = Generator()
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
-        rollouts_per_epoch=200, max_episode_length=500,
+        rollouts_per_epoch=200, max_episode_length=100,
         gamma=0.9, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=embeddnet)
 
