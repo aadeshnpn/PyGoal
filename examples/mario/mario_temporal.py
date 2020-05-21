@@ -49,6 +49,7 @@ class MarioEnvironment(RLEnvironment):
         # self._env = gym.make(env_name)
         # self._env.max_steps = min(self._env.max_steps, 350)
         # self.ereward = 0
+        self.coin = 0
 
     def step(self, action):
         """action is type np.ndarray of shape [1] and type np.uint8.
@@ -56,12 +57,14 @@ class MarioEnvironment(RLEnvironment):
         """
         s, _, t, info = self._env.step(action.item())
         # print(s, r)
-        if info['coins'] != 0:
-            print(_, info['coins'])
+        # if info['coins'] != 0:
+        #    print(_, info['coins'])
         # self.ereward += r
         # if t:
         # carry = True if isinstance(self._env.carrying, Key) else False
-        return s, 0.0, t, info['coins']
+        temp = info['coins']
+        self.coin = temp - self.coin
+        return s, 0.0, t, self.coin
         # else:
         #    return s, 0.0, t
 
@@ -71,6 +74,7 @@ class MarioEnvironment(RLEnvironment):
         # return_dict = self._env.reset()
         # return_dict['carry'] = False
         # return return_dict
+        self.coin = 0
         return self._env.reset()
 
 
@@ -436,7 +440,7 @@ def main():
     embeddnet = Generator()
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
         rollouts_per_epoch=200, max_episode_length=100,
-        gamma=0.9, policy_epochs=5, batch_size=40,
+        gamma=0.95, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=embeddnet)
 
     draw_losses()

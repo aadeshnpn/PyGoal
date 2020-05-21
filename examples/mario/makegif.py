@@ -124,5 +124,6 @@ def main():
 
 
 if __name__ == '__main__':
-    # main()
-    test_return()
+    main()
+    # test_return()
+# torch numpy gym tqdm matplotlib opencv-python nes_py gym-super-mario-bros baselines

@@ -74,28 +74,58 @@ def get_log_p(data, mu, sigma):
 #         current_return = ret
 
 
+# def calculate_returns(trajectory, gamma, trace, keys):
+#     # ret = finalrwd
+#     tlen = len(trace)
+#     result, j = recognition(trace, keys)
+#     if result is False:
+#         # print(result, j)
+#         # ret = 1 if result == True else 0
+#         # trajectory = trajectory[:j]
+#         # episode_reward = 1 if result == True else 0
+#         # episode_reward = trace
+#         ret = -1
+#         for i in reversed(range(len(trajectory))):
+#             state, action_dist, action, rwd, s1 = trajectory[i]
+#             # print(i, state, action, rwd, s1)
+#             trajectory[i] = (state, action_dist, action, rwd, ret, s1)
+#             # print(i, ret, end=' ')
+#             ret = ret * gamma
+#     else:
+#         if result is True and  j+1 >= tlen:
+#             pass
+#     return episode_reward, trajectory
+
+def slice_trace(j, trace, keys):
+    for k in keys:
+        trace[k] = trace[k][j:]
+    return trace
+
+
+def temp_fn(gamma, ret, trajectory):
+    for i in reversed(range(len(trajectory))):
+        state, action_dist, action, rwd, s1 = trajectory[i]
+        trajectory[i] = (state, action_dist, action, rwd, ret, s1)
+        ret = ret * gamma
+    return trajectory
+
 def calculate_returns(trajectory, gamma, trace, keys):
-    # ret = finalrwd
-    tlen = len(trace)
+    tlen = len(trajectory)
     result, j = recognition(trace, keys)
     if result is False:
-        # print(result, j)
-        # ret = 1 if result == True else 0
-        # trajectory = trajectory[:j]
-        # episode_reward = 1 if result == True else 0
-        # episode_reward = trace
-        ret = -1
-        for i in reversed(range(len(trajectory))):
-            state, action_dist, action, rwd, s1 = trajectory[i]
-            # print(i, state, action, rwd, s1)
-            trajectory[i] = (state, action_dist, action, rwd, ret, s1)
-            # print(i, ret, end=' ')
-            ret = ret * gamma
+        ret = 0.0
+        return temp_fn(gamma, ret, trajectory)
     else:
         if result is True and  j+1 >= tlen:
-            pass
-    return episode_reward, trajectory
-
+            ret = 1.0
+            return temp_fn(gamma, ret, trajectory)
+        else:
+            ret = 1.0
+            traj = temp_fn(gamma, ret, trajectory[:j])
+            traj += calculate_returns(trajectory[j:], gamma, slice_trace(j+1, trace, keys), keys)
+            return traj
+    # print(trajectory)
+    # return trajectory
 
 def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 num_rollouts, max_episode_length, gamma, device):
@@ -148,7 +178,8 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         #     episode_reward = -1
         # elif episode_reward == 1:
         #     episode_reward = 100
-        episode_reward, current_rollout = calculate_returns(current_rollout, gamma, trace, keys)
+        episode_reward = coin
+        current_rollout = calculate_returns(current_rollout, gamma, trace, keys)
         # print(current_rollout)
         experience_queue.put(current_rollout)
         reward_queue.put(episode_reward)
