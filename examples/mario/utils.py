@@ -135,7 +135,8 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         s = env.reset()
         # print(len(statedict), statedict)
         # s, direction, carry = statedict['image'], statedict['direction'], statedict['carry']
-        # s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
+        s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
+        # 8640
         # direction = np.array([direction])
         # s = np.concatenate((s,direction))
         episode_reward = 0
@@ -150,7 +151,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             # input_state = s.to(device)
             if embedding_net:
                 input_state = embedding_net(input_state)
-
+            # print(input_state.shape)
             action_dist, action = policy(input_state)
             action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
             s_prime, r, t, coins = env.step(action)
@@ -170,7 +171,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             if t:
                 break
             s = s_prime
-            # s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
+            s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
             # direction = np.array([direction])
             # s = np.concatenate((s,direction))
         # print(current_rollout, gamma, episode_reward)

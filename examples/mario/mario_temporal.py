@@ -107,14 +107,14 @@ class Generator(nn.Module):
 class MarioPolicyNetwork(nn.Module):
     """Policy Network for KeyDoor."""
 
-    def __init__(self, state_dim=128, action_dim=7):
+    def __init__(self, state_dim=8640, action_dim=7):
         super(MarioPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
-            nn.Linear(state_dim, 10),
+            nn.Linear(state_dim, 500),
             nn.ReLU(),
-            nn.Linear(10, 10),
+            nn.Linear(500, 100),
             nn.ReLU(),
-            nn.Linear(10, 10),
+            nn.Linear(100, 10),
             nn.ReLU(),
             nn.Linear(10, action_dim)
         )
@@ -310,7 +310,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
     rollout_nums = ([rollouts_per_thread + 1] * remainder) + ([rollouts_per_thread] * (environment_threads - remainder))
 
     for e in range(epochs):
-        embedding_net = embedding_net.to('cpu')
+        # embedding_net = embedding_net.to('cpu')
         policy = policy.to('cpu')
         # Run the environments
         experience_queue = Queue()
@@ -357,7 +357,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 
         # Move the network to GPU
         policy = policy.to(device)
-        embedding_net = embedding_net.to(device)
+        # embedding_net = embedding_net.to(device)
         # Update the policy
         experience_dataset = ExperienceDataset(rollouts)
         data_loader = DataLoader(experience_dataset, num_workers=data_loader_threads, batch_size=batch_size,
@@ -419,7 +419,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
             avg_val_loss /= len(data_loader)
             avg_policy_loss /= len(data_loader)
             torch.save(policy.state_dict(), "policy.pt")
-            torch.save(embedding_net.state_dict(), "embedded.pt")
+            # torch.save(embedding_net.state_dict(), "embedded.pt")
             # Render the mario game after training one policy
             # Render
             loop.set_description(
@@ -433,15 +433,15 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 def main():
     factory = MarioEnvironmentFactory()
     policy = MarioPolicyNetwork()
-    transformer = TransformerModel(500, 129, 1, 200, 2)
-    selfatt = Attention(40, 129)
-    lregression = Regression(129, 1)
+    transformer = TransformerModel(1000, 8641, 1, 500, 2)
+    selfatt = Attention(40, 8641)
+    lregression = Regression(8641, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
-    embeddnet = Generator()
+    # embeddnet = Generator()
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
         rollouts_per_epoch=200, max_episode_length=100,
         gamma=0.95, policy_epochs=5, batch_size=40,
-        device='cuda:0', valueloss=RegressionLoss(), embedding_net=embeddnet)
+        device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 
     draw_losses()
 
