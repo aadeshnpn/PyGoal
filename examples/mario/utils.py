@@ -112,18 +112,24 @@ def temp_fn(gamma, ret, trajectory):
 def calculate_returns(trajectory, gamma, trace, keys):
     tlen = len(trajectory)
     result, j = recognition(trace, keys)
+    trajectory = trajectory[:j]
     if result is False:
-        ret = 0.0
-        return temp_fn(gamma, ret, trajectory)
+        return temp_fn(gamma, 0.0, trajectory)
     else:
-        if result is True and  j+1 >= tlen:
-            ret = 1.0
-            return temp_fn(gamma, ret, trajectory)
-        else:
-            ret = 1.0
-            traj = temp_fn(gamma, ret, trajectory[:j])
-            traj += calculate_returns(trajectory[j:], gamma, slice_trace(j+1, trace, keys), keys)
-            return traj
+        return temp_fn(gamma, 1.0, trajectory)
+    return trajectory
+    # if result is False:
+    #     ret = 0.0
+    #     return temp_fn(gamma, ret, trajectory)
+    # else:
+    #     if result is True and  j+1 >= tlen:
+    #         ret = 1.0
+    #         return temp_fn(gamma, ret, trajectory)
+    #     else:
+    #         ret = 1.0
+    #         traj = temp_fn(gamma, ret, trajectory[:j])
+    #         traj += calculate_returns(trajectory[j:], gamma, slice_trace(j+1, trace, keys), keys)
+    #         return traj
     # print(trajectory)
     # return trajectory
 
@@ -187,7 +193,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
 
 
 def prepare_numpy(ndarray, device):
-    return torch.from_numpy(ndarray).float().unsqueeze(0).to(device)
+    return torch.from_numpy(ndarray).float().unsqueeze(0).to(device) / 255.0
     # return torch.from_numpy(ndarray).float().to(device)
 
 

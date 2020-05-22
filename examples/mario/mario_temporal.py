@@ -43,7 +43,7 @@ class MarioEnvironment(RLEnvironment):
         super(MarioEnvironment, self).__init__()
         env_name = 'SuperMarioBros-1-1-v0'
         env = gym_super_mario_bros.make(env_name)
-        env = ResizeFrameEnvWrapper(env, grayscale=True)
+        env = ResizeFrameEnvWrapper(env, width=84, height=86, grayscale=True)
         env = StochasticFrameSkipEnvWrapper(env, n_frames=4)
         self._env = BinarySpaceToDiscreteSpaceEnv(env, actions.SIMPLE_MOVEMENT)
         # self._env = gym.make(env_name)
@@ -107,7 +107,7 @@ class Generator(nn.Module):
 class MarioPolicyNetwork(nn.Module):
     """Policy Network for KeyDoor."""
 
-    def __init__(self, state_dim=8640, action_dim=7):
+    def __init__(self, state_dim=7224, action_dim=7):
         super(MarioPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
             nn.Linear(state_dim, 500),
@@ -377,7 +377,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 s1 = prepare_tensor_batch(s1, device)
                 optimizer.zero_grad()
                 # print(state.shape)
-                if state.shape[0] != 40:
+                if state.shape[0] != 100:
                     continue
                 # If there is an embedding net, carry out the embedding
                 if embedding_net:
@@ -433,14 +433,14 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 def main():
     factory = MarioEnvironmentFactory()
     policy = MarioPolicyNetwork()
-    transformer = TransformerModel(1000, 8641, 1, 500, 2)
-    selfatt = Attention(40, 8641)
-    lregression = Regression(8641, 1)
+    transformer = TransformerModel(8000, 7225, 85, 500, 2)
+    selfatt = Attention(100, 7225)
+    lregression = Regression(7225, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = Generator()
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
         rollouts_per_epoch=200, max_episode_length=100,
-        gamma=0.95, policy_epochs=5, batch_size=40,
+        gamma=0.90, policy_epochs=5, batch_size=100,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 
     draw_losses()

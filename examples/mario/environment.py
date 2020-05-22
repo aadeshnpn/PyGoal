@@ -26,8 +26,8 @@ class ResizeFrameEnvWrapper(gym.ObservationWrapper):
 
     def __init__(self,
                  env: gym.Env,
-                 width: int = 96,
-                 height: int = 90,
+                 width: int = 83,
+                 height: int = 89,
                  grayscale: bool = False):
         super().__init__(env)
         self.width = width
