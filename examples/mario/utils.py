@@ -112,7 +112,7 @@ def temp_fn(gamma, ret, trajectory):
 def calculate_returns(trajectory, gamma, trace, keys):
     tlen = len(trajectory)
     result, j = recognition(trace, keys)
-    trajectory = trajectory[:j]
+    trajectory = trajectory[:j+1]
     if result is False:
         return temp_fn(gamma, 0.0, trajectory)
     else:
@@ -176,6 +176,8 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             # episode_reward += r
             if t:
                 break
+            if coins == 1:
+                break
             s = s_prime
             s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
             # direction = np.array([direction])
@@ -185,11 +187,11 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         #     episode_reward = -1
         # elif episode_reward == 1:
         #     episode_reward = 100
-        episode_reward = coin
+        episode_reward = coins
         current_rollout = calculate_returns(current_rollout, gamma, trace, keys)
         # print(current_rollout)
         experience_queue.put(current_rollout)
-        reward_queue.put(episode_reward)
+        reward_queue.put(episode_reward*100)
 
 
 def prepare_numpy(ndarray, device):

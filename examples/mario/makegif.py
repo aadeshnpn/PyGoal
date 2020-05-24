@@ -29,8 +29,10 @@ def render(policy, embedding_net, device):
     images = [temp]
     for _ in range(300):
         # env.render()
+        s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
         input_state = prepare_numpy(s, device)
-        input_state = embedding_net(input_state)
+        # input_state = embedding_net(input_state)
+
         action_dist, action = policy(input_state)
         action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
         s_prime, r, t, coins = env.step(action)
@@ -82,7 +84,7 @@ def temp_fn(gamma, ret, trajectory):
 
 def calculate_returns(trajectory, gamma, trace, keys):
     # ret = finalrwd
-    print(trajectory)
+    # print(trajectory)
     tlen = len(trajectory)
     result, j = recognition(trace, keys)
     if result is False:
@@ -119,7 +121,7 @@ def main():
     embedded = Generator()
     embedded.load_state_dict(torch.load("embedded.pt"))
     policy = MarioPolicyNetwork()
-    policy.load_state_dict(torch.load("policy.pt"))
+    policy.load_state_dict(torch.load("policy1.pt"))
     render(policy, embedded, 'cpu')
 
 
