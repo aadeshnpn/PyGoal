@@ -48,6 +48,7 @@ class KeyDoorEnvironment(RLEnvironment):
         # self.ereward += r
         # if t:
         carry = True if isinstance(self._env.carrying, Key) else False
+
         return s, 0.0, t, carry
         # else:
         #    return s, 0.0, t
@@ -260,7 +261,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=0,
+        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=0,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -425,8 +426,8 @@ def main():
     lregression = Regression(149, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = Generator()
-    ppo(factory, policy, value, multinomial_likelihood, epochs=200,
-        rollouts_per_epoch=200, max_episode_length=100,
+    ppo(factory, policy, value, multinomial_likelihood, epochs=20,
+        rollouts_per_epoch=80, max_episode_length=100,
         gamma=0.9, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 
@@ -442,5 +443,5 @@ def draw_losses():
 
 
 if __name__ == '__main__':
-    main()
-    # draw_losses()
+    # main()
+    draw_losses()
