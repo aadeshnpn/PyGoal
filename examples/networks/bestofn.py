@@ -369,7 +369,7 @@ def gen_plot_goalspec(data):
     box_data = [data[i] for i in data.keys()]
 
     ax1.boxplot(
-        box_data, 0, 'gD', positions=[6, 7, 8, 9])
+        box_data, 0, 'gD', positions=[60, 70, 80, 90], widths=8)
 
     # plt.xlim(5, 10)
     # plt.ylim(0, 1)    # pylint: disable=E1101
@@ -386,19 +386,19 @@ def gen_plot_goalspec(data):
 
 
 def main():
-    env = env_setup(10, 2)
+    env = env_setup(100, 20)
     keys = ['S', 'C']
-    actions = list(range(0, 2+1))
+    actions = list(range(0, 20+1))
     data = dict()
-    for e in [6, 7, 8, 9]:
+    for e in [60, 70, 80, 90]:
         infrnc_res = []
         for i in range(20):
             # goalspec = 'F P_[C][8,none,<=]'
             goalspec = 'F P_[C]['+str(e) +',none,<=]'
             gtable = dict()
             genrecprop = GenRecPropGraph(
-                env, keys, goalspec, gtable, actions=actions, max_trace=10)
-            genrecprop.train(100)
+                env, keys, goalspec, gtable, actions=actions, max_trace=300)
+            genrecprop.train(300)
             prob = []
             for j in range(5):
                 # print('inference', genrecprop.inference())
@@ -420,6 +420,6 @@ def draw_graph():
 
 
 if __name__ == "__main__":
-    main()
-    # draw_graph()
+    # main()
+    draw_graph()
 
