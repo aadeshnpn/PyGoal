@@ -73,17 +73,21 @@ def get_log_p(data, mu, sigma):
 #         current_return = ret
 
 
-def calculate_returns(trajectory, gamma, trace, keys):
+def calculate_returns(trajectory, gamma, trace, keys, goalspec):
     # ret = finalrwd
-    result, j = recognition(trace, keys)
+    result, j = recognition(trace, keys, goalspec)
     # print(result, j)
     ret = 1 if result == True else 0
     trajectory = trajectory[:j]
     episode_reward = 1 if result == True else 0
     for i in reversed(range(len(trajectory))):
-        state, action_dist, action, rwd, s1 = trajectory[i]
+        try:
+            state, action_dist, action, rwd, s1 = trajectory[i]
+            rets = 0
+        except ValueError:
+            state, action_dist, action, rwd, rets, s1 = trajectory[i]
         # print(i, state, action, rwd, s1)
-        trajectory[i] = (state, action_dist, action, rwd, ret, s1)
+        trajectory[i] = (state, action_dist, action, rwd, ret+rets, s1)
         # print(i, ret, end=' ')
         ret = ret * gamma
     return episode_reward, trajectory
@@ -93,18 +97,20 @@ def get_current_state(s):
     image = s['image']
     direction = s['direction']
 
+
 def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 num_rollouts, max_episode_length, gamma, device):
-    keys = ['C']
+    keys = ['C','D','DO','G']
     for _ in range(num_rollouts):
         current_rollout = []
         statedict = env.reset()
         s, direction, carry = statedict['image'], statedict['direction'], statedict['carry']
+        door, door_open, goal = statedict['door'], statedict['door_open'], statedict['goal']
         s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
         direction = np.array([direction])
         s = np.concatenate((s,direction))
         episode_reward = 0
-        trace = create_trace_skeleton([carry], keys)
+        trace = create_trace_skeleton([carry, door, door_open, goal], keys)
         for _ in range(max_episode_length):
             # print(s.shape)
             input_state = prepare_numpy(s, device)
@@ -115,12 +121,14 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
 
             action_dist, action = policy(input_state)
             action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
-            s_prime, r, t, carry = env.step(action)
+            s_prime, r, t, info = env.step(action)
+            carry, door  = info['carry'], info['door']
+            door_open, goal = info['door_open'], info['goal']
             # print(_, s_prime, r)
             if type(r) != float:
                 print('run envs:', r, type(r))
             # print(input_state.dtype)
-            trace = trace_accumulator(trace, [carry], keys)
+            trace = trace_accumulator(trace, [carry, door, door_open, goal], keys)
             act = torch.tensor([action*1.0], dtype=torch.float32).to(device)
             s1 = torch.cat((input_state, act), dim=1)
             # s1.requires_grad_(False)
@@ -140,7 +148,13 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         #     episode_reward = -1
         # elif episode_reward == 1:
         #     episode_reward = 100
-        episode_reward, current_rollout = calculate_returns(current_rollout, gamma, trace, keys)
+
+        # New way to assign credit for multiple goals
+        goalspecs = ['F P_[C][True,none,==]', 'F P_[D][True,none,==]']
+        # goalspec = 'F P_[C][True,none,==]'
+        for goalspec in goalspecs:
+            episode_reward, current_rollout = calculate_returns(
+                    current_rollout, gamma, trace, keys, goalspec)
         # print(current_rollout)
         experience_queue.put(current_rollout)
         reward_queue.put(episode_reward)
@@ -251,8 +265,8 @@ def trace_accumulator(trace, state, keys):
     return trace
 
 
-def recognition(trace, keys):
-    goalspec = 'F P_[C][True,none,==]'
+def recognition(trace, keys, goalspec):
+    # goalspec = 'F P_[C][True,none,==]'
     # parse the formula
     parser = LTLfGParser()
 

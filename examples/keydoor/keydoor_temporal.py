@@ -33,8 +33,8 @@ class KeyDoorEnvironmentFactory(EnvironmentFactory):
 class KeyDoorEnvironment(RLEnvironment):
     def __init__(self):
         super(KeyDoorEnvironment, self).__init__()
-        # self._env = gym.make('CartPole-v0')
-        env_name = 'MiniGrid-DoorKey-8x8-v0'
+        # env_name = 'MiniGrid-DoorKey-16x16-v0'
+        env_name = 'MiniGrid-DoorKey-6x6-v0'
         self._env = gym.make(env_name)
         self._env.max_steps = min(self._env.max_steps, 200)
         # self.ereward = 0
@@ -47,9 +47,18 @@ class KeyDoorEnvironment(RLEnvironment):
         # print(s, r)
         # self.ereward += r
         # if t:
+        # Logic for status variable
+        fwd_pos = self._env.front_pos
         carry = True if isinstance(self._env.carrying, Key) else False
-
-        return s, 0.0, t, carry
+        item = self._env.grid.get(fwd_pos[0], fwd_pos[1])
+        door = True if isinstance(item, Door) else False
+        door_open = item.is_open if isinstance(item, Door) else False
+        goal = True if isinstance(item, Goal) else False
+        info['carry'] = carry
+        info['door'] = door
+        info['door_open'] = door_open
+        info['goal'] = goal
+        return s, 0.0, t, info
         # else:
         #    return s, 0.0, t
 
@@ -58,6 +67,9 @@ class KeyDoorEnvironment(RLEnvironment):
         # self.ereward = 0
         return_dict = self._env.reset()
         return_dict['carry'] = False
+        return_dict['door_open'] = False
+        return_dict['door'] = False
+        return_dict['goal'] = False
         return return_dict
 
 
@@ -443,5 +455,5 @@ def draw_losses():
 
 
 if __name__ == '__main__':
-    # main()
-    draw_losses()
+    main()
+    # draw_losses()
