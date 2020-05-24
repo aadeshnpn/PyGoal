@@ -8,7 +8,7 @@ import copy
 import numpy as np
 import pickle
 # from joblib import Parallel, delayed
-
+import matplotlib.pyplot as plt
 from graphenv import GraphBestofNEnvironment
 
 from pygoal.lib.genrecprop import GenRecProp
@@ -127,7 +127,10 @@ class GenRecPropGraph:
         state = self.get_curr_state(self.env)
         # action = self.get_action_policy(self.gtable, state)
         # action = self.get_action(state[0])
-        action = policy[state[0]]
+        try:
+            action = policy[state[0]]
+        except KeyError:
+            action = 0
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
         trace['A'] = [action]
 
@@ -159,7 +162,7 @@ class GenRecPropGraph:
             # Run the policy as long as the goal is not achieved or less than j
             traceset = trace.copy()
             if self.evaluate_trace(self.goalspec, traceset):
-                print(traceset['C'])
+                # print(traceset['C'])
                 return True
             if j > max_trace_len:
                 return False
@@ -348,7 +351,7 @@ class GenRecPropGraph:
             self.propagate(result, trace)
             # Increment the count
             self.tcount += 1
-            print(self.tcount, result)
+            # print(self.tcount, result)
             # print(trace['A'])
             # print(trace['I'][1]
         return result
@@ -359,18 +362,64 @@ class GenRecPropGraph:
         return self.run_policy(policy, self.max_trace_len)
 
 
-4
+def gen_plot_goalspec(data):
+    plt.style.use('fivethirtyeight')
+    fig = plt.figure()
+    ax1 = fig.add_subplot(1, 1, 1)
+    box_data = [data[i] for i in data.keys()]
+
+    ax1.boxplot(
+        box_data, 0, 'gD', positions=[6, 7, 8, 9])
+
+    # plt.xlim(5, 10)
+    # plt.ylim(0, 1)    # pylint: disable=E1101
+
+    ax1.set_xlabel('$\epsilon$', fontsize='medium')
+    ax1.set_ylabel('Performance', fontsize='medium')
+    ax1.tick_params(axis='both', which='major', labelsize=10)
+    ax1.set_title('Goal Specification $\Psi = F P_{[C]}[\epsilon, none,\leq]$', fontsize='medium')   # pylint: disable=E1101
+    # ax1.legend()
+    plt.tight_layout()
+    # fig.savefig(self.directory + '/boxplot.pdf')    # pylint: disable=E1101
+    fig.savefig('boxplot.png')    # pylint: disable=E1101
+    plt.close(fig)
+
+
 def main():
     env = env_setup(10, 2)
     keys = ['S', 'C']
     actions = list(range(0, 2+1))
-    gtable = dict()
-    goalspec = 'F P_[C][6,none,<=]'
-    genrecprop = GenRecPropGraph(
-        env, keys, goalspec, gtable, actions=actions, max_trace=20)
-    genrecprop.train(100)
-    print('inference', genrecprop.inference())
+    data = dict()
+    for e in [6, 7, 8, 9]:
+        infrnc_res = []
+        for i in range(20):
+            # goalspec = 'F P_[C][8,none,<=]'
+            goalspec = 'F P_[C]['+str(e) +',none,<=]'
+            gtable = dict()
+            genrecprop = GenRecPropGraph(
+                env, keys, goalspec, gtable, actions=actions, max_trace=10)
+            genrecprop.train(100)
+            prob = []
+            for j in range(5):
+                # print('inference', genrecprop.inference())
+                prob.append(genrecprop.inference() * 1.0)
+            infrnc_res.append(sum(prob)/len(prob))
+        # print(infrnc_res)
+        data[e] = infrnc_res
+    with open('data.pkl', 'wb') as f:
+        pickle.dump(data, f, -1)
+
+    draw_graph()
+
+
+def draw_graph():
+    with open('data.pkl', 'rb') as f:
+        data = pickle.load(f)
+
+    gen_plot_goalspec(data)
 
 
 if __name__ == "__main__":
     main()
+    # draw_graph()
+
