@@ -153,9 +153,9 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         # New way to assign credit for multiple goals
         goalspecs = [
             'F P_[C][True,none,==]',
-            'G(P_[C][True,none,==]) U F(P_[D][True,none,==])'
+            'G(P_[C][True,none,==]) U F(P_[D][True,none,==])',
             'G(P_[C][True,none,==]) U F(P_[DO][True,none,==])',
-            'G(P_[DO][True,none,==]) U F(P_[G][True,none,==])',
+            'G(P_[DO][True,none,==]) U F(P_[G][True,none,==])'
             ]
         # goalspec = 'F P_[C][True,none,==]'
         r = 1
