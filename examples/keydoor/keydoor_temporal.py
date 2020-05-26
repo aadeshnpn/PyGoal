@@ -111,7 +111,7 @@ class Generator(nn.Module):
 class KeyDoorPolicyNetwork(nn.Module):
     """Policy Network for KeyDoor."""
 
-    def __init__(self, state_dim=148, action_dim=5):
+    def __init__(self, state_dim=148, action_dim=6):
         super(KeyDoorPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
             nn.Linear(state_dim, 10),
@@ -273,7 +273,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=0,
+        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=0,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -297,8 +297,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         params = chain(params, embedding_net.parameters())
 
     # Set up optimization
-    # optimizer = optim.Adam(params, lr=lr, betas=betas, weight_decay=weight_decay)
-    optimizer = optim.Adam(params, lr=lr)
+    optimizer = optim.Adam(params, lr=lr, betas=betas, weight_decay=weight_decay)
+    # optimizer = optim.Adam(params, lr=lr)
     value_criteria = valueloss
 
     # Calculate the upper and lower bound for PPO
@@ -422,6 +422,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
             # Log info
             avg_val_loss /= len(data_loader)
             avg_policy_loss /= len(data_loader)
+            torch.save(policy.state_dict(), "policy.pt")
             loop.set_description(
                 'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f' % (avg_r, avg_val_loss, avg_policy_loss))
         with open(csv_file, 'a+') as f:
@@ -438,9 +439,9 @@ def main():
     lregression = Regression(149, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = Generator()
-    ppo(factory, policy, value, multinomial_likelihood, epochs=20,
-        rollouts_per_epoch=80, max_episode_length=100,
-        gamma=0.9, policy_epochs=5, batch_size=40,
+    ppo(factory, policy, value, multinomial_likelihood, epochs=400,
+        rollouts_per_epoch=120, max_episode_length=50,
+        gamma=0.95, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 
     draw_losses()

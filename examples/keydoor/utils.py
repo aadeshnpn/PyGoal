@@ -73,13 +73,13 @@ def get_log_p(data, mu, sigma):
 #         current_return = ret
 
 
-def calculate_returns(trajectory, gamma, trace, keys, goalspec):
+def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
     # ret = finalrwd
     result, j = recognition(trace, keys, goalspec)
-    # print(result, j)
-    ret = 1 if result == True else 0
+    # print(result, j, goalspec, r, trace['C'][:j], trace['D'][:j])
+    ret = r if result == True else 0
     trajectory = trajectory[:j]
-    episode_reward = 1 if result == True else 0
+    episode_reward = r if result == True else 0
     for i in reversed(range(len(trajectory))):
         try:
             state, action_dist, action, rwd, s1 = trajectory[i]
@@ -105,6 +105,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         current_rollout = []
         statedict = env.reset()
         s, direction, carry = statedict['image'], statedict['direction'], statedict['carry']
+        # print(s.shape)
         door, door_open, goal = statedict['door'], statedict['door_open'], statedict['goal']
         s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
         direction = np.array([direction])
@@ -150,11 +151,19 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         #     episode_reward = 100
 
         # New way to assign credit for multiple goals
-        goalspecs = ['F P_[C][True,none,==]', 'F P_[D][True,none,==]']
+        goalspecs = [
+            'F P_[C][True,none,==]',
+            'G(P_[C][True,none,==]) U F(P_[D][True,none,==])'
+            'G(P_[C][True,none,==]) U F(P_[DO][True,none,==])',
+            'G(P_[DO][True,none,==]) U F(P_[G][True,none,==])',
+            ]
         # goalspec = 'F P_[C][True,none,==]'
+        r = 1
         for goalspec in goalspecs:
-            episode_reward, current_rollout = calculate_returns(
-                    current_rollout, gamma, trace, keys, goalspec)
+            rwd, current_rollout = calculate_returns(
+                    current_rollout, gamma, trace, keys, goalspec, r)
+            episode_reward += rwd
+            r += 1
         # print(current_rollout)
         experience_queue.put(current_rollout)
         reward_queue.put(episode_reward)
