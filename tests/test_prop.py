@@ -58,13 +58,20 @@ def recognition(trace, keys, goalspec):
     # Define goal formula/specification
     parsed_formula = parser(goalspec)
 
+    # print(parsed_formula)
     # Change list of trace to set
     traceset = trace.copy()
+    # print(traceset)
     akey = list(traceset.keys())[0]
+    # print(akey)
     # print('recognizer', traceset)
     # Loop through the trace to find the shortest best trace
-    for i in range(0, len(traceset[akey])+1):
+    for i in range(1, len(traceset[akey])+1):
         t = create_trace_flloat(traceset, i, keys)
+        try:
+            print(i, t['C'], t['D'])
+        except KeyError:
+            pass
         result = parsed_formula.truth(t)
         if result is True:
             # self.set_state(self.env, trace, i)
@@ -94,8 +101,34 @@ class TestTraceKeyDoor(TestCase):
         result, i = recognition(traceset, ['C'], goalspecs)
         self.assertTrue(result)
 
+    def test_until_false(self):
+        traceset = dict()
+        traceset['C'] = [0] * 5 + [1] * 5
+        traceset['D'] = [0] * 9 + [1]
+
+        goalspecs = '((G(P_[C][1,none,==])) U (P_[D][1,none,==]))'
+        # goalspecs = 'G (P_[C][1,none,==])'
+        # result, i = recognition(traceset, ['C'], goalspecs)
+        result, i = recognition(traceset, ['C','D'], goalspecs)
+        self.assertFalse(result)
+
+    def test_until_finally_true(self):
+        traceset = dict()
+        traceset['C'] = [0] * 5 + [1] * 5
+        traceset['D'] = [0] * 9 + [1]
+
+        goalspecs = '((F(P_[C][1,none,==])) U (P_[D][1,none,==]))'
+        # goalspecs = 'G (P_[C][1,none,==])'
+        # result, i = recognition(traceset, ['C'], goalspecs)
+        result, i = recognition(traceset, ['C','D'], goalspecs)
+        self.assertTrue(result)
+
     def test_until_true(self):
         traceset = dict()
-        traceset['C'] = [True] * 10
+        traceset['C'] = [1] * 10
+        traceset['D'] = [0] * 9 + [1]
 
-        goalspecs = 'G(P_[C][True,none,==]) U P_[D][True,none,==]'
+        goalspecs = '(G(P_[C][1,none,==])) U (F(P_[D][1,none,==]))'
+        # goalspecs = 'G (P_[C][1,none,==])'
+        result, i = recognition(traceset, ['C','D'], goalspecs)
+        self.assertTrue(result)
