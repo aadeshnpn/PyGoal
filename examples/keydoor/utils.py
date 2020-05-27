@@ -76,7 +76,8 @@ def get_log_p(data, mu, sigma):
 def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
     # ret = finalrwd
     result, j = recognition(trace, keys, goalspec)
-    # print(result, j, goalspec, r, trace['C'][:j], trace['D'][:j])
+    if result:
+        print(result, j, goalspec, r, trace['C'][:j], trace['D'][:j])
     ret = r if result == True else 0
     trajectory = trajectory[:j]
     episode_reward = r if result == True else 0
@@ -90,6 +91,8 @@ def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
         trajectory[i] = (state, action_dist, action, rwd, ret+rets, s1)
         # print(i, ret, end=' ')
         ret = ret * gamma
+    if result:
+        print([t[4] for t in trajectory])
     return episode_reward, trajectory
 
 
@@ -154,11 +157,11 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         goalspecs = [
             'F P_[C][True,none,==]',
             'G(P_[C][True,none,==]) U F(P_[D][True,none,==])',
-            'G(P_[C][True,none,==]) U F(P_[DO][True,none,==])',
-            'G(P_[DO][True,none,==]) U F(P_[G][True,none,==])'
+            'G(P_[C][True,none,==] & P_[D][True,none,==]) U F(P_[DO][True,none,==])',
+            'F(P_[G][True,none,==])'
             ]
         # goalspec = 'F P_[C][True,none,==]'
-        r = 1
+        r = 1 # len(goalspecs)
         for goalspec in goalspecs:
             rwd, current_rollout = calculate_returns(
                     current_rollout, gamma, trace, keys, goalspec, r)
