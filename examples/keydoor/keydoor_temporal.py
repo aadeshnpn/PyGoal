@@ -33,11 +33,11 @@ class KeyDoorEnvironmentFactory(EnvironmentFactory):
 class KeyDoorEnvironment(RLEnvironment):
     def __init__(self):
         super(KeyDoorEnvironment, self).__init__()
-        # env_name = 'MiniGrid-DoorKey-16x16-v0'
-        env_name = 'MiniGrid-DoorKey-6x6-v0'
+        env_name = 'MiniGrid-DoorKey-16x16-v0'
+        # env_name = 'MiniGrid-DoorKey-8x8-v0'
         self._env = gym.make(env_name)
         self._env.max_steps = min(self._env.max_steps, 200)
-        self._env.seed(12345)
+        # self._env.seed(12345)
         # self.ereward = 0
 
     def step(self, action):
@@ -71,7 +71,7 @@ class KeyDoorEnvironment(RLEnvironment):
         return_dict['door_open'] = False
         return_dict['door'] = False
         return_dict['goal'] = False
-        self._env.seed(12345)
+        # self._env.seed(12345)
         return return_dict
 
 
@@ -142,7 +142,11 @@ class KeyDoorPolicyNetwork(nn.Module):
         probs_np = probs.cpu().detach().numpy().astype('float64')
         for i in range(batch_size):
             # print(i, probs_np[i])
-            action_one_hot = np.random.multinomial(1, probs_np[i])
+            try:
+                action_one_hot = np.random.multinomial(1, probs_np[i])
+            except ValueError:
+                action_one_hot = np.zeros(probs_np[i].shape)
+                action_one_hot[np.argmax(probs_np[i])] = 1
             action_idx = np.argmax(action_one_hot)
             actions[i, 0] = action_idx
         return probs, actions
@@ -443,7 +447,7 @@ def main():
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = Generator()
     ppo(factory, policy, value, multinomial_likelihood, epochs=60,
-        rollouts_per_epoch=80, max_episode_length=50,
+        rollouts_per_epoch=80, max_episode_length=100,
         gamma=0.90, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 
