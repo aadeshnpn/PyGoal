@@ -139,8 +139,9 @@ class KeyDoorPolicyNetwork(nn.Module):
 
         batch_size = x.shape[0]
         actions = np.empty((batch_size, 1), dtype=np.uint8)
-        probs_np = probs.cpu().detach().numpy()
+        probs_np = probs.cpu().detach().numpy().astype('float64')
         for i in range(batch_size):
+            # print(i, probs_np[i])
             action_one_hot = np.random.multinomial(1, probs_np[i])
             action_idx = np.argmax(action_one_hot)
             actions[i, 0] = action_idx
