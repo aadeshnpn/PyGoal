@@ -102,36 +102,70 @@ def slice_trace(j, trace, keys):
     return trace
 
 
-def temp_fn(gamma, ret, trajectory):
-    for i in reversed(range(len(trajectory))):
-        state, action_dist, action, rwd, s1 = trajectory[i]
-        trajectory[i] = (state, action_dist, action, rwd, ret, s1)
-        ret = ret * gamma
-    return trajectory
+# def temp_fn(gamma, ret, trajectory):
+#     for i in reversed(range(len(trajectory))):
+#         state, action_dist, action, rwd, s1 = trajectory[i]
+#         trajectory[i] = (state, action_dist, action, rwd, ret, s1)
+#         ret = ret * gamma
+#     return trajectory
 
-def calculate_returns(trajectory, gamma, trace, keys):
-    tlen = len(trajectory)
-    result, j = recognition(trace, keys)
-    trajectory = trajectory[:j+1]
-    if result is False:
-        return temp_fn(gamma, 0.0, trajectory)
-    else:
-        return temp_fn(gamma, 1.0, trajectory)
-    return trajectory
-    # if result is False:
-    #     ret = 0.0
-    #     return temp_fn(gamma, ret, trajectory)
-    # else:
-    #     if result is True and  j+1 >= tlen:
-    #         ret = 1.0
-    #         return temp_fn(gamma, ret, trajectory)
-    #     else:
-    #         ret = 1.0
-    #         traj = temp_fn(gamma, ret, trajectory[:j])
-    #         traj += calculate_returns(trajectory[j:], gamma, slice_trace(j+1, trace, keys), keys)
-    #         return traj
-    # print(trajectory)
-    # return trajectory
+# def calculate_returns(trajectory, gamma, trace, keys):
+#     tlen = len(trajectory)
+#     result, j = recognition(trace, keys)
+#     trajectory = trajectory[:j+1]
+#     if result is False:
+#         return temp_fn(gamma, 0.0, trajectory)
+#     else:
+#         return temp_fn(gamma, 1.0, trajectory)
+#     return trajectory
+#     # if result is False:
+#     #     ret = 0.0
+#     #     return temp_fn(gamma, ret, trajectory)
+#     # else:
+#     #     if result is True and  j+1 >= tlen:
+#     #         ret = 1.0
+#     #         return temp_fn(gamma, ret, trajectory)
+#     #     else:
+#     #         ret = 1.0
+#     #         traj = temp_fn(gamma, ret, trajectory[:j])
+#     #         traj += calculate_returns(trajectory[j:], gamma, slice_trace(j+1, trace, keys), keys)
+#     #         return traj
+#     # print(trajectory)
+#     # return trajectory
+
+def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
+    # ret = finalrwd
+    result, j = recognition(trace, keys, goalspec)
+    if result:
+          print(result, j, goalspec, r, trace['C'])
+    ret = r if result == True else 0
+    # trajectory = trajectory[:j+1]
+    # print(len(trajectory))
+    episode_reward = r if result == True else 0
+    # for i in reversed(range(j)):
+    for i in reversed(range(len(trajectory[:j]))):
+        try:
+            state, action_dist, action, rwd, s1 = trajectory[i]
+            rets = 0
+        except ValueError:
+            state, action_dist, action, rwd, rets, s1 = trajectory[i]
+        # print(i, state, action, rwd, s1)
+        trajectory[i] = (state, action_dist, action, rwd, ret+rets, s1)
+        # print(i, ret, end=' ')
+        ret = ret * gamma
+    for i in range(j, len(trajectory)):
+        ret = 0
+        try:
+            state, action_dist, action, rwd, s1 = trajectory[i]
+            rets = 0
+        except ValueError:
+            state, action_dist, action, rwd, rets, s1 = trajectory[i]
+        trajectory[i] = (state, action_dist, action, rwd, ret+rets, s1)
+    # if result:
+    #     print([t[4] for t in trajectory])
+    # print(len(trajectory))
+    return episode_reward, trajectory, result
+
 
 def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 num_rollouts, max_episode_length, gamma, device):
@@ -146,32 +180,20 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         current_rollout = []
         s = env.reset()
         s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
-        # print(s.shape)
         s = trans(s)
-        # print(s.shape)
-        # print(len(statedict), statedict)
-        # s, direction, carry = statedict['image'], statedict['direction'], statedict['carry']
-        # s = s.reshape(s.shape[0]*s.shape[1]*s.shape[2])
-        # print(s.shape)
-        # 8640
-        # direction = np.array([direction])
-        # s = np.concatenate((s,direction))
         episode_reward = 0
         trace = create_trace_skeleton([0], keys)
         coin = 0
         for _ in range(max_episode_length):
-            # print(s.shape)
-            # print(s.shape)
-            # input_state = prepare_numpy(s, device, trans)
+            input_state = prepare_input(s)
             # print(input_state.shape)
-            input_state = prepare_tensor_batch(s, 'cpu')
-            # print(input_state.shape)
-            # input_state = s.to(device)
             if embedding_net:
+                # print(input_state.shape)
                 input_state = embedding_net(input_state)
             # print(input_state.shape)
             sp = input_state.shape
-            input_state = input_state.reshape(sp.shape[0]*sp.shape[1]*sp.shape[2])
+            input_state = input_state.reshape(1, sp[0]*sp[1]*sp[2])
+            # print(input_state.shape)
             action_dist, action = policy(input_state)
             action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
             s_prime, r, t, coins = env.step(action)
@@ -193,24 +215,33 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             if coins == 1:
                 break
             s = s_prime
-            s = torch.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
-            # direction = np.array([direction])
-            # s = np.concatenate((s,direction))
-        # print(current_rollout, gamma, episode_reward)
-        # if episode_reward == 0:
-        #     episode_reward = -1
-        # elif episode_reward == 1:
-        #     episode_reward = 100
-        episode_reward = coins
-        current_rollout = calculate_returns(current_rollout, gamma, trace, keys)
-        # print(current_rollout)
+            s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
+            s = trans(s)
+
+        goalspecs = ['F P_[C][1,none,==]']
+        r = 1
+        for goalspec in goalspecs:
+            rwd, current_rollout, result = calculate_returns(
+                    current_rollout, gamma, trace, keys, goalspec, r)
+            episode_reward += rwd
+            # r -= 1
+            if not result:
+                break
+        # episode_reward = coins
+        # current_rollout = calculate_returns(current_rollout, gamma, trace, keys)
+
         experience_queue.put(current_rollout)
-        reward_queue.put(episode_reward*100)
+        reward_queue.put(episode_reward)
 
 
 def prepare_numpy(ndarray, device, trans):
 
     return trans(torch.from_numpy(ndarray).float().unsqueeze(0).to(device))
+
+
+def prepare_input(ndarray):
+
+    return torch.reshape(ndarray, (1, *ndarray.shape))
 
     # return torch.from_numpy(ndarray).float().to(device)
 
@@ -318,8 +349,8 @@ def trace_accumulator(trace, state, keys):
     return trace
 
 
-def recognition(trace, keys):
-    goalspec = 'F P_[C][1,none,>=]'
+def recognition(trace, keys, goalspec):
+    # goalspec = 'F P_[C][1,none,>=]'
     # parse the formula
     parser = LTLfGParser()
 
@@ -331,7 +362,7 @@ def recognition(trace, keys):
     akey = list(traceset.keys())[0]
     # print('recognizer', traceset)
     # Loop through the trace to find the shortest best trace
-    for i in range(0, len(traceset[akey])+1):
+    for i in range(1, len(traceset[akey])+1):
         t = create_trace_flloat(traceset, i, keys)
         result = parsed_formula.truth(t)
         if result is True:

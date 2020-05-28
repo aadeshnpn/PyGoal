@@ -446,8 +446,8 @@ def main():
     lregression = Regression(149, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = Generator()
-    ppo(factory, policy, value, multinomial_likelihood, epochs=60,
-        rollouts_per_epoch=80, max_episode_length=100,
+    ppo(factory, policy, value, multinomial_likelihood, epochs=100,
+        rollouts_per_epoch=200, max_episode_length=100,
         gamma=0.90, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 

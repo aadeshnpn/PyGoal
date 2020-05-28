@@ -109,7 +109,7 @@ class Generator(nn.Module):
 class MarioPolicyNetwork(nn.Module):
     """Policy Network for KeyDoor."""
 
-    def __init__(self, state_dim=3026, action_dim=7):
+    def __init__(self, state_dim=3025, action_dim=7):
         super(MarioPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
             nn.Linear(state_dim, 500),
@@ -361,6 +361,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         policy = policy.to(device)
         embedding_net = embedding_net.to(device)
         # Update the policy
+        # print(list(rollouts))
+
         experience_dataset = ExperienceDataset(rollouts)
         data_loader = DataLoader(experience_dataset, num_workers=data_loader_threads, batch_size=batch_size,
                                  shuffle=True,
@@ -385,7 +387,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 if embedding_net:
                     # print(state.shape)
                     state = embedding_net(state)
-
+                    sp = state.shape
+                    state = state.reshape(sp[0], sp[1]*sp[2])
                 # Calculate the ratio term
                 current_action_dist = policy(state, False)
                 # print(current_action_dist.shape)
@@ -439,6 +442,7 @@ class ResNet50Bottom(nn.Module):
         self.features = nn.Sequential(*list(original_model.children())[0][:4])
 
     def forward(self, x):
+        # print(x.shape)
         x = self.features(x)
         return x[:,0,:,:]
 
@@ -473,8 +477,8 @@ def main():
     #    print(para)
     # print(embeddnet.parameters())
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
-        rollouts_per_epoch=200, max_episode_length=40,
-        gamma=0.99, policy_epochs=5, batch_size=50,
+        rollouts_per_epoch=50, max_episode_length=40,
+        gamma=0.9, policy_epochs=5, batch_size=50,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=res18_conv2)
 
     # draw_losses()
