@@ -136,12 +136,23 @@ def calculate_returns(trajectory, gamma, trace, keys):
 def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 num_rollouts, max_episode_length, gamma, device):
     keys = ['C']
+    from torchvision import transforms
+    trans = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+        ])
     for _ in range(num_rollouts):
         current_rollout = []
         s = env.reset()
+        s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
+        # print(s.shape)
+        s = trans(s)
+        # print(s.shape)
         # print(len(statedict), statedict)
         # s, direction, carry = statedict['image'], statedict['direction'], statedict['carry']
-        s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
+        # s = s.reshape(s.shape[0]*s.shape[1]*s.shape[2])
+        # print(s.shape)
         # 8640
         # direction = np.array([direction])
         # s = np.concatenate((s,direction))
@@ -151,13 +162,16 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         for _ in range(max_episode_length):
             # print(s.shape)
             # print(s.shape)
-            input_state = prepare_numpy(s, device)
+            # input_state = prepare_numpy(s, device, trans)
             # print(input_state.shape)
-            # input_state = prepare_tensor_batch(s)
+            input_state = prepare_tensor_batch(s, 'cpu')
+            # print(input_state.shape)
             # input_state = s.to(device)
             if embedding_net:
                 input_state = embedding_net(input_state)
             # print(input_state.shape)
+            sp = input_state.shape
+            input_state = input_state.reshape(sp.shape[0]*sp.shape[1]*sp.shape[2])
             action_dist, action = policy(input_state)
             action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
             s_prime, r, t, coins = env.step(action)
@@ -179,7 +193,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             if coins == 1:
                 break
             s = s_prime
-            s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
+            s = torch.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
             # direction = np.array([direction])
             # s = np.concatenate((s,direction))
         # print(current_rollout, gamma, episode_reward)
@@ -194,8 +208,10 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         reward_queue.put(episode_reward*100)
 
 
-def prepare_numpy(ndarray, device):
-    return torch.from_numpy(ndarray).float().unsqueeze(0).to(device) / 255.0
+def prepare_numpy(ndarray, device, trans):
+
+    return trans(torch.from_numpy(ndarray).float().unsqueeze(0).to(device))
+
     # return torch.from_numpy(ndarray).float().to(device)
 
 

@@ -14,6 +14,8 @@ from queue import Queue
 import gym
 import gym_minigrid
 from gym_minigrid.minigrid import Grid, OBJECT_TO_IDX, Key, Door, Goal
+import torchvision.models as models
+
 
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
@@ -43,7 +45,7 @@ class MarioEnvironment(RLEnvironment):
         super(MarioEnvironment, self).__init__()
         env_name = 'SuperMarioBros-1-1-v0'
         env = gym_super_mario_bros.make(env_name)
-        env = ResizeFrameEnvWrapper(env, width=84, height=86, grayscale=True)
+        env = ResizeFrameEnvWrapper(env, width=224, height=224, grayscale=False)
         # env = StochasticFrameSkipEnvWrapper(env, n_frames=5)
         self._env = BinarySpaceToDiscreteSpaceEnv(env, actions.SIMPLE_MOVEMENT)
         # self._env = gym.make(env_name)
@@ -56,7 +58,7 @@ class MarioEnvironment(RLEnvironment):
         Returns observation (np.ndarray), r (float), t (boolean)
         """
         s, _, t, info = self._env.step(action.item())
-        # print(s, r)
+        # print(s.shape, r)
         # if info['coins'] != 0:
         #    print(_, info['coins'])
         # self.ereward += r
@@ -107,7 +109,7 @@ class Generator(nn.Module):
 class MarioPolicyNetwork(nn.Module):
     """Policy Network for KeyDoor."""
 
-    def __init__(self, state_dim=7224, action_dim=7):
+    def __init__(self, state_dim=3026, action_dim=7):
         super(MarioPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
             nn.Linear(state_dim, 500),
@@ -269,7 +271,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=8, data_loader_threads=8,
+        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=1,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -288,9 +290,9 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
     # Collect parameters
     params = chain(policy.parameters(), value.parameters())
     if embedding_net:
-        # embedding_net = embedding_net.to(device)
+        embedding_net = embedding_net.to('cpu')
         # embedding_net.share_memory()
-        params = chain(params, embedding_net.parameters())
+        # params = chain(params, embedding_net.parameters())
 
     # Set up optimization
     # optimizer = optim.Adam(params, lr=lr, betas=betas, weight_decay=weight_decay)
@@ -310,7 +312,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
     rollout_nums = ([rollouts_per_thread + 1] * remainder) + ([rollouts_per_thread] * (environment_threads - remainder))
 
     for e in range(epochs):
-        # embedding_net = embedding_net.to('cpu')
+        embedding_net = embedding_net.to('cpu')
         policy = policy.to('cpu')
         # Run the environments
         experience_queue = Queue()
@@ -357,7 +359,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 
         # Move the network to GPU
         policy = policy.to(device)
-        # embedding_net = embedding_net.to(device)
+        embedding_net = embedding_net.to(device)
         # Update the policy
         experience_dataset = ExperienceDataset(rollouts)
         data_loader = DataLoader(experience_dataset, num_workers=data_loader_threads, batch_size=batch_size,
@@ -377,7 +379,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 s1 = prepare_tensor_batch(s1, device)
                 optimizer.zero_grad()
                 # print(state.shape)
-                if state.shape[0] != 20:
+                if state.shape[0] != 50:
                     continue
                 # If there is an embedding net, carry out the embedding
                 if embedding_net:
@@ -430,20 +432,52 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         loop.update(1)
 
 
+class ResNet50Bottom(nn.Module):
+    def __init__(self, original_model):
+        super(ResNet50Bottom, self).__init__()
+        # print(list(original_model.children())[0][:4])
+        self.features = nn.Sequential(*list(original_model.children())[0][:4])
+
+    def forward(self, x):
+        x = self.features(x)
+        return x[:,0,:,:]
+
+
 def main():
     factory = MarioEnvironmentFactory()
     policy = MarioPolicyNetwork()
-    transformer = TransformerModel(8000, 7225, 85, 500, 2)
-    selfatt = Attention(20, 7225)
-    lregression = Regression(7225, 1)
+    transformer = TransformerModel(8000, 3026, 89, 500, 2)
+    selfatt = Attention(50, 3026)
+    lregression = Regression(3026, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
-    # embeddnet = Generator()
+    # embeddnet = models.resnet18(pretrained=True)
+
+    # normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+    #                              std=[0.229, 0.224, 0.225])
+
+    # for name, param in embeddnet.named_parameters():
+    #     if param.requires_grad:
+    #         print (name, param.data.shape)
+    # for l in embeddnet.features.modules():
+    #     print(l)
+
+    # res18_model = models.resnet18(pretrained=True)
+    res18_model = models.squeezenet1_1(pretrained=True)
+    res18_conv2 = ResNet50Bottom(res18_model)
+    for para in res18_conv2.parameters():
+        para.requires_grad = False
+    # a = torch.rand(1, 3, 224, 224)
+    # print(res18_conv2(a).shape)
+    # layer2.0.downsample.0.weight
+    # for para in embeddnet.parameters():
+    #    print(para)
+    # print(embeddnet.parameters())
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
         rollouts_per_epoch=200, max_episode_length=40,
-        gamma=0.99, policy_epochs=5, batch_size=20,
-        device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
+        gamma=0.99, policy_epochs=5, batch_size=50,
+        device='cuda:0', valueloss=RegressionLoss(), embedding_net=res18_conv2)
 
-    draw_losses()
+    # draw_losses()
 
 
 def render(policy, embedding_net, device):
