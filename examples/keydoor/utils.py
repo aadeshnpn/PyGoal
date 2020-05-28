@@ -64,6 +64,27 @@ def get_log_p(data, mu, sigma):
     return -torch.log(torch.sqrt(2 * math.pi * sigma ** 2)) - (data - mu) ** 2 / (2 * sigma ** 2)
 
 
+def temp_fn(gamma, ret, trajectory):
+    for i in reversed(range(len(trajectory))):
+        state, action_dist, action, rwd, s1 = trajectory[i]
+        trajectory[i] = (state, action_dist, action, rwd, ret, s1)
+        ret = ret * gamma
+    return trajectory
+
+
+def calculate_returns(trajectory, gamma, trace, keys, goalspec):
+    tlen = len(trajectory)
+    result, j = recognition(trace, keys, goalspec)
+    trajectory = trajectory[:j+1]
+    if result is False:
+        rwd = 0.0
+        return rwd, temp_fn(gamma, rwd, trajectory), result
+    else:
+        rwd = 1.0
+        return rwd, temp_fn(gamma, rwd, trajectory), result
+    # return trajectory
+
+
 # def calculate_returns(trajectory, gamma):
 #     current_return = 0
 #     for i in reversed(range(len(trajectory))):
@@ -73,28 +94,38 @@ def get_log_p(data, mu, sigma):
 #         current_return = ret
 
 
-def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
-    # ret = finalrwd
-    result, j = recognition(trace, keys, goalspec)
-    if result:
-        print(result, j, goalspec, r, trace['C'][:j], trace['D'][:j])
-    ret = r if result == True else 0
-    trajectory = trajectory[:j]
-    episode_reward = r if result == True else 0
-    for i in reversed(range(len(trajectory))):
-        try:
-            state, action_dist, action, rwd, s1 = trajectory[i]
-            rets = 0
-        except ValueError:
-            state, action_dist, action, rwd, rets, s1 = trajectory[i]
-        # print(i, state, action, rwd, s1)
-        trajectory[i] = (state, action_dist, action, rwd, ret+rets, s1)
-        # print(i, ret, end=' ')
-        ret = ret * gamma
-    if result:
-        print([t[4] for t in trajectory])
-    return episode_reward, trajectory
-
+# def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
+#     # ret = finalrwd
+#     result, j = recognition(trace, keys, goalspec)
+#     # if result:
+#     #      print(result, j, goalspec, r)
+#     ret = r if result == True else 0
+#     trajectory = trajectory[:j]
+#     # print(len(trajectory))
+#     episode_reward = r if result == True else 0
+#     # for i in reversed(range(len(trajectory[:j]))):
+#     for i in reversed(range(len(trajectory))):
+#         try:
+#             state, action_dist, action, rwd, s1 = trajectory[i]
+#             rets = 0
+#         except ValueError:
+#             state, action_dist, action, rwd, rets, s1 = trajectory[i]
+#         # print(i, state, action, rwd, s1)
+#         trajectory[i] = (state, action_dist, action, rwd, ret+rets, s1)
+#         # print(i, ret, end=' ')
+#         ret = ret * gamma
+#     # for i in range(j, len(trajectory)):
+#     #     ret = 0
+#     #     try:
+#     #         state, action_dist, action, rwd, s1 = trajectory[i]
+#     #         rets = 0
+#     #     except ValueError:
+#     #         state, action_dist, action, rwd, rets, s1 = trajectory[i]
+#     #     trajectory[i] = (state, action_dist, action, rwd, ret+rets, s1)
+#     # if result:
+#     #     print([t[4] for t in trajectory])
+#     # print(len(trajectory))
+#     return episode_reward, trajectory, result
 
 def get_current_state(s):
     image = s['image']
@@ -155,19 +186,24 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
 
         # New way to assign credit for multiple goals
         goalspecs = [
-            'F P_[C][True,none,==]',
-            'G(P_[C][True,none,==]) U F(P_[D][True,none,==])',
-            'G(P_[C][True,none,==] & P_[D][True,none,==]) U F(P_[DO][True,none,==])',
-            'F(P_[G][True,none,==])'
+            'F P_[C][True,none,==]'
+            # 'F(P_[D][True,none,==])',
+            # 'F(P_[DO][True,none,==])',
+            # 'F(P_[G][True,none,==])'
             ]
         # goalspec = 'F P_[C][True,none,==]'
-        r = 1 # len(goalspecs)
-        for goalspec in goalspecs:
-            rwd, current_rollout = calculate_returns(
-                    current_rollout, gamma, trace, keys, goalspec, r)
-            episode_reward += rwd
-            r += 1
+        # r = 1 # len(goalspecs)
+        # for goalspec in goalspecs:
+        #     rwd, current_rollout,result = calculate_returns(
+        #             current_rollout, gamma, trace, keys, goalspec, r)
+        #     episode_reward += rwd
+        #     r += 1
+        #     if not result:
+        #         break
         # print(current_rollout)
+        episode_reward, current_rollout, result = calculate_returns(
+            current_rollout, gamma, trace, keys, goalspecs[0]
+        )
         experience_queue.put(current_rollout)
         reward_queue.put(episode_reward)
 

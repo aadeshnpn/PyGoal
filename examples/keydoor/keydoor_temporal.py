@@ -274,8 +274,8 @@ class ValueNetwork(nn.Module):
 
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
-        rollouts_per_epoch=10, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=0,
+        rollouts_per_epoch=80, max_episode_length=20, gamma=0.99, policy_epochs=5,
+        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=0,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -299,8 +299,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         params = chain(params, embedding_net.parameters())
 
     # Set up optimization
-    optimizer = optim.Adam(params, lr=lr, betas=betas, weight_decay=weight_decay)
-    # optimizer = optim.Adam(params, lr=lr)
+    # optimizer = optim.Adam(params, lr=lr, betas=betas, weight_decay=weight_decay)
+    optimizer = optim.Adam(params, lr=lr)
     value_criteria = valueloss
 
     # Calculate the upper and lower bound for PPO
@@ -326,7 +326,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                                                   policy,
                                                   experience_queue,
                                                   reward_queue,
-                                                  1,# rollout_nums[i],
+                                                  rollout_nums[i],
                                                   max_episode_length,
                                                   gamma,
                                                   'cpu')) for i in range(environment_threads)]
@@ -441,9 +441,9 @@ def main():
     lregression = Regression(149, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = Generator()
-    ppo(factory, policy, value, multinomial_likelihood, epochs=1,
-        rollouts_per_epoch=120, max_episode_length=50,
-        gamma=0.95, policy_epochs=5, batch_size=40,
+    ppo(factory, policy, value, multinomial_likelihood, epochs=60,
+        rollouts_per_epoch=80, max_episode_length=50,
+        gamma=0.90, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 
     draw_losses()
