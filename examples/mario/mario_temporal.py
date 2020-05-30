@@ -46,7 +46,7 @@ class MarioEnvironment(RLEnvironment):
         env_name = 'SuperMarioBros-1-1-v0'
         env = gym_super_mario_bros.make(env_name)
         env = ResizeFrameEnvWrapper(env, width=224, height=224, grayscale=False)
-        # env = StochasticFrameSkipEnvWrapper(env, n_frames=5)
+        env = StochasticFrameSkipEnvWrapper(env, n_frames=4)
         self._env = BinarySpaceToDiscreteSpaceEnv(env, actions.SIMPLE_MOVEMENT)
         # self._env = gym.make(env_name)
         # self._env.max_steps = min(self._env.max_steps, 350)
@@ -65,6 +65,8 @@ class MarioEnvironment(RLEnvironment):
         # if t:
         # carry = True if isinstance(self._env.carrying, Key) else False
         temp = info['coins']
+        # if temp > 0:
+        #     print(temp)
         self.coin = temp - self.coin
         return s, 0.0, t, self.coin
         # else:
@@ -109,12 +111,12 @@ class Generator(nn.Module):
 class MarioPolicyNetwork(nn.Module):
     """Policy Network for KeyDoor."""
 
-    def __init__(self, state_dim=3025, action_dim=7):
+    def __init__(self, state_dim=512, action_dim=7):
         super(MarioPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
-            nn.Linear(state_dim, 500),
+            nn.Linear(state_dim, 100),
             nn.ReLU(),
-            nn.Linear(500, 100),
+            nn.Linear(100, 100),
             nn.ReLU(),
             nn.Linear(100, 10),
             nn.ReLU(),
@@ -135,9 +137,13 @@ class MarioPolicyNetwork(nn.Module):
 
         batch_size = x.shape[0]
         actions = np.empty((batch_size, 1), dtype=np.uint8)
-        probs_np = probs.cpu().detach().numpy()
+        probs_np = probs.cpu().detach().numpy().astype('float64')
         for i in range(batch_size):
-            action_one_hot = np.random.multinomial(1, probs_np[i])
+            try:
+                action_one_hot = np.random.multinomial(1, probs_np[i])
+            except ValueError:
+                action_one_hot = np.zeros(probs_np[i].shape)
+                action_one_hot[np.argmax(probs_np[i])] = 1
             action_idx = np.argmax(action_one_hot)
             actions[i, 0] = action_idx
         return probs, actions
@@ -271,7 +277,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=1, data_loader_threads=1,
+        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=1,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -438,21 +444,37 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
 class ResNet50Bottom(nn.Module):
     def __init__(self, original_model):
         super(ResNet50Bottom, self).__init__()
-        # print(list(original_model.children())[0][:4])
-        self.features = nn.Sequential(*list(original_model.children())[0][:4])
+        # print(list(original_model.children()))
+        paras = list(original_model.children())
+        paras[2] = paras[2][:2]
+        # print(paras)
+        # self.features = nn.Sequential(
+        #     paras
+        #     )
+        # print(self.features)
+        self.features = paras
+        self.maxpool = nn.MaxPool1d(8, stride=8)
 
     def forward(self, x):
         # print(x.shape)
-        x = self.features(x)
-        return x[:,0,:,:]
+        i = 0
+        for paras in self.features:
+            # print(paras[0], x.shape)
+            if i == 2:
+                x = x.view(x.shape[0], x.shape[1]*x.shape[2]*x.shape[3])
+            x = paras(x)
+            i += 1
+        # print(x.shape)
+        x = x.view(x.shape[0], 1 , x.shape[1])
+        return self.maxpool(x).squeeze(1)
 
 
 def main():
     factory = MarioEnvironmentFactory()
     policy = MarioPolicyNetwork()
-    transformer = TransformerModel(8000, 3026, 89, 500, 2)
-    selfatt = Attention(50, 3026)
-    lregression = Regression(3026, 1)
+    transformer = TransformerModel(500, 513, 3, 200, 2)
+    selfatt = Attention(50, 513)
+    lregression = Regression(513, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = models.resnet18(pretrained=True)
 
@@ -465,21 +487,21 @@ def main():
     # for l in embeddnet.features.modules():
     #     print(l)
 
-    # res18_model = models.resnet18(pretrained=True)
-    res18_model = models.squeezenet1_1(pretrained=True)
-    res18_conv2 = ResNet50Bottom(res18_model)
-    for para in res18_conv2.parameters():
+    res18_model = models.vgg11(pretrained=True)
+    # res18_model = models.squeezenet1_1(pretrained=True)
+    res18_model = ResNet50Bottom(res18_model)
+    for para in res18_model.parameters():
         para.requires_grad = False
     # a = torch.rand(1, 3, 224, 224)
-    # print(res18_conv2(a).shape)
+    # print(res18_model(a).shape)
     # layer2.0.downsample.0.weight
     # for para in embeddnet.parameters():
     #    print(para)
     # print(embeddnet.parameters())
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
-        rollouts_per_epoch=50, max_episode_length=40,
+        rollouts_per_epoch=50, max_episode_length=60,
         gamma=0.9, policy_epochs=5, batch_size=50,
-        device='cuda:0', valueloss=RegressionLoss(), embedding_net=res18_conv2)
+        device='cuda:0', valueloss=RegressionLoss(), embedding_net=res18_model)
 
     # draw_losses()
 

@@ -136,8 +136,8 @@ def slice_trace(j, trace, keys):
 def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
     # ret = finalrwd
     result, j = recognition(trace, keys, goalspec)
-    if result:
-          print(result, j, goalspec, r, trace['C'])
+    # if result:
+    #       print(result, j, goalspec, r, trace['C'])
     ret = r if result == True else 0
     # trajectory = trajectory[:j+1]
     # print(len(trajectory))
@@ -180,19 +180,22 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         current_rollout = []
         s = env.reset()
         s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
+        # print(s.shape)
         s = trans(s)
+        # s = s.reshape(s.shape[0] * s.shape[1] * s.shape[2])
         episode_reward = 0
         trace = create_trace_skeleton([0], keys)
         coin = 0
         for _ in range(max_episode_length):
             input_state = prepare_input(s)
+            # input_state = prepare_numpy(s, 'cpu')
             # print(input_state.shape)
             if embedding_net:
                 # print(input_state.shape)
                 input_state = embedding_net(input_state)
             # print(input_state.shape)
-            sp = input_state.shape
-            input_state = input_state.reshape(1, sp[0]*sp[1]*sp[2])
+            # sp = input_state.shape
+            # input_state = input_state.reshape(1, sp[0]*sp[1]*sp[2])
             # print(input_state.shape)
             action_dist, action = policy(input_state)
             action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
@@ -216,9 +219,10 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 break
             s = s_prime
             s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
+            # s = s.reshape(s.shape[0] * s.shape[1] * s.shape[2])
             s = trans(s)
 
-        goalspecs = ['F P_[C][1,none,==]']
+        goalspecs = ['F P_[C][1,none,==]'] * 5
         r = 1
         for goalspec in goalspecs:
             rwd, current_rollout, result = calculate_returns(
@@ -234,9 +238,11 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         reward_queue.put(episode_reward)
 
 
-def prepare_numpy(ndarray, device, trans):
+def prepare_numpy(ndarray, device):
 
-    return trans(torch.from_numpy(ndarray).float().unsqueeze(0).to(device))
+    return torch.from_numpy(ndarray).float().unsqueeze(0).to(device)/255.0
+
+    # return trans(torch.from_numpy(ndarray).float().unsqueeze(0).to(device))
 
 
 def prepare_input(ndarray):
