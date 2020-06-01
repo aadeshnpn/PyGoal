@@ -65,10 +65,17 @@ class MarioEnvironment(RLEnvironment):
         # if t:
         # carry = True if isinstance(self._env.carrying, Key) else False
         temp = info['coins']
+        # print(self.coin, temp)
         # if temp > 0:
         #     print(temp)
-        self.coin = temp - self.coin
-        return s, 0.0, t, self.coin
+        c = 0
+        if self.coin == temp:
+            pass
+        else:
+            c = temp - self.coin
+        # print(temp, self.coin, c)
+        self.coin = temp
+        return s, 0.0, t, c
         # else:
         #    return s, 0.0, t
 

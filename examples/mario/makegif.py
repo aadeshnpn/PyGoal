@@ -19,8 +19,8 @@ import skvideo.io
 
 def make_gif(x, filename):
     print(len(x), x[0].shape)
-    print(np.max(x[0]))
-    print(x[0])
+    # print(np.max(x[0]))
+    # print(x[0])
     # write_gif(x, '0.gif', fps=5)
     # x = x.astype(np.uint8)
     skvideo.io.vwrite("out.mp4", x)
@@ -47,6 +47,7 @@ def render(policy, embedding_net, device):
     # temp = temp.squeeze()
     # temp = temp.reshape(temp.shape[1], temp.shape[0], temp.shape[2])
     # print(temp.shape)
+    coin = 0
     for _ in range(60):
         # env.render()
         # s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
@@ -56,6 +57,7 @@ def render(policy, embedding_net, device):
         action_dist, action = policy(input_state)
         action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
         s_prime, r, t, coins = env.step(action)
+        coin += coins
         if t:
             break
         s = s_prime
@@ -63,11 +65,13 @@ def render(policy, embedding_net, device):
         s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
         # s = s.reshape(s.shape[0] * s.shape[1] * s.shape[2])
         s = trans(s)
+
         # temp = s[..., np.newaxis] * np.ones(3)
         # temp = temp.squeeze()
         # temp = temp.reshape(temp.shape[1], temp.shape[0], temp.shape[2])
 
     # Create gifs
+    print('total coins', coin)
     make_gif(images, '0.gif')
 
 

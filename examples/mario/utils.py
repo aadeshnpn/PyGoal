@@ -222,7 +222,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             # s = s.reshape(s.shape[0] * s.shape[1] * s.shape[2])
             s = trans(s)
 
-        goalspecs = ['F P_[C][1,none,==]'] * 5
+        goalspecs = ['F P_[C][1,none,==]'] * 3
         r = 1
         for goalspec in goalspecs:
             rwd, current_rollout, result = calculate_returns(
