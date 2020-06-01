@@ -46,7 +46,7 @@ class MarioEnvironment(RLEnvironment):
         env_name = 'SuperMarioBros-1-1-v0'
         env = gym_super_mario_bros.make(env_name)
         env = ResizeFrameEnvWrapper(env, width=224, height=224, grayscale=False)
-        env = StochasticFrameSkipEnvWrapper(env, n_frames=4)
+        env = StochasticFrameSkipEnvWrapper(env, n_frames=3)
         self._env = BinarySpaceToDiscreteSpaceEnv(env, actions.SIMPLE_MOVEMENT)
         # self._env = gym.make(env_name)
         # self._env.max_steps = min(self._env.max_steps, 350)
@@ -277,7 +277,7 @@ class ValueNetwork(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
         rollouts_per_epoch=100, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=1,
+        batch_size=50, epsilon=0.2, environment_threads=8, data_loader_threads=4,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
         gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
 
@@ -387,14 +387,14 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 s1 = prepare_tensor_batch(s1, device)
                 optimizer.zero_grad()
                 # print(state.shape)
-                if state.shape[0] != 50:
+                if state.shape[0] != 20:
                     continue
                 # If there is an embedding net, carry out the embedding
                 if embedding_net:
-                    # print(state.shape)
+                    # print(state.shape, embedding_net)
                     state = embedding_net(state)
-                    sp = state.shape
-                    state = state.reshape(sp[0], sp[1]*sp[2])
+                    # sp = state.shape
+                    # state = state.reshape(sp[0], sp[1]*sp[2])
                 # Calculate the ratio term
                 current_action_dist = policy(state, False)
                 # print(current_action_dist.shape)
@@ -448,11 +448,11 @@ class ResNet50Bottom(nn.Module):
         paras = list(original_model.children())
         paras[2] = paras[2][:2]
         # print(paras)
-        # self.features = nn.Sequential(
-        #     paras
-        #     )
+        self.features = nn.Sequential(
+            *paras
+            )
         # print(self.features)
-        self.features = paras
+        # self.features = paras
         self.maxpool = nn.MaxPool1d(8, stride=8)
 
     def forward(self, x):
@@ -472,8 +472,8 @@ class ResNet50Bottom(nn.Module):
 def main():
     factory = MarioEnvironmentFactory()
     policy = MarioPolicyNetwork()
-    transformer = TransformerModel(500, 513, 3, 200, 2)
-    selfatt = Attention(50, 513)
+    transformer = TransformerModel(500, 513, 1, 200, 2)
+    selfatt = Attention(20, 513)
     lregression = Regression(513, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     # embeddnet = models.resnet18(pretrained=True)
@@ -499,8 +499,8 @@ def main():
     #    print(para)
     # print(embeddnet.parameters())
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
-        rollouts_per_epoch=50, max_episode_length=60,
-        gamma=0.9, policy_epochs=5, batch_size=50,
+        rollouts_per_epoch=20, max_episode_length=60,
+        gamma=0.9, policy_epochs=5, batch_size=20,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=res18_model)
 
     # draw_losses()

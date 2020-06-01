@@ -1,18 +1,29 @@
 import torch
-from mario_temporal import MarioPolicyNetwork, Generator, MarioEnvironment
+from mario_temporal import (
+    MarioPolicyNetwork, Generator, MarioEnvironment,
+    ResNet50Bottom)
 from utils import (
-    prepare_numpy, create_trace_flloat, create_trace_skeleton, trace_accumulator
+    prepare_numpy, create_trace_flloat,
+    create_trace_skeleton, trace_accumulator,
+    prepare_input
     )
 import imageio
 import numpy as np
 from array2gif import write_gif
 from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
+import torchvision.models as models
+import skvideo.io
+
 
 
 def make_gif(x, filename):
     print(len(x), x[0].shape)
-    write_gif(x, '0.gif', fps=5)
+    print(np.max(x[0]))
+    print(x[0])
+    # write_gif(x, '0.gif', fps=5)
+    # x = x.astype(np.uint8)
+    skvideo.io.vwrite("out.mp4", x)
     # with imageio.get_writer(
     #         filename, mode='I', duration=1 / 30) as writer:
 
@@ -20,18 +31,27 @@ def make_gif(x, filename):
 
 
 def render(policy, embedding_net, device):
+    from torchvision import transforms
+    trans = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
+        ])
     env = MarioEnvironment()
     s = env.reset()
-    temp = s[..., np.newaxis] * np.ones(3)
-    temp = temp.squeeze()
+    images = [s]
+    s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
+    # print(s.shape)
+    s = trans(s)
+    # temp = s[..., np.newaxis] * np.ones(3)
+    # temp = temp.squeeze()
     # temp = temp.reshape(temp.shape[1], temp.shape[0], temp.shape[2])
-    print(temp.shape)
-    images = [temp]
-    for _ in range(300):
+    # print(temp.shape)
+    for _ in range(60):
         # env.render()
-        s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
-        input_state = prepare_numpy(s, device)
-        # input_state = embedding_net(input_state)
+        # s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
+        input_state = prepare_input(s)
+        input_state = embedding_net(input_state)
 
         action_dist, action = policy(input_state)
         action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
@@ -39,10 +59,14 @@ def render(policy, embedding_net, device):
         if t:
             break
         s = s_prime
-        temp = s[..., np.newaxis] * np.ones(3)
-        temp = temp.squeeze()
+        images.append(s)
+        s = s.reshape(s.shape[1], s.shape[2], s.shape[0])
+        # s = s.reshape(s.shape[0] * s.shape[1] * s.shape[2])
+        s = trans(s)
+        # temp = s[..., np.newaxis] * np.ones(3)
+        # temp = temp.squeeze()
         # temp = temp.reshape(temp.shape[1], temp.shape[0], temp.shape[2])
-        images.append(temp)
+
     # Create gifs
     make_gif(images, '0.gif')
 
@@ -118,10 +142,14 @@ def test_return():
 
 
 def main():
-    embedded = Generator()
-    embedded.load_state_dict(torch.load("embedded.pt"))
+    # embedded = Generator()
+    # embedded.load_state_dict(torch.load("embedded.pt"))
+    res18_model = models.vgg11(pretrained=True)
+    embedded = ResNet50Bottom(res18_model)
+    for para in res18_model.parameters():
+        para.requires_grad = False
     policy = MarioPolicyNetwork()
-    policy.load_state_dict(torch.load("policy1.pt"))
+    policy.load_state_dict(torch.load("policy.pt"))
     render(policy, embedded, 'cpu')
 
 
