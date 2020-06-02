@@ -46,7 +46,7 @@ class MarioEnvironment(RLEnvironment):
         env_name = 'SuperMarioBros-1-1-v0'
         env = gym_super_mario_bros.make(env_name)
         env = ResizeFrameEnvWrapper(env, width=224, height=224, grayscale=False)
-        env = StochasticFrameSkipEnvWrapper(env, n_frames=3)
+        env = StochasticFrameSkipEnvWrapper(env, n_frames=5)
         self._env = BinarySpaceToDiscreteSpaceEnv(env, actions.SIMPLE_MOVEMENT)
         # self._env = gym.make(env_name)
         # self._env.max_steps = min(self._env.max_steps, 350)
@@ -500,13 +500,15 @@ def main():
     for para in res18_model.parameters():
         para.requires_grad = False
     # a = torch.rand(1, 3, 224, 224)
+    # a = a.to('cuda:0')
+    # res18_model = res18_model.to('cuda:0')
     # print(res18_model(a).shape)
     # layer2.0.downsample.0.weight
     # for para in embeddnet.parameters():
     #    print(para)
     # print(embeddnet.parameters())
     ppo(factory, policy, value, multinomial_likelihood, epochs=100,
-        rollouts_per_epoch=20, max_episode_length=60,
+        rollouts_per_epoch=100, max_episode_length=50,
         gamma=0.9, policy_epochs=5, batch_size=20,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=res18_model)
 

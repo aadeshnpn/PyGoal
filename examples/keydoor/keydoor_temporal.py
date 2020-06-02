@@ -282,7 +282,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         rollouts_per_epoch=80, max_episode_length=20, gamma=0.99, policy_epochs=5,
         batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=0,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
-        gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss()):
+        gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss(),
+        expno=0):
 
     # Clear the csv file
     with open(csv_file, 'w') as f:
@@ -429,7 +430,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
             # Log info
             avg_val_loss /= len(data_loader)
             avg_policy_loss /= len(data_loader)
-            torch.save(policy.state_dict(), "policy.pt")
+            modelname = "policy" + str(expno) +".pt"
+            torch.save(policy.state_dict(), modelname)
             loop.set_description(
                 'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f' % (avg_r, avg_val_loss, avg_policy_loss))
         with open(csv_file, 'a+') as f:
@@ -462,6 +464,25 @@ def draw_losses():
     graph.gen_plots()
 
 
+def experiments():
+    factory = KeyDoorEnvironmentFactory()
+    for i in range(20):
+        policy = KeyDoorPolicyNetwork()
+        transformer = TransformerModel(500, 149, 1, 200, 2)
+        selfatt = Attention(40, 149)
+        lregression = Regression(149, 1)
+        value = ValueNetwork(transformer, selfatt, lregression)
+        # embeddnet = Generator()
+        csvname = 'latest_run' + str(i) + '.csv'
+        ppo(factory, policy, value, multinomial_likelihood, epochs=100,
+            rollouts_per_epoch=200, max_episode_length=100,
+            gamma=0.90, policy_epochs=5, batch_size=40,
+            device='cuda:0', valueloss=RegressionLoss(), embedding_net=None,
+            csv_file=csvname, expno=i)
+
+
+
 if __name__ == '__main__':
-    main()
+    # main()
     # draw_losses()
+    experiments()

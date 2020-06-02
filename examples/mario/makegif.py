@@ -48,7 +48,7 @@ def render(policy, embedding_net, device):
     # temp = temp.reshape(temp.shape[1], temp.shape[0], temp.shape[2])
     # print(temp.shape)
     coin = 0
-    for _ in range(60):
+    for _ in range(40):
         # env.render()
         # s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
         input_state = prepare_input(s)
@@ -57,6 +57,7 @@ def render(policy, embedding_net, device):
         action_dist, action = policy(input_state)
         action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
         s_prime, r, t, coins = env.step(action)
+        # print(r, t, coins)
         coin += coins
         if t:
             break

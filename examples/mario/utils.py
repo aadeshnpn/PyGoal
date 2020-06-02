@@ -176,6 +176,8 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
     transforms.Normalize(mean=[0.485, 0.456, 0.406],
                          std=[0.229, 0.224, 0.225])
         ])
+    policy.eval()
+    embedding_net.eval()
     for _ in range(num_rollouts):
         current_rollout = []
         s = env.reset()
@@ -222,7 +224,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             # s = s.reshape(s.shape[0] * s.shape[1] * s.shape[2])
             s = trans(s)
 
-        goalspecs = ['F P_[C][1,none,==]'] * 3
+        goalspecs = ['F P_[C][1,none,==]'] * 2
         r = 1
         for goalspec in goalspecs:
             rwd, current_rollout, result = calculate_returns(
