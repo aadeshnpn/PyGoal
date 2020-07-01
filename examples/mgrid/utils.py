@@ -62,6 +62,29 @@ class ExperienceDataset(Dataset):
         return self._length
 
 
+class RecognizerDataset(Dataset):
+    def __init__(self, experience, max_trace_len=30):
+        super(RecognizerDataset, self).__init__()
+        self._exp = []
+        self.max_trace_len = max_trace_len
+        for x in experience:
+            x = self.recursive_fill(x)
+            self._exp.extend(x)
+        self._length = len(self._exp)
+
+    def __getitem__(self, index):
+        return self._exp[index][-1]
+
+    def __len__(self):
+        return self._length
+
+    def recursive_fill(self, x):
+        while len(x) != self.max_trace_len:
+            fix_len = self.max_trace_len - len(x)
+            x = x[:fix_len] + x
+        return x
+
+
 def multinomial_likelihood(dist, idx):
     return dist[range(dist.shape[0]), idx.long()[:, 0]].unsqueeze(1)
 
@@ -135,11 +158,7 @@ def run_envs(
             if t:
                 break
             s = s_prime
-        # print(current_rollout, gamma, episode_reward)
-        # if episode_reward == 0:
-        #     episode_reward = -1
-        # elif episode_reward == 1:
-        #     episode_reward = 100
+
         episode_reward, current_rollout = calculate_returns(
             current_rollout, gamma, trace, keys)
         # print(current_rollout)
