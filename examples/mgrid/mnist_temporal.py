@@ -92,7 +92,7 @@ def modify_mnistnet():
 class MnistPolicyNetwork(nn.Module):
     """Policy Network for Mnist."""
 
-    def __init__(self, state_dim=128, action_dim=4):
+    def __init__(self, state_dim=128, action_dim=2):
         super(MnistPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
             nn.Linear(state_dim, 10),
@@ -499,8 +499,8 @@ def main():
     lregression = Regression(129, 1)
     value = ValueNetwork(transformer, selfatt, lregression)
     embeddnet = modify_mnistnet()
-    ppo(factory, policy, value, multinomial_likelihood, epochs=100,
-        rollouts_per_epoch=100, max_episode_length=30,
+    ppo(factory, policy, value, multinomial_likelihood, epochs=20,
+        rollouts_per_epoch=40, max_episode_length=30,
         gamma=0.9, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=embeddnet)
 

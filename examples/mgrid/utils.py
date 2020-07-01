@@ -68,12 +68,17 @@ class RecognizerDataset(Dataset):
         self._exp = []
         self.max_trace_len = max_trace_len
         for x in experience:
+            # print(len(x), end=' ')
+            x = [x[i][-1] for i in range(len(x))]
+            # print(len(x), end=' ')
             x = self.recursive_fill(x)
+            # print(len(x), x[0].shape)
+            # x = torch.stack(x)
             self._exp.extend(x)
         self._length = len(self._exp)
 
     def __getitem__(self, index):
-        return self._exp[index][-1]
+        return self._exp[index]
 
     def __len__(self):
         return self._length
