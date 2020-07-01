@@ -1,10 +1,16 @@
 """Useful methods for PPO."""
+import os
 import torch
 import math
-import imageio
+# i#mport imageio
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
-import matplotlib.pyplot as plt
+from torch.utils.data import Dataset    # , DataLoader
+import matplotlib
+# If there is $DISPLAY, display the plot
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt     # noqa: E402
 import pandas as pd
 
 from flloat.parser.ltlfg import LTLfGParser
@@ -18,7 +24,8 @@ class RLEnvironment(object):
         super(RLEnvironment, self).__init__()
 
     def step(self, x):
-        """Takes an action x, which is the same format as the output from a policy network.
+        """Takes an action x, which is the same format as the output
+        from a policy network.
         Returns observation (np.ndarray), reward (float), terminal (boolean)
         """
         raise NotImplementedError()
@@ -61,7 +68,9 @@ def multinomial_likelihood(dist, idx):
 
 def get_log_p(data, mu, sigma):
     """get negative log likelihood from normal distribution"""
-    return -torch.log(torch.sqrt(2 * math.pi * sigma ** 2)) - (data - mu) ** 2 / (2 * sigma ** 2)
+    return -torch.log(
+        torch.sqrt(
+            2 * math.pi * sigma ** 2)) - (data - mu) ** 2 / (2 * sigma ** 2)
 
 
 # def calculate_returns(trajectory, gamma):
@@ -77,9 +86,9 @@ def calculate_returns(trajectory, gamma, trace, keys):
     # ret = finalrwd
     result, j = recognition(trace, keys)
     # print(result, j)
-    ret = 1 if result == True else 0
+    ret = 1 if result is True else 0
     trajectory = trajectory[:j]
-    episode_reward = 1 if result == True else 0
+    episode_reward = 1 if result is True else 0
     for i in reversed(range(len(trajectory))):
         state, action_dist, action, rwd, s1 = trajectory[i]
         # print(i, state, action, rwd, s1)
@@ -89,9 +98,10 @@ def calculate_returns(trajectory, gamma, trace, keys):
     return episode_reward, trajectory
 
 
-def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
-                num_rollouts, max_episode_length, gamma, device):
-    keys = ['G','S']
+def run_envs(
+        env, embedding_net, policy, experience_queue, reward_queue,
+        num_rollouts, max_episode_length, gamma, device):
+    keys = ['G', 'S']
     for _ in range(num_rollouts):
         current_rollout = []
         s, g, grid = env.reset()
@@ -107,7 +117,8 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 input_state = embedding_net(input_state)
 
             action_dist, action = policy(input_state)
-            action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
+            action_dist, action = action_dist[0], action[0]
+            # Remove the batch dimension
             s_prime, r, t, goal = env.step(action)
             # print(_, s_prime, r)
             if type(r) != float:
@@ -116,7 +127,10 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             trace = trace_accumulator(trace, [goal[0], goal[1]], keys)
             act = torch.tensor([action*1.0], dtype=torch.float32).to(device)
             s1 = torch.cat((input_state, act), dim=1)
-            current_rollout.append((s.squeeze(0), action_dist.cpu().detach().numpy(), action, r, s1))
+            current_rollout.append(
+                (
+                    s.squeeze(0), action_dist.cpu().detach().numpy(),
+                    action, r, s1))
             # episode_reward += r
             if t:
                 break
@@ -126,7 +140,8 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
         #     episode_reward = -1
         # elif episode_reward == 1:
         #     episode_reward = 100
-        episode_reward, current_rollout = calculate_returns(current_rollout, gamma, trace, keys)
+        episode_reward, current_rollout = calculate_returns(
+            current_rollout, gamma, trace, keys)
         # print(current_rollout)
         experience_queue.put(current_rollout)
         reward_queue.put(episode_reward)
@@ -176,8 +191,10 @@ class LossPlot:
             ax1.legend()
             ax1.set_xlabel('Epochs')
             ax1.set_ylabel(ylabel[i])
-            # ax1.set_yticks(np.arange(min(self.data[i]), max(self.data[i])+1, 10.0))
-            ax1.set_yticks(np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
+            # ax1.set_yticks(
+            # np.arange(min(self.data[i]), max(self.data[i])+1, 10.0))
+            ax1.set_yticks(
+                np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
             # ax1.set_title('Value Loss in Temporal Credit Assignment')
         plt.tight_layout()
         fig.savefig(
@@ -188,12 +205,12 @@ class LossPlot:
 
     def load_file(self):
         data = pd.read_csv(
-            self.directory + '/' + self.fname, sep=','  # pylint: disable=E1101
-            , skipinitialspace=True)
+            self.directory + '/' + self.fname, sep=',',  # pylint: disable=E501
+            skipinitialspace=True)
         return data
 
 
-#### Trace Related Functions
+# Trace Related Functions
 
 def create_trace_flloat(traceset, i, keys):
     setslist = [create_sets(traceset[k][:i]) for k in keys]
@@ -208,7 +225,7 @@ def create_trace_flloat(traceset, i, keys):
 
 
 def create_sets(trace):
-    return [set([l]) for l in trace]
+    return [set([trc]) for trc in trace]
 
 
 def create_trace_dict(trace, i, keys):

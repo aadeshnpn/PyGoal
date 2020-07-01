@@ -78,7 +78,8 @@ class MNISTEnv(gym.Env):
         # reward = self._get_reward()
         # ob = self.env.getState()
         # episode_over = self.status != hfo_py.IN_GAME
-        return self.get_images(self.state), reward, done, {'goal': self.goal, 'grid':self.state}
+        return self.get_images(self.state), reward, done, {
+            'goal': self.goal, 'grid': self.state}
 
     def reset(self):
         self.state = 0
