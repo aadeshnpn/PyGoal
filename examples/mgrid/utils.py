@@ -274,7 +274,7 @@ def trace_accumulator(trace, state, keys):
 
 
 def recognition(trace, keys):
-    goalspec = 'F P_[S][7,none,==]'
+    goalspec = 'F P_[S][9,none,==]'
     # parse the formula
     parser = LTLfGParser()
 
