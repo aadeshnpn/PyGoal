@@ -14,6 +14,15 @@ import numpy as np
 from queue import Queue
 # import gym
 from mnistenv import MNISTEnv   # noqa: E401
+import os
+from pathlib import Path
+
+import matplotlib
+# If there is $DISPLAY, display the plot
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt     # noqa: E402
 
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
@@ -92,7 +101,7 @@ def modify_mnistnet():
 class MnistPolicyNetwork(nn.Module):
     """Policy Network for Mnist."""
 
-    def __init__(self, state_dim=128, action_dim=2):
+    def __init__(self, state_dim=128, action_dim=8):
         super(MnistPolicyNetwork, self).__init__()
         self._net = nn.Sequential(
             nn.Linear(state_dim, 10),
@@ -393,7 +402,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         avg_trace_leng = np.mean(trace_len)
         min_trace_leng = np.min(trace_len)
         max_trace_leng = np.max(trace_len)
-        rec_dataset = RecognizerDataset(rollouts)
+        rec_dataset = RecognizerDataset(rollouts, max_episode_length)
         data_loader_rec = DataLoader(
             rec_dataset,
             num_workers=data_loader_threads, batch_size=max_episode_length,
@@ -463,6 +472,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
             labels = torch.tensor(list(reward_queue.queue)).to(device)
             # labels = torch.stack(
             #     [torch.tensor([label]) for label in labels]).to(device)
+
             datas = list(data_loader_rec)
             datas = torch.cat(datas, axis=1)
             datas = datas.to(device)
@@ -475,6 +485,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
             avg_rec_loss += rec_loss.item()
             rec_loss.backward()
             optimizer_rec.step()
+
             # Log info
             avg_val_loss /= len(data_loader)
             avg_policy_loss /= len(data_loader)
@@ -491,30 +502,105 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         loop.update(1)
 
 
+def experiment(
+        action=2, max_epi_len=30, totexp=10,
+        batch_size=40
+        ):
+    for expno in range(totexp):
+        fname = 'mnist_'+str(action)+'_'+str(max_epi_len)+'_'+str(expno)+'.csv'
+        factory = MnistEnvironmentFactory()
+        policy = MnistPolicyNetwork(128, action)
+        transformer = TransformerModel(500, 129, 1, 200, 2)
+        selfatt = Attention(batch_size, 129)
+        lregression = Regression(129, 1)
+        value = ValueNetwork(transformer, selfatt, lregression)
+        embeddnet = modify_mnistnet()
+        ppo(factory, policy, value, multinomial_likelihood, epochs=20,
+            rollouts_per_epoch=batch_size, max_episode_length=max_epi_len,
+            gamma=0.9, policy_epochs=5, batch_size=batch_size,
+            device='cuda:0', valueloss=RegressionLoss(),
+            embedding_net=embeddnet, csv_file=fname)
+
+        draw_losses(fname)
+
+
 def main():
-    factory = MnistEnvironmentFactory()
-    policy = MnistPolicyNetwork()
-    transformer = TransformerModel(500, 129, 1, 200, 2)
-    selfatt = Attention(40, 129)
-    lregression = Regression(129, 1)
-    value = ValueNetwork(transformer, selfatt, lregression)
-    embeddnet = modify_mnistnet()
-    ppo(factory, policy, value, multinomial_likelihood, epochs=20,
-        rollouts_per_epoch=40, max_episode_length=30,
-        gamma=0.9, policy_epochs=5, batch_size=40,
-        device='cuda:0', valueloss=RegressionLoss(), embedding_net=embeddnet)
-
-    draw_losses()
+    experiment()
 
 
-def draw_losses():
-    fname = 'latest_run.csv'
-    # import os
-    # folder = os.getcwd()
-    graph = LossPlot('/tmp', fname)
-    graph.gen_plots()
+def load_file_all(directory, fname):
+    data = np.loadtxt(
+            os.path.join(directory, fname),
+            delimiter=',', unpack=True, skiprows=1)
+    # data = np.sum(data == i, axis=1)
+    # print(data)
+    return data.T
+
+
+def load_files_all(directory, fnames):
+    # Find all the files with matching fname
+    path = Path(directory)
+    files = path.glob(fnames)
+    data = [load_file_all(directory, f) for f in files]
+    print(data[0].shape)
+    data = np.stack(data)
+    return data
+
+
+def filter_data(data, i):
+    mean = np.mean(data[:, :, i], axis=0)
+    std = np.std(data[:, :, i], axis=0)
+    return mean, std
+
+
+# def draw_losses():
+
+#     datas = load_files_all('/tmp', 'mnist_2_*')
+#     mean, std = filter_data(datas, 0)
+
+
+def draw_trace_data(data, pname):
+    plt.style.use('fivethirtyeight')
+    fig = plt.figure()
+    color = ['blue', 'purple']
+    colorshade = ['DodgerBlue', 'plum']
+    label = ['Mean', 'Max']
+    # ylabel = ['Loss', 'Loss', 'Avg Reward']
+
+    idx = [4, 5]
+    ax1 = fig.add_subplot(1, 1, 1)
+    for i in range(2):
+        mean, std = filter_data(data, idx[i])
+        field_max = mean + std
+        field_min = mean - std
+        xvalues = range(1, len(mean) + 1)
+
+        # Plotting mean and standard deviation
+        ax1.plot(
+            xvalues, mean, color=color[i], label=label[i],
+            linewidth=1.0)
+        ax1.fill_between(
+            xvalues, field_max, field_min,
+            color=colorshade[i], alpha=0.3)
+
+    # plt.title('Trace Length')
+    ax1.legend()
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Trace Length')
+
+    # ax1.set_yticks(
+    #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
+    plt.tight_layout()
+
+    fig.savefig(
+        '/tmp/' + pname + '.pdf')  # pylint: disable = E1101
+    fig.savefig(
+        '/tmp/' + pname + '.png')  # pylint: disable = E1101
+    plt.close(fig)
 
 
 if __name__ == '__main__':
-    main()
+    # main()
     # draw_losses()
+    datas = load_files_all('/tmp', 'mnist_2_*')
+    draw_trace_data(datas, 'traces')

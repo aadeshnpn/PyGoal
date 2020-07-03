@@ -84,9 +84,9 @@ class RecognizerDataset(Dataset):
         return self._length
 
     def recursive_fill(self, x):
-        while len(x) != self.max_trace_len:
-            fix_len = self.max_trace_len - len(x)
-            x = x[:fix_len] + x
+        # while len(x) != self.max_trace_len:
+        fix_len = self.max_trace_len - len(x)
+        x = [x[0]]*fix_len + x
         return x
 
 
