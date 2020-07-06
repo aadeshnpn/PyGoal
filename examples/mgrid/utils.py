@@ -185,7 +185,7 @@ def prepare_tensor_batch(tensor, device):
 #             writer.append_data((x[0][:, :, 0] * 255).astype(np.uint8)
 
 class LossPlot:
-
+    
     def __init__(
             self, directory, fname,
             title="Temporal-Credit-Assignment Performance",

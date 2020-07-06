@@ -16,6 +16,7 @@ from queue import Queue
 from mnistenv import MNISTEnv   # noqa: E401
 import os
 from pathlib import Path
+import argparse
 
 import matplotlib
 # If there is $DISPLAY, display the plot
@@ -296,8 +297,8 @@ class Recognizer(nn.Module):
 
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         epochs=100, rollouts_per_epoch=120, max_episode_length=20, gamma=0.99,
-        policy_epochs=5, batch_size=50, epsilon=0.2, environment_threads=8,
-        data_loader_threads=4, device=torch.device('cpu'), lr=1e-3,
+        policy_epochs=5, batch_size=50, epsilon=0.2, environment_threads=1,
+        data_loader_threads=1, device=torch.device('cpu'), lr=1e-3,
         betas=(0.9, 0.999), weight_decay=0.01, gif_name='', gif_epochs=0,
         csv_file='latest_run.csv', valueloss=nn.MSELoss()):
 
@@ -523,7 +524,7 @@ def experiment(
             embedding_net=embeddnet, csv_file=fname)
 
 
-def main():
+def main(action, max_epi_len):
     # Parallel(
     #         n_jobs=8)(
     #             delayed(experiment)(
@@ -533,16 +534,16 @@ def main():
     #                 batch_size=40
     #                 ) for i in range(2))
     # from joblib import Parallel, delayed
-    actions = [2, 3, 4, 5, 6, 7, 8, 9, 10]
-    max_epi_len = [20, 30, 40, 50, 60, 70, 80, 90, 100]
-    for action in actions:
-        for epi_len in max_epi_len:
-            experiment(
-                action=action,
-                max_epi_len=epi_len,
-                totexp=32,
-                batch_size=40
-                )
+    # actions = [3, 4, 5, 6, 7, 8, 9, 10]
+    # max_epi_len = [20, 30, 40, 50, 60, 70, 80, 90, 100]
+    # for action in actions:
+    for epi_len in max_epi_len:
+        experiment(
+            action=action,
+            max_epi_len=epi_len,
+            totexp=32,
+            batch_size=40
+            )
 
 
 def load_file_all(directory, fname):
@@ -608,8 +609,8 @@ def draw_trace_data(data, pname):
     #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
     plt.tight_layout()
 
-    fig.savefig(
-        '/tmp/goal/data/experiments/' + pname + '.pdf')  # pylint: disable = E1101
+    # fig.savefig(
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')  # pylint: disable = E1101
     fig.savefig(
         '/tmp/goal/data/experiments/' + pname + '.png')  # pylint: disable = E1101
     plt.close(fig)
@@ -647,15 +648,33 @@ def draw_success_prob(data, pname):
     #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
     plt.tight_layout()
 
-    fig.savefig(
-        '/tmp/goal/data/experiments/' + pname + '.pdf')  # pylint: disable = E1101
+    # fig.savefig(
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')  # pylint: disable = E1101
     fig.savefig(
         '/tmp/goal/data/experiments/' + pname + '.png')  # pylint: disable = E1101
     plt.close(fig)
 
 
+# def sucess_comparasion():
+
+def results():
+    name = '_2_70'
+    datas = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
+    draw_trace_data(datas, 'traces'+name)
+    draw_success_prob(datas, 'sucess'+name)
+
+
 if __name__ == '__main__':
-    main()
+    # main()
+    results()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--action', default=2, type=int)
+    # parser.add_argument(
+    #     '--trace', default=[20, 30, 40, 50, 60, 70, 80, 90, 100],
+    #     type=list)
+    # args = parser.parse_args()
+    # # print(type(args.action), type(args.trace))
+    # main(args.action, args.trace)
     # datas = load_files_all('/tmp', 'mnist_2_*')
     # draw_trace_data(datas, 'traces')
     # draw_success_prob(datas, 'sucess')
