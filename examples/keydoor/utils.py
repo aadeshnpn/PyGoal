@@ -1,9 +1,9 @@
 """Useful methods for PPO."""
 import torch
 import math
-import imageio
+# import imageio
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -18,7 +18,8 @@ class RLEnvironment(object):
         super(RLEnvironment, self).__init__()
 
     def step(self, x):
-        """Takes an action x, which is the same format as the output from a policy network.
+        """Takes an action x, which is the same format as
+         the output from a policy network.
         Returns observation (np.ndarray), reward (float), terminal (boolean)
         """
         raise NotImplementedError()
@@ -61,7 +62,9 @@ def multinomial_likelihood(dist, idx):
 
 def get_log_p(data, mu, sigma):
     """get negative log likelihood from normal distribution"""
-    return -torch.log(torch.sqrt(2 * math.pi * sigma ** 2)) - (data - mu) ** 2 / (2 * sigma ** 2)
+    return -torch.log(
+        torch.sqrt(
+            2 * math.pi * sigma ** 2)) - (data - mu) ** 2 / (2 * sigma ** 2)
 
 
 # def temp_fn(gamma, ret, trajectory):
@@ -99,10 +102,10 @@ def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
     result, j = recognition(trace, keys, goalspec)
     # if result:
     #      print(result, j, goalspec, r)
-    ret = r if result == True else 0
+    ret = r if result is True else 0
     # trajectory = trajectory[:j+1]
     # print(len(trajectory))
-    episode_reward = r if result == True else 0
+    episode_reward = r if result is True else 0
     # for i in reversed(range(j)):
     for i in reversed(range(len(trajectory[:j]))):
         try:
@@ -128,23 +131,26 @@ def calculate_returns(trajectory, gamma, trace, keys, goalspec, r):
     return episode_reward, trajectory, result
 
 
-def get_current_state(s):
-    image = s['image']
-    direction = s['direction']
+# def get_current_state(s):
+#     image = s['image']
+#     direction = s['direction']
 
 
-def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
-                num_rollouts, max_episode_length, gamma, device):
-    keys = ['C','D','DO','G']
+def run_envs(
+        env, embedding_net, policy, experience_queue, reward_queue,
+        num_rollouts, max_episode_length, gamma, device):
+    keys = ['C', 'D', 'DO', 'G']
     for _ in range(num_rollouts):
         current_rollout = []
         statedict = env.reset()
-        s, direction, carry = statedict['image'], statedict['direction'], statedict['carry']
+        s, direction, carry = (
+            statedict['image'], statedict['direction'], statedict['carry'])
         # print(s.shape)
-        door, door_open, goal = statedict['door'], statedict['door_open'], statedict['goal']
+        door, door_open, goal = (
+            statedict['door'], statedict['door_open'], statedict['goal'])
         s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
         direction = np.array([direction])
-        s = np.concatenate((s,direction))
+        s = np.concatenate((s, direction))
         episode_reward = 0
         trace = create_trace_skeleton([carry, door, door_open, goal], keys)
         for _ in range(max_episode_length):
@@ -156,21 +162,24 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
                 input_state = embedding_net(input_state)
 
             action_dist, action = policy(input_state)
-            action_dist, action = action_dist[0], action[0]  # Remove the batch dimension
+            action_dist, action = action_dist[0], action[0]
+            # Remove the batch dimension
             s_prime, r, t, info = env.step(action)
-            carry, door  = info['carry'], info['door']
+            carry, door = info['carry'], info['door']
             door_open, goal = info['door_open'], info['goal']
             # print(_, s_prime, r)
             if type(r) != float:
                 print('run envs:', r, type(r))
             # print(input_state.dtype)
-            trace = trace_accumulator(trace, [carry, door, door_open, goal], keys)
+            trace = trace_accumulator(
+                trace, [carry, door, door_open, goal], keys)
             act = torch.tensor([action*1.0], dtype=torch.float32).to(device)
             s1 = torch.cat((input_state, act), dim=1)
             # s1.requires_grad_(False)
             s1 = s1.cpu().detach().numpy()
             # print(_, s, action, r, s1)
-            current_rollout.append((s, action_dist.cpu().detach().numpy(), action, r, s1))
+            current_rollout.append(
+                (s, action_dist.cpu().detach().numpy(), action, r, s1))
             # episode_reward += r
             if t:
                 break
@@ -178,7 +187,7 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             direction = s_prime['direction']
             s = np.reshape(s, (s.shape[0]*s.shape[1]*s.shape[2]))
             direction = np.array([direction])
-            s = np.concatenate((s,direction))
+            s = np.concatenate((s, direction))
         # print(current_rollout, gamma, episode_reward)
         # if episode_reward == 0:
         #     episode_reward = -1
@@ -193,9 +202,9 @@ def run_envs(env, embedding_net, policy, experience_queue, reward_queue,
             'F(P_[G][True,none,==])'
             ]
         # goalspec = 'F P_[C][True,none,==]'
-        r = 1 # len(goalspecs)
+        r = 1   # len(goalspecs)
         for goalspec in goalspecs:
-            rwd, current_rollout,result = calculate_returns(
+            rwd, current_rollout, result = calculate_returns(
                     current_rollout, gamma, trace, keys, goalspec, r)
             episode_reward += rwd
             # r -= 1
@@ -253,8 +262,10 @@ class LossPlot:
             ax1.legend()
             ax1.set_xlabel('Epochs')
             ax1.set_ylabel(ylabel[i])
-            # ax1.set_yticks(np.arange(min(self.data[i]), max(self.data[i])+1, 10.0))
-            ax1.set_yticks(np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
+            # ax1.set_yticks(
+            # np.arange(min(self.data[i]), max(self.data[i])+1, 10.0))
+            ax1.set_yticks(
+                np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
             # ax1.set_title('Value Loss in Temporal Credit Assignment')
         plt.tight_layout()
         fig.savefig(
@@ -265,12 +276,11 @@ class LossPlot:
 
     def load_file(self):
         data = pd.read_csv(
-            self.directory + '/' + self.fname, sep=','  # pylint: disable=E1101
-            , skipinitialspace=True)
+            self.directory + '/' + self.fname, sep=',', skipinitialspace=True)
         return data
 
 
-#### Trace Related Functions
+# Trace Related Functions
 
 def create_trace_flloat(traceset, i, keys):
     setslist = [create_sets(traceset[k][:i]) for k in keys]
@@ -285,7 +295,7 @@ def create_trace_flloat(traceset, i, keys):
 
 
 def create_sets(trace):
-    return [set([l]) for l in trace]
+    return [set([l]) for l in trace]    # noqa: E741
 
 
 def create_trace_dict(trace, i, keys):

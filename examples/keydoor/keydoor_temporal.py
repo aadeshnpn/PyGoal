@@ -1,7 +1,7 @@
 """Definition of PPO algorithm"""
-import imageio
+# import imageio
 from itertools import chain
-import math
+# import math
 from threading import Thread
 import torch
 import torch.nn as nn
@@ -12,8 +12,9 @@ from tqdm import tqdm
 import numpy as np
 from queue import Queue
 import gym
-import gym_minigrid
-from gym_minigrid.minigrid import Grid, OBJECT_TO_IDX, Key, Door, Goal
+import gym_minigrid     # noqa: F401
+from gym_minigrid.minigrid import (     # noqa: F401
+    Grid, OBJECT_TO_IDX, Key, Door, Goal)
 
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
@@ -128,7 +129,8 @@ class KeyDoorPolicyNetwork(nn.Module):
 
     def forward(self, x, get_action=True):
         """Receives input x of shape [batch, state_dim].
-        Outputs action distribution (categorical distribution) of shape [batch, action_dim],
+        Outputs action distribution
+        (categorical distribution) of shape [batch, action_dim],
         as well as a sampled action (optional).
         """
         scores = self._net(x)
@@ -233,7 +235,8 @@ class TransformerModel(nn.Module):
 
     def _generate_square_subsequent_mask(self, sz):
         mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
-        mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
+        mask = mask.float().masked_fill(
+            mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
 
     def init_weights(self):
@@ -246,8 +249,8 @@ class TransformerModel(nn.Module):
         return output
 
 
-### Temporal reward prediction value network
-### Implemented from paper Temporal Credit assignment
+# Temporal reward prediction value network
+# Implemented from paper Temporal Credit assignment
 class ValueNetwork(nn.Module):
     """Approximates the value of a particular state."""
 
@@ -278,11 +281,13 @@ class ValueNetwork(nn.Module):
         return out
 
 
-def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=100,
-        rollouts_per_epoch=80, max_episode_length=20, gamma=0.99, policy_epochs=5,
-        batch_size=50, epsilon=0.2, environment_threads=4, data_loader_threads=0,
-        device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999), weight_decay=0.01,
-        gif_name='', gif_epochs=0, csv_file='latest_run.csv', valueloss= nn.MSELoss(),
+def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
+        epochs=100, rollouts_per_epoch=80, max_episode_length=20,
+        gamma=0.99, policy_epochs=5, batch_size=50, epsilon=0.2,
+        environment_threads=4, data_loader_threads=0,
+        device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999),
+        weight_decay=0.01, gif_name='', gif_epochs=0,
+        csv_file='latest_run.csv', valueloss=nn.MSELoss(),
         expno=0):
 
     # Clear the csv file
@@ -305,7 +310,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         params = chain(params, embedding_net.parameters())
 
     # Set up optimization
-    # optimizer = optim.Adam(params, lr=lr, betas=betas, weight_decay=weight_decay)
+    # optimizer = optim.Adam(params, lr=lr, betas=betas,
+    # weight_decay=weight_decay)
     optimizer = optim.Adam(params, lr=lr)
     value_criteria = valueloss
 
@@ -319,7 +325,9 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
     environments = [env_factory.new() for _ in range(environment_threads)]
     rollouts_per_thread = rollouts_per_epoch // environment_threads
     remainder = rollouts_per_epoch % environment_threads
-    rollout_nums = ([rollouts_per_thread + 1] * remainder) + ([rollouts_per_thread] * (environment_threads - remainder))
+    rollout_nums = (
+        [rollouts_per_thread + 1] * remainder) + (
+            [rollouts_per_thread] * (environment_threads - remainder))
 
     for e in range(epochs):
         # embedding_net = embedding_net.to('cpu')
@@ -327,15 +335,18 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         # Run the environments
         experience_queue = Queue()
         reward_queue = Queue()
-        threads = [Thread(target=run_envs, args=(environments[i],
-                                                  embedding_net,
-                                                  policy,
-                                                  experience_queue,
-                                                  reward_queue,
-                                                  rollout_nums[i],
-                                                  max_episode_length,
-                                                  gamma,
-                                                  'cpu')) for i in range(environment_threads)]
+        threads = [
+            Thread(
+                target=run_envs, args=(
+                    environments[i],
+                    embedding_net,
+                    policy,
+                    experience_queue,
+                    reward_queue,
+                    rollout_nums[i],
+                    max_episode_length,
+                    gamma,
+                    'cpu')) for i in range(environment_threads)]
         for x in threads:
             x.start()
         for x in threads:
@@ -343,14 +354,14 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         # experience_queue = mp.Queue()
         # reward_queue = mp.Queue()
         # threads = [mp.Process(target=run_envs, args=(environments[i],
-        #                                           embedding_net,
-        #                                           policy,
-        #                                           experience_queue,
-        #                                           reward_queue,
-        #                                           1, #rollout_nums[i],
-        #                                           max_episode_length,
-        #                                           gamma,
-        #                                           device)) for i in range(environment_threads)]
+        # embedding_net,
+        # policy,
+        # experience_queue,
+        # reward_queue,
+        # 1, #rollout_nums[i],
+        # max_episode_length,
+        # gamma,
+        # device)) for i in range(environment_threads)]
         # for x in threads:
         #     x.start()
         #     print('threads started')
@@ -372,16 +383,18 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
         # embedding_net = embedding_net.to(device)
         # Update the policy
         experience_dataset = ExperienceDataset(rollouts)
-        data_loader = DataLoader(experience_dataset, num_workers=data_loader_threads, batch_size=batch_size,
-                                 shuffle=True,
-                                 pin_memory=True)
+        data_loader = DataLoader(
+            experience_dataset, num_workers=data_loader_threads,
+            batch_size=batch_size,
+            shuffle=True,
+            pin_memory=True)
         avg_policy_loss = 0
         avg_val_loss = 0
 
         for _ in range(policy_epochs):
             avg_policy_loss = 0
             avg_val_loss = 0
-            for state, old_action_dist, old_action, reward, ret, s1 in data_loader:
+            for state, old_action_dist, old_action, reward, ret, s1 in data_loader:     # noqa: E501
                 state = prepare_tensor_batch(state, device)
                 old_action_dist = prepare_tensor_batch(old_action_dist, device)
                 old_action = prepare_tensor_batch(old_action, device)
@@ -399,7 +412,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 # Calculate the ratio term
                 current_action_dist = policy(state, False)
                 # print(current_action_dist.shape)
-                current_likelihood = likelihood_fn(current_action_dist, old_action)
+                current_likelihood = likelihood_fn(
+                    current_action_dist, old_action)
                 old_likelihood = likelihood_fn(old_action_dist, old_action)
                 ratio = (current_likelihood / old_likelihood)
 
@@ -409,13 +423,15 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
                 # print(expected_returns.shape, ret.shape)
                 # print(expected_returns, ret)
                 val_loss = value_criteria(expected_returns, ret)
-                # val_loss = value_criteria(expected_returns, reward.sum().detach())
+                # val_loss = value_criteria(
+                # expected_returns, reward.sum().detach())
 
                 # Calculate the policy loss
                 advantage = ret - expected_returns.detach()
                 # print(ratio.shape, advantage.shape)
                 lhs = ratio * advantage
-                rhs = torch.clamp(ratio, ppo_lower_bound, ppo_upper_bound) * advantage
+                rhs = torch.clamp(
+                    ratio, ppo_lower_bound, ppo_upper_bound) * advantage
                 policy_loss = -torch.mean(torch.min(lhs, rhs))
 
                 # For logging
@@ -430,12 +446,14 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None, epochs=10
             # Log info
             avg_val_loss /= len(data_loader)
             avg_policy_loss /= len(data_loader)
-            modelname = "policy" + str(expno) +".pt"
+            modelname = "policy" + str(expno) + ".pt"
             torch.save(policy.state_dict(), modelname)
             loop.set_description(
-                'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f' % (avg_r, avg_val_loss, avg_policy_loss))
+                'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f' % (avg_r, avg_val_loss, avg_policy_loss))     # noqa: E501
         with open(csv_file, 'a+') as f:
-            f.write('%6.2f, %6.2f, %6.2f\n' % (avg_r, avg_val_loss, avg_policy_loss))
+            f.write(
+                '%6.2f, %6.2f, %6.2f\n' % (
+                    avg_r, avg_val_loss, avg_policy_loss))
         print()
         loop.update(1)
 
@@ -479,7 +497,6 @@ def experiments():
             gamma=0.90, policy_epochs=5, batch_size=40,
             device='cuda:0', valueloss=RegressionLoss(), embedding_net=None,
             csv_file=csvname, expno=i)
-
 
 
 if __name__ == '__main__':
