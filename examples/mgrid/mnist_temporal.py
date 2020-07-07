@@ -762,6 +762,56 @@ def draw_trace_comp(data, pname):
     plt.close(fig)
 
 
+def draw_time_comp(data, pname):
+    plt.style.use('fivethirtyeight')
+    fig = plt.figure()
+    # color = ['blue', 'purple', 'gold']
+    # colorshade = ['DodgerBlue', 'plum', 'khaki']
+    # label = ['Mean', 'Max', 'Min']
+    color = [
+        'forestgreen', 'indianred',
+        'gold', 'tomato', 'royalblue']
+    colorshade = [
+        'springgreen', 'lightcoral',
+        'khaki', 'lightsalmon', 'deepskyblue']
+    label = ['20', '30', '40', '50', '60']
+
+    # idx = [4, 5, 6]
+    idx = [7] * 5
+    ax1 = fig.add_subplot(1, 1, 1)
+    for i in range(5):
+        mean, std = filter_data(data[i], idx[i])
+        field_max = mean + std
+        field_min = mean - std
+        mean = mean[:25]
+        field_max = field_max[:25]
+        field_min = field_min[:25]
+        xvalues = range(1, len(mean) + 1)
+
+        # Plotting mean and standard deviation
+        ax1.plot(
+            xvalues, mean, color=color[i], label=label[i],
+            linewidth=1.0)
+        ax1.fill_between(
+            xvalues, field_max, field_min,
+            color=colorshade[i], alpha=0.3)
+
+    # plt.title('Trace Length')
+    ax1.legend()
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Computation Time')
+
+    # ax1.set_yticks(
+    #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
+    plt.tight_layout()
+
+    # fig.savefig(
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')
+    fig.savefig(
+        '/tmp/goal/data/experiments/' + pname + '.png')
+    plt.close(fig)
+
+
 def sucess_comparasion():
     datas = []
     for i in [20, 30, 40, 50, 60]:
@@ -782,6 +832,16 @@ def trace_comparasion():
     draw_trace_comp(datas, 'mnist_4__t')
 
 
+def time_comparasion():
+    datas = []
+    for i in [20, 30, 40, 50, 60]:
+        name = '_2_' + str(i)
+        # print(name)
+        data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
+        datas.append(data)
+    draw_time_comp(datas, 'mnist_2_ti')
+
+
 def results():
     name = '_2_70'
     datas = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
@@ -793,16 +853,17 @@ if __name__ == '__main__':
     # main()
     # results()
     #
-    # sucess_comparasion()
-    # trace_comparasion()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--action', default=2, type=int)
-    parser.add_argument(
-        '--trace', default=[20, 30, 40, 50, 60, 70, 80, 90, 100],
-        type=str)
-    args = parser.parse_args()
-    print(type(args.action), type(args.trace))
-    main(args.action, args.trace)
+    sucess_comparasion()
+    trace_comparasion()
+    time_comparasion()
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('--action', default=2, type=int)
+    # parser.add_argument(
+    #     '--trace', default=[20, 30, 40, 50, 60, 70, 80, 90, 100],
+    #     type=str)
+    # args = parser.parse_args()
+    # print(type(args.action), type(args.trace))
+    # main(args.action, args.trace)
     # datas = load_files_all('/tmp', 'mnist_2_*')
     # draw_trace_data(datas, 'traces')
     # draw_success_prob(datas, 'sucess')
