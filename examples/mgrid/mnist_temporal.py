@@ -17,6 +17,7 @@ from mnistenv import MNISTEnv   # noqa: E401
 import os
 from pathlib import Path
 import argparse
+import time
 
 import matplotlib
 # If there is $DISPLAY, display the plot
@@ -129,9 +130,14 @@ class MnistPolicyNetwork(nn.Module):
 
         batch_size = x.shape[0]
         actions = np.empty((batch_size, 1), dtype=np.uint8)
-        probs_np = probs.cpu().detach().numpy()
+        probs_np = probs.cpu().detach().numpy().astype('float64')
         for i in range(batch_size):
-            action_one_hot = np.random.multinomial(1, probs_np[i])
+            try:
+                action_one_hot = np.random.multinomial(1, probs_np[i])
+            except ValueError:
+                action_one_hot = np.zeros(probs_np[i].shape)
+                action_one_hot[np.argmax(probs_np[i])] = 1
+            # action_one_hot = np.random.multinomial(1, probs_np[i])
             action_idx = np.argmax(action_one_hot)
             actions[i, 0] = action_idx
         return probs, actions
@@ -300,12 +306,12 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         policy_epochs=5, batch_size=50, epsilon=0.2, environment_threads=1,
         data_loader_threads=1, device=torch.device('cpu'), lr=1e-3,
         betas=(0.9, 0.999), weight_decay=0.01, gif_name='', gif_epochs=0,
-        csv_file='latest_run.csv', valueloss=nn.MSELoss()):
+        csv_file='latest_run.csv', valueloss=nn.MSELoss(), stime=time.time()):
 
     # Clear the csv file
     directory = '/tmp/goal/data/experiments/'
     with open(directory + csv_file, 'w') as f:
-        f.write('avg_reward, value_loss, policy_loss, recog_loss, avg_trace, max_trace, min_trace\n')   # noqa: E501
+        f.write('avg_reward, value_loss, policy_loss, recog_loss, avg_trace, max_trace, min_trace, tdiff\n')   # noqa: E501
 
     # Multi-processing
     # mp.set_start_method('spawn', force=True)
@@ -496,10 +502,13 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
                 '''avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f, rec loss; % 6.2f, avg trace; % 6.2f, max trace; % 6.2f '''     # noqa: E501
                 % (avg_r, avg_val_loss, avg_policy_loss,
                     avg_rec_loss, avg_trace_leng, max_trace_leng))
+        tdiff = time.time() - stime
         with open(directory+csv_file, 'a+') as f:
-            f.write('%6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f\n' % (
-                avg_r, avg_val_loss, avg_policy_loss,
-                avg_rec_loss, avg_trace_leng, max_trace_leng, min_trace_leng))
+            f.write(
+                '%6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f\n' % (
+                    avg_r, avg_val_loss, avg_policy_loss,
+                    avg_rec_loss, avg_trace_leng, max_trace_leng,
+                    min_trace_leng, tdiff))
         print()
         loop.update(1)
 
@@ -509,6 +518,7 @@ def experiment(
         batch_size=40
         ):
     for expno in range(totexp):
+        stime = time.time()
         fname = 'mnist_'+str(action)+'_'+str(max_epi_len)+'_'+str(expno)+'.csv'
         factory = MnistEnvironmentFactory()
         policy = MnistPolicyNetwork(128, action)
@@ -521,7 +531,7 @@ def experiment(
             rollouts_per_epoch=batch_size, max_episode_length=max_epi_len,
             gamma=0.9, policy_epochs=5, batch_size=batch_size,
             device='cuda:0', valueloss=RegressionLoss(),
-            embedding_net=embeddnet, csv_file=fname)
+            embedding_net=embeddnet, csv_file=fname, stime=stime)
 
 
 def main(action, max_epi_len):
@@ -537,13 +547,14 @@ def main(action, max_epi_len):
     # actions = [3, 4, 5, 6, 7, 8, 9, 10]
     # max_epi_len = [20, 30, 40, 50, 60, 70, 80, 90, 100]
     # for action in actions:
-    for epi_len in max_epi_len:
-        experiment(
-            action=action,
-            max_epi_len=epi_len,
-            totexp=32,
-            batch_size=40
-            )
+    # for epi_len in max_epi_len:
+    # print(ma_epi_len)
+    experiment(
+        action=action,
+        max_epi_len=int(max_epi_len),
+        totexp=32,
+        batch_size=40
+        )
 
 
 def load_file_all(directory, fname):
@@ -610,9 +621,9 @@ def draw_trace_data(data, pname):
     plt.tight_layout()
 
     # fig.savefig(
-    #     '/tmp/goal/data/experiments/' + pname + '.pdf')  # pylint: disable = E1101
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')
     fig.savefig(
-        '/tmp/goal/data/experiments/' + pname + '.png')  # pylint: disable = E1101
+        '/tmp/goal/data/experiments/' + pname + '.png')
     plt.close(fig)
 
 
@@ -649,13 +660,127 @@ def draw_success_prob(data, pname):
     plt.tight_layout()
 
     # fig.savefig(
-    #     '/tmp/goal/data/experiments/' + pname + '.pdf')  # pylint: disable = E1101
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')
     fig.savefig(
-        '/tmp/goal/data/experiments/' + pname + '.png')  # pylint: disable = E1101
+        '/tmp/goal/data/experiments/' + pname + '.png')
     plt.close(fig)
 
 
-# def sucess_comparasion():
+def draw_success_comp(data, pname):
+    plt.style.use('fivethirtyeight')
+    fig = plt.figure()
+    color = [
+        'forestgreen', 'indianred',
+        'gold', 'tomato', 'royalblue']
+    colorshade = [
+        'springgreen', 'lightcoral',
+        'khaki', 'lightsalmon', 'deepskyblue']
+    label = ['20', '30', '40', '50', '60']
+
+    idx = [0] * 5
+    ax1 = fig.add_subplot(1, 1, 1)
+    for i in range(5):
+        mean, std = filter_data(data[i], idx[i])
+        field_max = mean + std
+        field_min = mean - std
+        mean = mean[:25]
+        field_max = field_max[:25]
+        field_min = field_min[:25]
+        xvalues = range(1, len(mean) + 1)
+
+        # Plotting mean and standard deviation
+        ax1.plot(
+            xvalues, mean, color=color[i], label=label[i],
+            linewidth=1.0)
+        ax1.fill_between(
+            xvalues, field_max, field_min,
+            color=colorshade[i], alpha=0.3)
+
+    plt.title('Goal Success Probability\n with various Trace length')
+    ax1.legend()
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Probability')
+
+    # ax1.set_yticks(
+    #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
+    plt.tight_layout()
+
+    # fig.savefig(
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')
+    fig.savefig(
+        '/tmp/goal/data/experiments/' + pname + '.png')
+    plt.close(fig)
+
+
+def draw_trace_comp(data, pname):
+    plt.style.use('fivethirtyeight')
+    fig = plt.figure()
+    # color = ['blue', 'purple', 'gold']
+    # colorshade = ['DodgerBlue', 'plum', 'khaki']
+    # label = ['Mean', 'Max', 'Min']
+    color = [
+        'forestgreen', 'indianred',
+        'gold', 'tomato', 'royalblue']
+    colorshade = [
+        'springgreen', 'lightcoral',
+        'khaki', 'lightsalmon', 'deepskyblue']
+    label = ['20', '30', '40', '50', '60']
+
+    # idx = [4, 5, 6]
+    idx = [4] * 5
+    ax1 = fig.add_subplot(1, 1, 1)
+    for i in range(5):
+        mean, std = filter_data(data[i], idx[i])
+        field_max = mean + std
+        field_min = mean - std
+        mean = mean[:25]
+        field_max = field_max[:25]
+        field_min = field_min[:25]
+        xvalues = range(1, len(mean) + 1)
+
+        # Plotting mean and standard deviation
+        ax1.plot(
+            xvalues, mean, color=color[i], label=label[i],
+            linewidth=1.0)
+        ax1.fill_between(
+            xvalues, field_max, field_min,
+            color=colorshade[i], alpha=0.3)
+
+    # plt.title('Trace Length')
+    ax1.legend()
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Trace Length')
+
+    # ax1.set_yticks(
+    #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
+    plt.tight_layout()
+
+    # fig.savefig(
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')
+    fig.savefig(
+        '/tmp/goal/data/experiments/' + pname + '.png')
+    plt.close(fig)
+
+
+def sucess_comparasion():
+    datas = []
+    for i in [20, 30, 40, 50, 60]:
+        name = '_4_' + str(i)
+        print(name)
+        data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
+        datas.append(data)
+    draw_success_comp(datas, 'mnist_4_')
+
+
+def trace_comparasion():
+    datas = []
+    for i in [20, 30, 40, 50, 60]:
+        name = '_4_' + str(i)
+        print(name)
+        data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
+        datas.append(data)
+    draw_trace_comp(datas, 'mnist_4__t')
+
 
 def results():
     name = '_2_70'
@@ -666,15 +791,18 @@ def results():
 
 if __name__ == '__main__':
     # main()
-    results()
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--action', default=2, type=int)
-    # parser.add_argument(
-    #     '--trace', default=[20, 30, 40, 50, 60, 70, 80, 90, 100],
-    #     type=list)
-    # args = parser.parse_args()
-    # # print(type(args.action), type(args.trace))
-    # main(args.action, args.trace)
+    # results()
+    #
+    # sucess_comparasion()
+    # trace_comparasion()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--action', default=2, type=int)
+    parser.add_argument(
+        '--trace', default=[20, 30, 40, 50, 60, 70, 80, 90, 100],
+        type=str)
+    args = parser.parse_args()
+    print(type(args.action), type(args.trace))
+    main(args.action, args.trace)
     # datas = load_files_all('/tmp', 'mnist_2_*')
     # draw_trace_data(datas, 'traces')
     # draw_success_prob(datas, 'sucess')
