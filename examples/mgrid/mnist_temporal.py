@@ -675,7 +675,8 @@ def draw_success_comp(data, pname):
     colorshade = [
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
-    label = ['20', '30', '40', '50', '60']
+    # label = ['20', '30', '40', '50', '60']
+    label = ['50', '60', '70', '80', '90']
 
     idx = [0] * 5
     ax1 = fig.add_subplot(1, 1, 1)
@@ -683,9 +684,9 @@ def draw_success_comp(data, pname):
         mean, std = filter_data(data[i], idx[i])
         field_max = mean + std
         field_min = mean - std
-        mean = mean[:25]
-        field_max = field_max[:25]
-        field_min = field_min[:25]
+        # mean = mean[:25]
+        # field_max = field_max[:25]
+        # field_min = field_min[:25]
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -724,8 +725,8 @@ def draw_trace_comp(data, pname):
     colorshade = [
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
-    label = ['20', '30', '40', '50', '60']
-
+    # label = ['20', '30', '40', '50', '60']
+    label = ['50', '60', '70', '80', '90']
     # idx = [4, 5, 6]
     idx = [4] * 5
     ax1 = fig.add_subplot(1, 1, 1)
@@ -733,9 +734,9 @@ def draw_trace_comp(data, pname):
         mean, std = filter_data(data[i], idx[i])
         field_max = mean + std
         field_min = mean - std
-        mean = mean[:25]
-        field_max = field_max[:25]
-        field_min = field_min[:25]
+        # mean = mean[:25]
+        # field_max = field_max[:25]
+        # field_min = field_min[:25]
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -812,24 +813,70 @@ def draw_time_comp(data, pname):
     plt.close(fig)
 
 
+def draw_action_comp(data, pname):
+    plt.style.use('fivethirtyeight')
+    fig = plt.figure()
+    color = [
+        'forestgreen', 'indianred',
+        'gold', 'tomato', 'royalblue']
+    colorshade = [
+        'springgreen', 'lightcoral',
+        'khaki', 'lightsalmon', 'deepskyblue']
+    label = ['2', '4', '6', '8', '10']
+
+    idx = [0] * 5
+    ax1 = fig.add_subplot(1, 1, 1)
+    for i in range(5):
+        mean, std = filter_data(data[i], idx[i])
+        field_max = mean + std
+        field_min = mean - std
+        mean = mean[:25]
+        field_max = field_max[:25]
+        field_min = field_min[:25]
+        xvalues = range(1, len(mean) + 1)
+
+        # Plotting mean and standard deviation
+        ax1.plot(
+            xvalues, mean, color=color[i], label=label[i],
+            linewidth=1.0)
+        ax1.fill_between(
+            xvalues, field_max, field_min,
+            color=colorshade[i], alpha=0.3)
+
+    plt.title('Goal Success Probability\n with various action space')
+    ax1.legend()
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Probability')
+
+    # ax1.set_yticks(
+    #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
+    plt.tight_layout()
+
+    # fig.savefig(
+    #     '/tmp/goal/data/experiments/' + pname + '.pdf')
+    fig.savefig(
+        '/tmp/goal/data/experiments/' + pname + '.png')
+    plt.close(fig)
+
+
 def sucess_comparasion():
     datas = []
-    for i in [20, 30, 40, 50, 60]:
-        name = '_4_' + str(i)
+    for i in [50, 60, 70, 80, 90]:
+        name = '_10_' + str(i)
         print(name)
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
-    draw_success_comp(datas, 'mnist_4_')
+    draw_success_comp(datas, 'mnist_10_')
 
 
 def trace_comparasion():
     datas = []
-    for i in [20, 30, 40, 50, 60]:
-        name = '_4_' + str(i)
+    for i in [50, 60, 70, 80, 90]:
+        name = '_10_' + str(i)
         print(name)
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
-    draw_trace_comp(datas, 'mnist_4__t')
+    draw_trace_comp(datas, 'mnist_10__t')
 
 
 def time_comparasion():
@@ -840,6 +887,16 @@ def time_comparasion():
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
     draw_time_comp(datas, 'mnist_2_ti')
+
+
+def action_comparasion():
+    datas = []
+    for i in [2, 4, 6, 8, 10]:
+        name = '_' + str(i) + '_50'
+        # print(name)
+        data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
+        datas.append(data)
+    draw_action_comp(datas, 'mnist_2_a')
 
 
 def results():
@@ -855,7 +912,8 @@ if __name__ == '__main__':
     #
     sucess_comparasion()
     trace_comparasion()
-    time_comparasion()
+    # time_comparasion()
+    # action_comparasion()
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--action', default=2, type=int)
     # parser.add_argument(
