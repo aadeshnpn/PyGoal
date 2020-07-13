@@ -1,5 +1,6 @@
 """Definition of PPO algorithm"""
 # import imageio
+import time
 from itertools import chain
 # import math
 from threading import Thread
@@ -7,11 +8,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+from torch.utils.data import DataLoader
 # import torch.multiprocessing as mp
 from tqdm import tqdm
 import numpy as np
 from queue import Queue
 import gym
+import argparse
+
 import gym_minigrid     # noqa: F401
 from gym_minigrid.minigrid import (     # noqa: F401
     Grid, OBJECT_TO_IDX, Key, Door, Goal)
@@ -19,7 +23,7 @@ from gym_minigrid.minigrid import (     # noqa: F401
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
     multinomial_likelihood, EnvironmentFactory, RLEnvironment,
-    DataLoader, LossPlot
+    LossPlot, RecognizerDataset
     )
 
 
@@ -281,6 +285,37 @@ class ValueNetwork(nn.Module):
         return out
 
 
+# Recurrent neural network (many-to-one)
+class Recognizer(nn.Module):
+    def __init__(
+            self, input_size, hidden_size, num_layers,
+            num_classes, device='cpu'):
+        super(Recognizer, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.lstm = nn.LSTM(
+            input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, num_classes)
+        self.device = device
+
+    def forward(self, x):
+        # Set initial hidden and cell states
+        h0 = torch.zeros(
+            self.num_layers, x.size(0), self.hidden_size).to(self.device)
+        c0 = torch.zeros(
+            self.num_layers, x.size(0), self.hidden_size).to(self.device)
+
+        # Forward propagate LSTM
+        out, _ = self.lstm(x, (h0, c0))
+        # out: tensor of shape (batch_size, seq_length, hidden_size)
+
+        # print('LSTM output',out.shape)
+        # Decode the hidden state of the last time step
+        out = self.fc(out[:, -1, :])
+        # print(out.shape)
+        return out
+
+
 def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         epochs=100, rollouts_per_epoch=80, max_episode_length=20,
         gamma=0.99, policy_epochs=5, batch_size=50, epsilon=0.2,
@@ -288,10 +323,10 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         device=torch.device('cpu'), lr=1e-3, betas=(0.9, 0.999),
         weight_decay=0.01, gif_name='', gif_epochs=0,
         csv_file='latest_run.csv', valueloss=nn.MSELoss(),
-        expno=0):
+        stime=time.time()):
 
     # Clear the csv file
-    with open(csv_file, 'w') as f:
+    with open(csv_file+'.csv', 'w') as f:
         f.write('avg_reward, value_loss, policy_loss\n')
 
     # Multi-processing
@@ -302,6 +337,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
     # policy.share_memory()
     value = value.to(device)
     # value.share_memory()
+    recog = Recognizer(149, max_episode_length, 10, 2, device)
+    recog = recog.to(device)
     # Collect parameters
     params = chain(policy.parameters(), value.parameters())
     if embedding_net:
@@ -315,6 +352,8 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
     optimizer = optim.Adam(params, lr=lr)
     value_criteria = valueloss
 
+    optimizer_rec = optim.Adam(recog.parameters(), lr=lr)
+    rec_criteria = torch.nn.CrossEntropyLoss()
     # Calculate the upper and lower bound for PPO
     ppo_lower_bound = 1 - epsilon
     ppo_upper_bound = 1 + epsilon
@@ -382,18 +421,28 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         policy = policy.to(device)
         # embedding_net = embedding_net.to(device)
         # Update the policy
+        trace_len = [len(rollouts[i]) for i in range(len(rollouts))]
+        avg_trace_leng = np.mean(trace_len)
+        min_trace_leng = np.min(trace_len)
+        max_trace_leng = np.max(trace_len)
+        rec_dataset = RecognizerDataset(rollouts, max_episode_length)
+        data_loader_rec = DataLoader(
+            rec_dataset,
+            num_workers=data_loader_threads, batch_size=max_episode_length,
+            shuffle=False, pin_memory=True)
+
         experience_dataset = ExperienceDataset(rollouts)
         data_loader = DataLoader(
-            experience_dataset, num_workers=data_loader_threads,
-            batch_size=batch_size,
-            shuffle=True,
-            pin_memory=True)
+            experience_dataset,
+            num_workers=data_loader_threads, batch_size=batch_size,
+            shuffle=True, pin_memory=True)
         avg_policy_loss = 0
         avg_val_loss = 0
 
         for _ in range(policy_epochs):
             avg_policy_loss = 0
             avg_val_loss = 0
+            avg_rec_loss = 0
             for state, old_action_dist, old_action, reward, ret, s1 in data_loader:     # noqa: E501
                 state = prepare_tensor_batch(state, device)
                 old_action_dist = prepare_tensor_batch(old_action_dist, device)
@@ -443,19 +492,49 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
                 loss.backward()
                 optimizer.step()
 
+            labels = torch.tensor(list(reward_queue.queue)).to(device)
+            t = labels > 3
+            f = labels <= 3
+            labels[t] = 1
+            labels[f] = 0
+
+            # labels = torch.stack(
+            #     [torch.tensor([label]) for label in labels]).to(device)
+            datas = list(data_loader_rec)
+            datas = torch.cat(datas, axis=1)
+            datas = datas.to(device)
+            datas = datas.view(datas.shape[1], datas.shape[0], datas.shape[2])
+            # print(datas.shape, labels.shape)
+            output = recog(datas)
+            # print(output.shape, torch.tensor(labels[d]))
+            # label = torch.tensor([labels[d]]).to(device)
+            # print(output.shape, labels.shape)
+            # print(output)
+            # print(labels)
+            rec_loss = rec_criteria(output, labels)
+            avg_rec_loss += rec_loss.to('cpu').item()
+            rec_loss.backward()
+            optimizer_rec.step()
+
             # Log info
             avg_val_loss /= len(data_loader)
             avg_policy_loss /= len(data_loader)
-            modelname = "policy" + str(expno) + ".pt"
-            torch.save(policy.state_dict(), modelname)
+            # avg_rec_loss /= len(labels)
             loop.set_description(
-                'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f' % (avg_r, avg_val_loss, avg_policy_loss))     # noqa: E501
-        with open(csv_file, 'a+') as f:
+                'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f:' % (avg_r, avg_val_loss, avg_policy_loss))     # noqa: E501
+        tdiff = time.time() - stime
+        with open(csv_file+'.csv', 'a+') as f:
+            labels = labels.to(torch.float16)
             f.write(
-                '%6.2f, %6.2f, %6.2f\n' % (
-                    avg_r, avg_val_loss, avg_policy_loss))
+                '%6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f\n' % (
+                    torch.mean(labels), avg_val_loss, avg_policy_loss,
+                    avg_rec_loss, avg_trace_leng, max_trace_leng,
+                    min_trace_leng, tdiff))
         print()
         loop.update(1)
+    directory = '/tmp/goal/data/experiments'
+    modelname = directory + csv_file + ".pt"
+    torch.save(policy.state_dict(), modelname)
 
 
 def main():
@@ -471,35 +550,49 @@ def main():
         gamma=0.90, policy_epochs=5, batch_size=40,
         device='cuda:0', valueloss=RegressionLoss(), embedding_net=None)
 
-    draw_losses()
+    # draw_losses()
 
 
 def draw_losses():
     fname = 'latest_run.csv'
-    import os
-    folder = os.getcwd()
+    folder = '/tmp/data/goal/experiments'
+    # import os
+    # folder = os.getcwd()
     graph = LossPlot(folder, fname)
     graph.gen_plots()
 
 
-def experiments():
+def experiments(
+        action=6, max_epi_len=30, totexp=32, batch_size=40
+        ):
+    # directory = '/tmp/data/goal/experiments'
     factory = KeyDoorEnvironmentFactory()
-    for i in range(20):
+    for expno in range(32):
+        stime = time.time()
+        fname = 'keydoor_'+str(action)+'_'+str(max_epi_len)+'_'+str(expno)
         policy = KeyDoorPolicyNetwork()
         transformer = TransformerModel(500, 149, 1, 200, 2)
         selfatt = Attention(40, 149)
         lregression = Regression(149, 1)
         value = ValueNetwork(transformer, selfatt, lregression)
         # embeddnet = Generator()
-        csvname = 'latest_run' + str(i) + '.csv'
+        # csvname = directory + '/latest_run' + str(i) + '.csv'
         ppo(factory, policy, value, multinomial_likelihood, epochs=100,
-            rollouts_per_epoch=200, max_episode_length=100,
-            gamma=0.90, policy_epochs=5, batch_size=40,
+            rollouts_per_epoch=200, max_episode_length=max_epi_len,
+            gamma=0.90, policy_epochs=5, batch_size=batch_size,
             device='cuda:0', valueloss=RegressionLoss(), embedding_net=None,
-            csv_file=csvname, expno=i)
+            csv_file=fname, stime=stime)
 
 
 if __name__ == '__main__':
     # main()
     # draw_losses()
-    experiments()
+    parser = argparse.ArgumentParser()
+    # parser.add_argument('--action', default=2, type=int)
+    parser.add_argument(
+        '--trace', default=[20, 30, 40, 50, 60, 70, 80, 90, 100],
+        type=str)
+    args = parser.parse_args()
+    print(type(args.action), type(args.trace))
+    # main(args.action, args.trace)
+    experiments(max_epi_len=int(args.trace), )

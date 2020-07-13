@@ -29,9 +29,7 @@ if os.name == 'posix' and "DISPLAY" not in os.environ:
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
     multinomial_likelihood, EnvironmentFactory, RLEnvironment,
-    RecognizerDataset, sucess_comparasion, trace_comparasion,
-    time_comparasion, action_comparasion, load_files_all,
-    draw_trace_data, draw_success_prob
+    RecognizerDataset, sucess_comparasion, trace_comparasion
     )
 
 
