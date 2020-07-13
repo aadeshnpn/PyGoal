@@ -29,7 +29,9 @@ if os.name == 'posix' and "DISPLAY" not in os.environ:
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
     multinomial_likelihood, EnvironmentFactory, RLEnvironment,
-    RecognizerDataset, sucess_comparasion, trace_comparasion
+    RecognizerDataset, sucess_comparasion, trace_comparasion,
+    time_comparasion, action_comparasion, load_files_all,
+    draw_trace_data, draw_success_prob
     )
 
 
@@ -561,8 +563,8 @@ if __name__ == '__main__':
     # main()
     # results()
     #
-    sucess_comparasion()
-    trace_comparasion()
+    sucess_comparasion([20, 30, 40, 50, 60], a=2)
+    trace_comparasion([20, 30, 40, 50, 60], a=2)
     # time_comparasion()
     # action_comparasion()
     # parser = argparse.ArgumentParser()
@@ -573,6 +575,6 @@ if __name__ == '__main__':
     # args = parser.parse_args()
     # print(type(args.action), type(args.trace))
     # main(args.action, args.trace)
-    # datas = load_files_all('/tmp', 'mnist_2_*')
+    # datas = load_files_all('/tmp/goal/data/experiments/', 'mnist_2_*')
     # draw_trace_data(datas, 'traces')
     # draw_success_prob(datas, 'sucess')

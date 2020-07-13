@@ -323,9 +323,15 @@ def load_files_all(directory, fnames):
 
 
 def filter_data(data, i):
-    mean = np.mean(data[:, :, i], axis=0)
-    std = np.std(data[:, :, i], axis=0)
-    return mean, std
+    # mean = np.mean(data[:, :, i], axis=0)
+    # std = np.std(data[:, :, i], axis=0)
+
+    median = np.quantile(data[:, :, i], 0.5, axis=0)
+    q1 = np.quantile(data[:, :, i], 0.25, axis=0)
+    q3 = np.quantile(data[:, :, i], 0.75, axis=0)
+
+    # return mean, std
+    return median, q1, q3
 
 
 # def draw_losses():
@@ -344,9 +350,10 @@ def draw_trace_data(data, pname):
     idx = [4, 5, 6]
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(3):
-        mean, std = filter_data(data, idx[i])
-        field_max = mean + std
-        field_min = mean - std
+        # mean, std = filter_data(data, idx[i])
+        # field_max = mean + std
+        # field_min = mean - std
+        mean, field_min, field_max = filter_data(data, idx[i])
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -383,9 +390,10 @@ def draw_success_prob(data, pname):
     idx = [0]
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(1):
-        mean, std = filter_data(data, idx[i])
-        field_max = mean + std
-        field_min = mean - std
+        mean, field_min, field_max = filter_data(data, idx[i])
+        # mean, std = filter_data(data, idx[i])
+        # field_max = mean + std
+        # field_min = mean - std
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -427,12 +435,13 @@ def draw_success_comp(data, pname):
     idx = [0] * 5
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(5):
-        mean, std = filter_data(data[i], idx[i])
-        field_max = mean + std
-        field_min = mean - std
-        # mean = mean[:25]
-        # field_max = field_max[:25]
-        # field_min = field_min[:25]
+        # mean, std = filter_data(data[i], idx[i])
+        # field_max = mean + std
+        # field_min = mean - std
+        mean, field_min, field_max = filter_data(data[i], idx[i])
+        # mean = mean[:15]
+        # field_max = field_max[:15]
+        # field_min = field_min[:15]
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -477,12 +486,13 @@ def draw_trace_comp(data, pname):
     idx = [4] * 5
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(5):
-        mean, std = filter_data(data[i], idx[i])
-        field_max = mean + std
-        field_min = mean - std
-        # mean = mean[:25]
-        # field_max = field_max[:25]
-        # field_min = field_min[:25]
+        mean, field_min, field_max = filter_data(data[i], idx[i])
+        # mean, std = filter_data(data[i], idx[i])
+        # field_max = mean + std
+        # field_min = mean - std
+        # mean = mean[:15]
+        # field_max = field_max[:15]
+        # field_min = field_min[:15]
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -527,9 +537,10 @@ def draw_time_comp(data, pname):
     idx = [7] * 5
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(5):
-        mean, std = filter_data(data[i], idx[i])
-        field_max = mean + std
-        field_min = mean - std
+        # mean, std = filter_data(data[i], idx[i])
+        # field_max = mean + std
+        # field_min = mean - std
+        mean, field_min, field_max = filter_data(data[i], idx[i])
         mean = mean[:25]
         field_max = field_max[:25]
         field_min = field_min[:25]
@@ -573,9 +584,10 @@ def draw_action_comp(data, pname):
     idx = [0] * 5
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(5):
-        mean, std = filter_data(data[i], idx[i])
-        field_max = mean + std
-        field_min = mean - std
+        # mean, std = filter_data(data[i], idx[i])
+        # field_max = mean + std
+        # field_min = mean - std
+        mean, field_min, field_max = filter_data(data[i], idx[i])
         mean = mean[:25]
         field_max = field_max[:25]
         field_min = field_min[:25]
@@ -605,31 +617,29 @@ def draw_action_comp(data, pname):
     plt.close(fig)
 
 
-def sucess_comparasion():
+def sucess_comparasion(tl=[50, 60, 70, 80, 90], a=10):
     datas = []
-    for i in [50, 60, 70, 80, 90]:
-        name = '_10_' + str(i)
+    for i in tl:
+        name = '_' + str(a) + '_' + str(i)
+        data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
+        datas.append(data)
+    draw_success_comp(datas, 'success_' + str(a) + '__')
+
+
+def trace_comparasion(tl=[50, 60, 70, 80, 90], a=10):
+    datas = []
+    for i in tl:
+        name = '_' + str(a) + '_' + str(i)
         # print(name)
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
-    draw_success_comp(datas, 'mnist_10_')
-
-
-def trace_comparasion():
-    datas = []
-    for i in [50, 60, 70, 80, 90]:
-        name = '_10_' + str(i)
-        # print(name)
-        data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
-        datas.append(data)
-    draw_trace_comp(datas, 'mnist_10__t')
+    draw_trace_comp(datas, 'trace_' + str(a) + '__')
 
 
 def time_comparasion():
     datas = []
     for i in [20, 30, 40, 50, 60]:
         name = '_2_' + str(i)
-        # print(name)
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
     draw_time_comp(datas, 'mnist_2_ti')
