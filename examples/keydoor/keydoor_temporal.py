@@ -38,8 +38,8 @@ class KeyDoorEnvironmentFactory(EnvironmentFactory):
 class KeyDoorEnvironment(RLEnvironment):
     def __init__(self):
         super(KeyDoorEnvironment, self).__init__()
-        # env_name = 'MiniGrid-DoorKey-16x16-v0'
-        env_name = 'MiniGrid-DoorKey-8x8-v0'
+        env_name = 'MiniGrid-DoorKey-16x16-v0'
+        # env_name = 'MiniGrid-DoorKey-8x8-v0'
         self._env = gym.make(env_name)
         self._env.max_steps = min(self._env.max_steps, 200)
         # self._env.seed(12345)

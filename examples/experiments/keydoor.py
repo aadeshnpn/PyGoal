@@ -18,6 +18,7 @@ from py_trees import Status
 
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.utils.bt import goalspec2BT, display_bt
+from scipy.spatial.distance import cdist
 
 
 def env_setup(env, agent=(None, None, None, None)):
@@ -289,6 +290,46 @@ def keydoor(seed, epoch):
     # print(i, 'Inference', behaviour_tree.root.status)
 
 
+# def find_min_path():
+#     env_name = 'MiniGrid-DoorKey-16x16-v0'
+#     env = gym.make(env_name)
+#     env.max_steps = min(env.max_steps, 200)
+#     env.seed(None)
+#     env.reset()
+#     # env = env_setup(env)
+#     positions = get_pos(env, 16)
+#     print(positions)
+#     # total_dist = 0
+#     # indx = [(0,1)]
+#     # for i in range(3):
+#         # print(positions[i].shape, positions[i+1].shape)
+#     dist = cdist(positions, positions, 'cityblock')
+#     agent_key = dist[0][1]
+#     key_door = dist[1][2]
+#     door_goal = dist[2][3]
+#     total_dist = dist[0][1] + dist[1][2] + dist[2][3] + 3
+#     return np.array([agent_key, key_door, door_goal, total_dist])
+
+
+# def get_pos(env, grid_size=8):
+#     agent_pos = env.agent_pos
+#     # print(env.agent_dir)
+#     # 0 -> Right, 1 -> Down, 2 -> Left, 3 -> Up
+#     key_pos, door_pos, goal_pos = None, None, None
+#     for i in range(0, grid_size):
+#         for j in range(0, grid_size):
+#             item = env.grid.get(i, j)
+#             if isinstance(item, Door):
+#                 door_pos = np.array([i, j])
+
+#             if isinstance(item, Key):
+#                 key_pos = np.array([i, j])
+
+#             if isinstance(item, Goal):
+#                 goal_pos = np.array([i, j])
+#     return agent_pos, key_pos, door_pos, goal_pos
+
+
 def main():
     epoch = list(range(20, 180, 30))
 
@@ -303,4 +344,7 @@ def main():
 
 if __name__ == '__main__':
     main()
-
+    # results = [Parallel(n_jobs=16)(
+    #     delayed(find_min_path)() for i in range(512))]
+    # np.save('/tmp/keydoor-16x16-dist.npy', results)
+    # find_min_path()
