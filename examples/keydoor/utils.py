@@ -1,10 +1,18 @@
 """Useful methods for PPO."""
+import os
 import torch
 import math
 # import imageio
 import numpy as np
 from torch.utils.data import Dataset
-import matplotlib.pyplot as plt
+import matplotlib
+
+# If there is $DISPLAY, display the plot
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt     # noqa: E402
+
 import pandas as pd
 
 from flloat.parser.ltlfg import LTLfGParser

@@ -325,8 +325,10 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         csv_file='latest_run.csv', valueloss=nn.MSELoss(),
         stime=time.time()):
 
+    directory = '/tmp/goal/data/experiments/'
+
     # Clear the csv file
-    with open(csv_file+'.csv', 'w') as f:
+    with open(directory + csv_file+'.csv', 'w') as f:
         f.write('avg_reward, value_loss, policy_loss\n')
 
     # Multi-processing
@@ -420,7 +422,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
         # Move the network to GPU
         policy = policy.to(device)
         # embedding_net = embedding_net.to(device)
-        # Update the policy
+        # # Update the policy
         trace_len = [len(rollouts[i]) for i in range(len(rollouts))]
         avg_trace_leng = np.mean(trace_len)
         min_trace_leng = np.min(trace_len)
@@ -523,7 +525,7 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
             loop.set_description(
                 'avg reward: % 6.2f, value loss: % 6.2f, policy loss: % 6.2f:' % (avg_r, avg_val_loss, avg_policy_loss))     # noqa: E501
         tdiff = time.time() - stime
-        with open(csv_file+'.csv', 'a+') as f:
+        with open(directory + csv_file+'.csv', 'a+') as f:
             labels = labels.to(torch.float16)
             f.write(
                 '%6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f, %6.2f\n' % (
@@ -532,7 +534,6 @@ def ppo(env_factory, policy, value, likelihood_fn, embedding_net=None,
                     min_trace_leng, tdiff))
         print()
         loop.update(1)
-    directory = '/tmp/goal/data/experiments'
     modelname = directory + csv_file + ".pt"
     torch.save(policy.state_dict(), modelname)
 
@@ -593,6 +594,6 @@ if __name__ == '__main__':
         '--trace', default=[20, 30, 40, 50, 60, 70, 80, 90, 100],
         type=str)
     args = parser.parse_args()
-    print(type(args.action), type(args.trace))
+    # print(type(args.action), type(args.trace))
     # main(args.action, args.trace)
-    experiments(max_epi_len=int(args.trace), )
+    experiments(max_epi_len=int(args.trace))
