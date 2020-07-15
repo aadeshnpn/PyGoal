@@ -336,6 +336,50 @@ def draw_time_comp(data, pname):
 #         '/tmp/goal/data/experiments/' + pname + '.png')
 #     plt.close(fig)
 
+def draw_distance_dist(data, fname):
+    # Find infected nodes in the peak
+    # expname = fname + str(complex_id) + '_'
+    # After the experiments are done, draw plots
+    # directory = os.path.join('/tmp', 'covid', 'data', 'experiments')
+
+    # Find total node infected so far
+    # data = load_files_peak(directory, expname)
+    # print(data.shape)
+    fig = plt.figure()
+
+    ax1 = fig.add_subplot(1, 1, 1)
+    colordict = {
+        0: 'bisque',
+        1: 'darkorange',
+        2: 'orangered',
+        3: 'seagreen'
+    }
+
+    labels = ['Agent-Key', 'Key-Door', 'Door-Goal', 'Total']
+    medianprops = dict(linewidth=2.5, color='firebrick')
+    meanprops = dict(linewidth=2.5, color='#ff7f0e')
+    data = [data[:, i] for i in range(4)]
+    bp1 = ax1.boxplot(
+        data, 0, 'gD', showmeans=True, meanline=True,
+        patch_artist=True, medianprops=medianprops,
+        meanprops=meanprops)
+    for patch, color in zip(bp1['boxes'], colordict.values()):
+        patch.set_facecolor(color)
+    # plt.xlim(0, len(mean))
+    ax1.legend(zip(bp1['boxes']), labels, fontsize="small", loc="upper left")
+    ax1.set_xticklabels(labels)
+    # ax1.set_xlabel('Object ')
+    ax1.set_ylabel('Block Distance')
+    ax1.set_title('Block Distance for Agent-Key-Door in KeyDoor Environment')
+
+    plt.tight_layout()
+
+    fig.savefig(
+        '/tmp' + '/' + fname + '.png')
+    # pylint: disable = E1101
+
+    plt.close(fig)
+
 
 def sucess_comparasion(tl=[30, 40, 50, 60], a=6):
     datas = []
@@ -379,6 +423,18 @@ def time_comparasion():
 #     draw_action_comp(datas, 'keydoor_2_a')
 
 
+def distance_dist():
+    data8x8 = np.load('/tmp/keydoor-8x8-dist.npy')
+    data8x8 = data8x8.reshape(512, 4)
+    # print(data8x8, data8x8.shape)
+    draw_distance_dist(data8x8, 'keydoor8x8')
+
+    data16x16 = np.load('/tmp/keydoor-16x16-dist.npy')
+    data16x16 = data16x16.reshape(512, 4)
+    # print(data8x8, data8x8.shape)
+    draw_distance_dist(data16x16, 'keydoor16x16')
+
+
 def results():
     name = '_2_70'
     datas = load_files_all(
@@ -388,9 +444,10 @@ def results():
 
 
 def main():
-    time_comparasion()
-    trace_comparasion()
-    sucess_comparasion()
+    # time_comparasion()
+    # trace_comparasion()
+    # sucess_comparasion()
+    distance_dist()
 
 
 # def find_min_path():
