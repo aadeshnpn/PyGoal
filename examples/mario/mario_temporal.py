@@ -28,7 +28,8 @@ from gym_super_mario_bros import actions
 from environment import (
     ResizeFrameEnvWrapper,
     StochasticFrameSkipEnvWrapper,
-    BinarySpaceToDiscreteSpaceEnv
+    BinarySpaceToDiscreteSpaceEnv,
+
     )
 
 

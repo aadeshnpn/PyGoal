@@ -148,8 +148,8 @@ def draw_success_comp(data, pname):
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
     # label = ['20', '30', '40', '50', '60']
-    label = ['30', '40', '50', '60', '70']
-
+    # label = ['30', '40', '50', '60', '70']
+    label = ['60', '70', '80', '90', '100']
     idx = [0] * len(data)
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(len(data)):
@@ -199,7 +199,8 @@ def draw_trace_comp(data, pname):
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
     # label = ['20', '30', '40', '50', '60']
-    label = ['30', '40', '50', '60', '70']
+    # label = ['30', '40', '50', '60', '70']
+    label = ['60', '70', '80', '90', '100']
     # idx = [4, 5, 6]
     idx = [4] * len(data)
     ax1 = fig.add_subplot(1, 1, 1)
@@ -249,10 +250,11 @@ def draw_time_comp(data, pname):
     colorshade = [
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
-    label = ['30', '40', '50', '60', '70']
+    # label = ['30', '40', '50', '60', '70']
+    label = ['60', '70', '80', '90', '100']
 
     # idx = [4, 5, 6]
-    print(len(data))
+    # print(len(data))
     idx = [7] * len(data)
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(len(data)):
@@ -260,7 +262,7 @@ def draw_time_comp(data, pname):
         # field_max = mean + std
         # field_min = mean - std
         mean, field_min, field_max = filter_data(data[i], idx[i])
-        print(mean.shape, field_min.shape, field_max.shape)
+        # print(mean.shape, field_min.shape, field_max.shape)
         # mean = mean[:25]
         # field_max = field_max[:25]
         # field_min = field_min[:25]
@@ -404,7 +406,8 @@ def trace_comparasion(tl=[30, 40, 50, 60], a=6):
 
 def time_comparasion():
     datas = []
-    for i in [30, 40, 50, 60]:
+    tlen = [60, 70, 80, 90, 100]
+    for i in tlen:
         name = '_6_' + str(i)
         data = load_files_all(
             '/tmp/goal/data/experiments', 'keydoor'+name+'_*')
@@ -444,10 +447,10 @@ def results():
 
 
 def main():
-    # time_comparasion()
-    # trace_comparasion()
-    # sucess_comparasion()
-    distance_dist()
+    time_comparasion()
+    trace_comparasion([60, 70, 80, 90, 100])
+    sucess_comparasion([60, 70, 80, 90, 100])
+    # distance_dist()
 
 
 # def find_min_path():
