@@ -288,6 +288,7 @@ class GenRecPropMDP(GenRecProp):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.tcount = 0
+        self.trace_len_data = np.ones(epoch) * max_trace
 
     def env_action_dict(self, action):
         action_dict = {
@@ -356,6 +357,8 @@ class GenRecPropMDP(GenRecProp):
 
         # Recognizer
         result, trace = self.recognizer(trace)
+        # print(result, len(trace), trace)
+        self.trace_len_data[self.tcount] = len(trace['IC'])
         # No need to propagate results after exciding the train epoch
         if self.tcount <= epoch:
             # Progagrate the error generate from recognizer

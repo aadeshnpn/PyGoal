@@ -146,7 +146,7 @@ def check_bt_status(status):
 def find_cheese(seed, max_trace_len=10, epoch=10):
     # Define the environment for the experiment
     goalspec = 'F P_[IC][True,none,==]'
-    startpoc = (1, 3)
+    startpoc = (3, 0)
     env = init_mdp(startpoc)
     keys = ['L', 'IC']
     actions = [0, 1, 2, 3]
@@ -161,19 +161,21 @@ def find_cheese(seed, max_trace_len=10, epoch=10):
     # for child in behaviour_tree.root.children:
     # print(child, child.name, env.curr_loc)
     planner = GenRecPropMDP(
-        env, keys, None, dict(), actions=actions, max_trace=max_trace_len)
-    child.setup(0, planner, True, epoch)
+        env, keys, None, dict(), actions=actions,
+        max_trace=max_trace_len, epoch=epoch)
+    child.setup(0, planner, True, epoch=epoch)
     # Experiment data
-    data = np.zeros(epoch+1, dtype=np.uint8)
+    # print(planner.trace_len_data)
+    data = np.zeros(epoch, dtype=np.uint8)
     for i in range(epoch):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
         # print(behaviour_tree.root.status)
         data[i] = check_bt_status(behaviour_tree.root.status)
-    # print(data)
+    # print(planner.trace_len_data)
     # for child in behaviour_tree.root.children:
-    child.setup(0, planner, True, 10)
+    child.setup(0, planner, True, max_trace_len)
     child.train = False
     # print(child, child.name, child.train)
 
@@ -181,11 +183,12 @@ def find_cheese(seed, max_trace_len=10, epoch=10):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-    data[-1] = check_bt_status(behaviour_tree.root.status)
+    # data[-1] = check_bt_status(behaviour_tree.root.status)
     # print('inference', behaviour_tree.root.status)
+    # print(planner.trace_len_data)
     # print(data)
     # print(env.curr_loc)
-    return data
+    return (data, planner.trace_len_data)
 
 
 def run_experiments():
@@ -195,21 +198,39 @@ def run_experiments():
     for k in range(len(trace)):
         for j in range(50):
             fname = 'mdp_' + str(trace[k]) + '_' + str(j)
+            tname = 'mdp_t_' + str(trace[k]) + '_' + str(j)
             print(fname)
-            data = [Parallel(
+            datas = Parallel(
                 n_jobs=16)(
                     delayed(find_cheese)(
                         None,
                         max_trace_len=trace[k],
-                        epoch=30
-                    ) for i in range(256))]
+                        epoch=100
+                    ) for i in range(64))
+            # data = [d[0] for d in data]
+            # print(len(datas))
+            probdata = []
+            tdata = []
+            for i in range(len(datas)):
+                probdata.append(datas[i][0])
+                tdata.append(datas[i][1])
+            # For success prob
             fname = os.path.join(dname, fname)
-            data = np.array(data)
-            data = data.reshape((data.shape[1], data.shape[2]))
+            data = np.array(probdata)
             data = data.astype(np.float16)
+            # print(k, j, data)
             data = np.mean(data, axis=0)
-            # print(data.shape)
+
             np.save(fname, data)
+
+            # For trace len data
+            tname = os.path.join(dname, tname)
+            tdata = np.array(tdata)
+            tdata = tdata.astype(np.float16)
+            # print(k, j, tdata)
+            tdata = np.quantile(tdata, 0.5, axis=0)
+            # print(k, j, tdata)
+            np.save(tname, tdata)
         # find_cheese(None, max_trace_len=10, epoch=10)
 
 
@@ -260,6 +281,43 @@ def draw_success_prob(data, tracelist, pname):
     plt.close(fig)
 
 
+def draw_trace_len(data, tracelist, pname):
+    plt.style.use('fivethirtyeight')
+    fig = plt.figure()
+    color = [
+        'forestgreen', 'indianred',
+        'gold', 'tomato', 'royalblue']
+    colorshade = [
+        'springgreen', 'lightcoral',
+        'khaki', 'lightsalmon', 'deepskyblue']
+    label = [str(tracelen) for tracelen in tracelist]
+    ax1 = fig.add_subplot(1, 1, 1)
+    for i in range(len(data)):
+        mean, field_min, field_max = filter_data(data[i])
+        # mean = mean[:15]
+        # field_max = field_max[:15]
+        # field_min = field_min[:15]
+        xvalues = range(1, len(mean) + 1)
+
+        # Plotting mean and standard deviation
+        ax1.plot(
+            xvalues, mean, color=color[i], label=label[i],
+            linewidth=1.0)
+        ax1.fill_between(
+            xvalues, field_max, field_min,
+            color=colorshade[i], alpha=0.3)
+
+    plt.title('Max Trace length')
+    ax1.legend()
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Trace Length')
+
+    plt.tight_layout()
+    fig.savefig(
+        '/tmp/mdp/data/experiments/' + pname + '.png')
+    plt.close(fig)
+
+
 def plot_all():
     tracelenlist = [10, 20, 30, 40, 50]
     datas = []
@@ -274,9 +332,21 @@ def plot_all():
         datas.append(data)
     draw_success_prob(datas, tracelenlist, 'plot_'+expname)
 
+    datas = []
+    for trace in tracelenlist:
+        expname = 'mdp_t_' + str(trace)
+        # After the experiments are done, draw plots
+        directory = os.path.join('/tmp', 'mdp', 'data', 'experiments')
+
+        data = load_files(
+            directory, expname, load_file_mdp_prob)
+        # print(trace, data.shape)
+        datas.append(data)
+    draw_trace_len(datas, tracelenlist, 'plot_'+expname)
+
 
 def main():
-    # find_cheese(12)
+    # find_cheese(None, 10, 2)
     # find_cheese_return(123)
     run_experiments()
     plot_all()
