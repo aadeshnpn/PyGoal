@@ -197,12 +197,12 @@ def run_experiments():
             fname = 'mdp_' + str(trace[k]) + '_' + str(j)
             print(fname)
             data = [Parallel(
-                n_jobs=8)(
+                n_jobs=16)(
                     delayed(find_cheese)(
                         None,
                         max_trace_len=trace[k],
                         epoch=30
-                    ) for i in range(64))]
+                    ) for i in range(256))]
             fname = os.path.join(dname, fname)
             data = np.array(data)
             data = data.reshape((data.shape[1], data.shape[2]))
@@ -278,7 +278,7 @@ def plot_all():
 def main():
     # find_cheese(12)
     # find_cheese_return(123)
-    # run_experiments()
+    run_experiments()
     plot_all()
 
 
