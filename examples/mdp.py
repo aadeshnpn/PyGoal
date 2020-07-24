@@ -194,7 +194,8 @@ def find_cheese(seed, max_trace_len=10, epoch=10):
 def run_experiments():
     dname = os.path.join('/tmp', 'mdp', 'data', 'experiments')
     Path(dname).mkdir(parents=True, exist_ok=True)
-    trace = [10, 20, 30, 40, 50]
+    # trace = [10, 20, 30, 40, 50]
+    trace = [30, 40, 50, 60, 70]
     for k in range(len(trace)):
         for j in range(50):
             fname = 'mdp_' + str(trace[k]) + '_' + str(j)
@@ -319,7 +320,8 @@ def draw_trace_len(data, tracelist, pname):
 
 
 def plot_all():
-    tracelenlist = [10, 20, 30, 40, 50]
+    # tracelenlist = [10, 20, 30, 40, 50]
+    tracelenlist = [30, 40, 50, 60, 70]
     datas = []
     for trace in tracelenlist:
         expname = 'mdp_' + str(trace)
@@ -340,7 +342,10 @@ def plot_all():
 
         data = load_files(
             directory, expname, load_file_mdp_prob)
-        # print(trace, data.shape)
+        print(trace, data.shape)
+        # print(np.max(data))
+        data = np.clip(data, 0, np.floor(np.max(data)//10)*10)
+        # print(data)
         datas.append(data)
     draw_trace_len(datas, tracelenlist, 'plot_'+expname)
 
@@ -348,7 +353,7 @@ def plot_all():
 def main():
     # find_cheese(None, 10, 2)
     # find_cheese_return(123)
-    run_experiments()
+    # run_experiments()
     plot_all()
 
 
