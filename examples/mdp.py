@@ -62,6 +62,23 @@ def init_mdp(sloc):
     return mdp
 
 
+def init_10x10mdp(sloc):
+    """Initialized a 10x10 MDP world."""
+    grid = np.ones((10, 10)) * -0.04
+    grid[1:8, 2:6] = None
+    grid = np.where(np.isnan(grid), None, grid)
+    grid = grid.tolist()
+    # Terminal and obstacles defination
+    grid[0][9] = +2
+    grid[1][9] = -2
+    grid[0][7] = -2
+
+    mdp = GridMDP(
+        grid, terminals=[(9, 9), (9, 8), (7, 9)], startloc=sloc)
+
+    return mdp
+
+
 # def get_near_trap(seed):
 #     # Define the environment for the experiment
 #     goalspec = 'F P_[NT][True,none,==]'
@@ -147,8 +164,9 @@ def check_bt_status(status):
 def find_cheese(seed, max_trace_len=10, epoch=10):
     # Define the environment for the experiment
     goalspec = 'F P_[IC][True,none,==]'
-    startpoc = (3, 0)
-    env = init_mdp(startpoc)
+    # startpoc = (3, 0)
+    startpoc = (9, 0)
+    env = init_10x10mdp(startpoc)
     keys = ['L', 'IC']
     actions = [0, 1, 2, 3]
 
@@ -196,7 +214,8 @@ def run_experiments():
     dname = os.path.join('/tmp', 'mdp', 'data', 'experiments')
     Path(dname).mkdir(parents=True, exist_ok=True)
     # trace = [10, 20, 30, 40, 50]
-    trace = [30, 40, 50, 60, 70]
+    # trace = [30, 40, 50, 60, 70]
+    trace = [70, 80, 90, 100, 110]
     for k in range(len(trace)):
         for j in range(50):
             fname = 'mdp_' + str(trace[k]) + '_' + str(j)
@@ -322,7 +341,8 @@ def draw_trace_len(data, tracelist, pname):
 
 def plot_all():
     # tracelenlist = [10, 20, 30, 40, 50]
-    tracelenlist = [30, 40, 50, 60, 70]
+    # tracelenlist = [30, 40, 50, 60, 70]
+    tracelenlist = [70, 80, 90, 100, 110]
     datas = []
     for trace in tracelenlist:
         expname = 'mdp_' + str(trace)
@@ -353,8 +373,8 @@ def plot_all():
 def main():
     # find_cheese(None, 10, 2)
     # find_cheese_return(123)
-    # run_experiments()
-    plot_all()
+    run_experiments()
+    # plot_all()
 
 
 main()
