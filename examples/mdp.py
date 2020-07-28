@@ -272,7 +272,7 @@ def draw_success_prob(data, tracelist, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Goal Success Probability')
+    plt.title('Goal Success Probability \n0.2 action uncertainty')
     ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Probability')
@@ -309,7 +309,7 @@ def draw_trace_len(data, tracelist, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Average Trace length')
+    plt.title('Average Trace length \n0.2 action uncertainty')
     ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('$\it{m}$')
@@ -321,8 +321,8 @@ def draw_trace_len(data, tracelist, pname):
 
 
 def plot_all():
-    tracelenlist = [10, 20, 30, 40, 50]
-    # tracelenlist = [30, 40, 50, 60, 70]
+    # tracelenlist = [10, 20, 30, 40, 50]
+    tracelenlist = [30, 40, 50, 60, 70]
     datas = []
     for trace in tracelenlist:
         expname = 'mdp_' + str(trace)
