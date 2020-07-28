@@ -17,6 +17,7 @@ if os.name == 'posix' and "DISPLAY" not in os.environ:
     matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt     # noqa: E402
+# matplotlib.rc('text', usetex=True)
 
 
 def load_files(directory, fnames, fn):
@@ -271,8 +272,8 @@ def draw_success_prob(data, tracelist, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Goal Success Probability\n with various Trace length')
-    ax1.legend()
+    plt.title('Goal Success Probability')
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Probability')
 
@@ -308,10 +309,10 @@ def draw_trace_len(data, tracelist, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Max Trace length')
-    ax1.legend()
+    plt.title('Average Trace length')
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
-    ax1.set_ylabel('Trace Length')
+    ax1.set_ylabel('$\it{m}$')
 
     plt.tight_layout()
     fig.savefig(
@@ -320,14 +321,13 @@ def draw_trace_len(data, tracelist, pname):
 
 
 def plot_all():
-    # tracelenlist = [10, 20, 30, 40, 50]
-    tracelenlist = [30, 40, 50, 60, 70]
+    tracelenlist = [10, 20, 30, 40, 50]
+    # tracelenlist = [30, 40, 50, 60, 70]
     datas = []
     for trace in tracelenlist:
         expname = 'mdp_' + str(trace)
         # After the experiments are done, draw plots
         directory = os.path.join('/tmp', 'mdp', 'data', 'experiments')
-
         data = load_files(
             directory, expname, load_file_mdp_prob)
         # print(trace, data.shape)
