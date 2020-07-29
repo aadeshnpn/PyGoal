@@ -364,10 +364,10 @@ def draw_trace_data(data, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    # plt.title('Trace Length')
-    ax1.legend()
+    plt.title('Average Trace Length')
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
-    ax1.set_ylabel('Trace Length')
+    ax1.set_ylabel('$\it{m}$')
 
     # ax1.set_yticks(
     #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
@@ -405,7 +405,7 @@ def draw_success_prob(data, pname):
             color=colorshade[i], alpha=0.3)
 
     plt.title('Goal Success Probability')
-    ax1.legend()
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Probability')
 
@@ -420,7 +420,7 @@ def draw_success_prob(data, pname):
     plt.close(fig)
 
 
-def draw_success_comp(data, pname):
+def draw_success_comp(data, pname, lb):
     plt.style.use('fivethirtyeight')
     fig = plt.figure()
     color = [
@@ -430,8 +430,8 @@ def draw_success_comp(data, pname):
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
     # label = ['20', '30', '40', '50', '60']
-    label = ['50', '60', '70', '80', '90']
-
+    # label = ['50', '60', '70', '80', '90']
+    label = [str(l) for l in lb]
     idx = [0] * 5
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(5):
@@ -439,9 +439,9 @@ def draw_success_comp(data, pname):
         # field_max = mean + std
         # field_min = mean - std
         mean, field_min, field_max = filter_data(data[i], idx[i])
-        # mean = mean[:15]
-        # field_max = field_max[:15]
-        # field_min = field_min[:15]
+        mean = mean[:30]
+        field_max = field_max[:30]
+        field_min = field_min[:30]
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -452,8 +452,8 @@ def draw_success_comp(data, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Goal Success Probability\n with various Trace length')
-    ax1.legend()
+    plt.title('Goal Success Probability')
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Probability')
 
@@ -468,7 +468,7 @@ def draw_success_comp(data, pname):
     plt.close(fig)
 
 
-def draw_trace_comp(data, pname):
+def draw_trace_comp(data, pname, lb):
     plt.style.use('fivethirtyeight')
     fig = plt.figure()
     # color = ['blue', 'purple', 'gold']
@@ -481,7 +481,8 @@ def draw_trace_comp(data, pname):
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
     # label = ['20', '30', '40', '50', '60']
-    label = ['50', '60', '70', '80', '90']
+    # label = ['50', '60', '70', '80', '90']
+    label = [str(l) for l in lb]
     # idx = [4, 5, 6]
     idx = [4] * 5
     ax1 = fig.add_subplot(1, 1, 1)
@@ -490,9 +491,9 @@ def draw_trace_comp(data, pname):
         # mean, std = filter_data(data[i], idx[i])
         # field_max = mean + std
         # field_min = mean - std
-        # mean = mean[:15]
-        # field_max = field_max[:15]
-        # field_min = field_min[:15]
+        mean = mean[:30]
+        field_max = field_max[:30]
+        field_min = field_min[:30]
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -503,10 +504,10 @@ def draw_trace_comp(data, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    # plt.title('Trace Length')
-    ax1.legend()
+    plt.title('Average Trace Length')
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
-    ax1.set_ylabel('Trace Length')
+    ax1.set_ylabel('$\it{m}$')
 
     # ax1.set_yticks(
     #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
@@ -519,7 +520,7 @@ def draw_trace_comp(data, pname):
     plt.close(fig)
 
 
-def draw_time_comp(data, pname):
+def draw_time_comp(data, pname, lb):
     plt.style.use('fivethirtyeight')
     fig = plt.figure()
     # color = ['blue', 'purple', 'gold']
@@ -531,7 +532,8 @@ def draw_time_comp(data, pname):
     colorshade = [
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
-    label = ['20', '30', '40', '50', '60']
+    # label = ['20', '30', '40', '50', '60']
+    label = [str(l) for l in lb]
 
     # idx = [4, 5, 6]
     idx = [7] * 5
@@ -541,9 +543,9 @@ def draw_time_comp(data, pname):
         # field_max = mean + std
         # field_min = mean - std
         mean, field_min, field_max = filter_data(data[i], idx[i])
-        mean = mean[:25]
-        field_max = field_max[:25]
-        field_min = field_min[:25]
+        mean = mean[:15]
+        field_max = field_max[:15]
+        field_min = field_min[:15]
         xvalues = range(1, len(mean) + 1)
 
         # Plotting mean and standard deviation
@@ -555,7 +557,7 @@ def draw_time_comp(data, pname):
             color=colorshade[i], alpha=0.3)
 
     # plt.title('Trace Length')
-    ax1.legend()
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Computation Time')
 
@@ -601,8 +603,8 @@ def draw_action_comp(data, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Goal Success Probability\n with various action space')
-    ax1.legend()
+    plt.title('Goal Success Probability')
+    ax1.legend(title='Action Space')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Probability')
 
@@ -623,7 +625,7 @@ def sucess_comparasion(tl=[50, 60, 70, 80, 90], a=10):
         name = '_' + str(a) + '_' + str(i)
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
-    draw_success_comp(datas, 'success_' + str(a) + '__')
+    draw_success_comp(datas, 'success_' + str(a) + '__', tl)
 
 
 def trace_comparasion(tl=[50, 60, 70, 80, 90], a=10):
@@ -633,16 +635,16 @@ def trace_comparasion(tl=[50, 60, 70, 80, 90], a=10):
         # print(name)
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
-    draw_trace_comp(datas, 'trace_' + str(a) + '__')
+    draw_trace_comp(datas, 'trace_' + str(a) + '__', tl)
 
 
-def time_comparasion():
+def time_comparasion(tl=[50, 60, 70, 80, 90], a=4):
     datas = []
     for i in [20, 30, 40, 50, 60]:
         name = '_2_' + str(i)
         data = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
         datas.append(data)
-    draw_time_comp(datas, 'mnist_2_ti')
+    draw_time_comp(datas, 'mnist_2_ti', tl)
 
 
 def action_comparasion():
@@ -656,6 +658,7 @@ def action_comparasion():
 
 
 def results():
+    action_comparasion()
     name = '_2_70'
     datas = load_files_all('/tmp/goal/data/experiments', 'mnist'+name+'_*')
     draw_trace_data(datas, 'traces'+name)

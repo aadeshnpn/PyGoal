@@ -29,7 +29,9 @@ if os.name == 'posix' and "DISPLAY" not in os.environ:
 from utils import (
     run_envs, ExperienceDataset, prepare_tensor_batch,
     multinomial_likelihood, EnvironmentFactory, RLEnvironment,
-    RecognizerDataset, sucess_comparasion, trace_comparasion
+    RecognizerDataset, sucess_comparasion, trace_comparasion,
+    load_files_all, draw_success_prob, draw_trace_data,
+    action_comparasion, time_comparasion
     )
 
 
@@ -557,13 +559,25 @@ def main(action, max_epi_len):
         )
 
 
+def draw_all():
+    sucess_comparasion([20, 30, 40, 50, 60], a=2)
+    trace_comparasion([20, 30, 40, 50, 60], a=2)
+    datas = load_files_all('/tmp/goal/data/experiments/', 'mnist_2_*')
+    draw_trace_data(datas, 'traces')
+    draw_success_prob(datas, 'sucess')
+    action_comparasion()
+    time_comparasion()
+
+
+def draw_mnist_10():
+    sucess_comparasion([50, 60, 70, 80, 90], a=10)
+    trace_comparasion([50, 60, 70, 80, 90], a=10)
+
+
 if __name__ == '__main__':
     # main()
     # results()
     #
-    sucess_comparasion([20, 30, 40, 50, 60], a=2)
-    trace_comparasion([20, 30, 40, 50, 60], a=2)
-    # time_comparasion()
     # action_comparasion()
     # parser = argparse.ArgumentParser()
     # parser.add_argument('--action', default=2, type=int)
@@ -573,6 +587,6 @@ if __name__ == '__main__':
     # args = parser.parse_args()
     # print(type(args.action), type(args.trace))
     # main(args.action, args.trace)
-    # datas = load_files_all('/tmp/goal/data/experiments/', 'mnist_2_*')
-    # draw_trace_data(datas, 'traces')
-    # draw_success_prob(datas, 'sucess')
+    # draw_all()
+    draw_mnist_10()
+
