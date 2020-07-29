@@ -138,7 +138,7 @@ def draw_success_prob(data, pname):
     plt.close(fig)
 
 
-def draw_success_comp(data, pname):
+def draw_success_comp(data, pname, tl):
     plt.style.use('fivethirtyeight')
     fig = plt.figure()
     color = [
@@ -149,7 +149,8 @@ def draw_success_comp(data, pname):
         'khaki', 'lightsalmon', 'deepskyblue']
     # label = ['20', '30', '40', '50', '60']
     # label = ['30', '40', '50', '60', '70']
-    label = ['60', '70', '80', '90', '100']
+    # label = ['60', '70', '80', '90', '100']
+    label = [str(t) for t in tl]
     idx = [0] * len(data)
     ax1 = fig.add_subplot(1, 1, 1)
     for i in range(len(data)):
@@ -170,8 +171,8 @@ def draw_success_comp(data, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Goal Success Probability\n with various Trace length')
-    ax1.legend()
+    plt.title('Goal Success Probability \n KeyDoor16x16')
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Probability')
 
@@ -186,7 +187,7 @@ def draw_success_comp(data, pname):
     plt.close(fig)
 
 
-def draw_trace_comp(data, pname):
+def draw_trace_comp(data, pname, tl):
     plt.style.use('fivethirtyeight')
     fig = plt.figure()
     # color = ['blue', 'purple', 'gold']
@@ -200,7 +201,8 @@ def draw_trace_comp(data, pname):
         'khaki', 'lightsalmon', 'deepskyblue']
     # label = ['20', '30', '40', '50', '60']
     # label = ['30', '40', '50', '60', '70']
-    label = ['60', '70', '80', '90', '100']
+    # label = ['60', '70', '80', '90', '100']
+    label = [str(t) for t in tl]
     # idx = [4, 5, 6]
     idx = [4] * len(data)
     ax1 = fig.add_subplot(1, 1, 1)
@@ -222,10 +224,10 @@ def draw_trace_comp(data, pname):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    # plt.title('Trace Length')
-    ax1.legend()
+    plt.title('Average Trace Length \n KeyDoor16x16')
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
-    ax1.set_ylabel('Trace Length')
+    ax1.set_ylabel('$\it{m}$')
 
     # ax1.set_yticks(
     #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
@@ -238,7 +240,7 @@ def draw_trace_comp(data, pname):
     plt.close(fig)
 
 
-def draw_time_comp(data, pname):
+def draw_time_comp(data, pname, tl):
     plt.style.use('fivethirtyeight')
     fig = plt.figure()
     # color = ['blue', 'purple', 'gold']
@@ -251,8 +253,8 @@ def draw_time_comp(data, pname):
         'springgreen', 'lightcoral',
         'khaki', 'lightsalmon', 'deepskyblue']
     # label = ['30', '40', '50', '60', '70']
-    label = ['60', '70', '80', '90', '100']
-
+    # label = ['60', '70', '80', '90', '100']
+    label = [str(t) for t in tl]
     # idx = [4, 5, 6]
     # print(len(data))
     idx = [7] * len(data)
@@ -390,7 +392,7 @@ def sucess_comparasion(tl=[30, 40, 50, 60], a=6):
         data = load_files_all(
             '/tmp/goal/data/experiments', 'keydoor'+name+'_*')
         datas.append(data)
-    draw_success_comp(datas, 'success_' + str(a) + '__')
+    draw_success_comp(datas, 'success_' + str(a) + '__', tl)
 
 
 def trace_comparasion(tl=[30, 40, 50, 60], a=6):
@@ -401,18 +403,17 @@ def trace_comparasion(tl=[30, 40, 50, 60], a=6):
         data = load_files_all(
             '/tmp/goal/data/experiments', 'keydoor'+name+'_*')
         datas.append(data)
-    draw_trace_comp(datas, 'trace_' + str(a) + '__')
+    draw_trace_comp(datas, 'trace_' + str(a) + '__', tl)
 
 
-def time_comparasion():
+def time_comparasion(tl=[60, 70, 80, 90, 100]):
     datas = []
-    tlen = [60, 70, 80, 90, 100]
-    for i in tlen:
+    for i in tl:
         name = '_6_' + str(i)
         data = load_files_all(
             '/tmp/goal/data/experiments', 'keydoor'+name+'_*')
         datas.append(data)
-    draw_time_comp(datas, 'keydoor_6_ti')
+    draw_time_comp(datas, 'keydoor_6_ti', tl)
 
 
 # def action_comparasion():
@@ -447,9 +448,9 @@ def results():
 
 
 def main():
-    time_comparasion()
-    trace_comparasion([60, 70, 80, 90, 100])
-    sucess_comparasion([60, 70, 80, 90, 100])
+    time_comparasion([80, 90, 100, 120, 150])
+    trace_comparasion([80, 90, 100, 120, 150])
+    sucess_comparasion([80, 90, 100, 120, 150])
     # distance_dist()
 
 

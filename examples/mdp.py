@@ -218,8 +218,8 @@ def run_experiments():
     trace = [70, 80, 90, 100, 110]
     for k in range(len(trace)):
         for j in range(50):
-            fname = 'mdp_' + str(trace[k]) + '_' + str(j)
-            tname = 'mdp_t_' + str(trace[k]) + '_' + str(j)
+            fname = 'mdp10_' + str(trace[k]) + '_' + str(j)
+            tname = 'mdp10_t_' + str(trace[k]) + '_' + str(j)
             print(fname)
             datas = Parallel(
                 n_jobs=16)(
@@ -345,7 +345,7 @@ def plot_all():
     tracelenlist = [70, 80, 90, 100, 110]
     datas = []
     for trace in tracelenlist:
-        expname = 'mdp_' + str(trace)
+        expname = 'mdp10_' + str(trace)
         # After the experiments are done, draw plots
         directory = os.path.join('/tmp', 'mdp', 'data', 'experiments')
         data = load_files(
@@ -356,7 +356,7 @@ def plot_all():
 
     datas = []
     for trace in tracelenlist:
-        expname = 'mdp_t_' + str(trace)
+        expname = 'mdp10_t_' + str(trace)
         # After the experiments are done, draw plots
         directory = os.path.join('/tmp', 'mdp', 'data', 'experiments')
 
