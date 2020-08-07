@@ -171,7 +171,7 @@ def draw_success_comp(data, pname, tl):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Goal Success Probability \n KeyDoor16x16')
+    plt.title('Goal Success Probability \n KeyDoor8x8')
     ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('Probability')
@@ -224,7 +224,7 @@ def draw_trace_comp(data, pname, tl):
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
 
-    plt.title('Average Trace Length \n KeyDoor16x16')
+    plt.title('Average Trace Length \n KeyDoor8x8')
     ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
     ax1.set_ylabel('$\it{m}$')
@@ -277,11 +277,11 @@ def draw_time_comp(data, pname, tl):
         ax1.fill_between(
             xvalues, field_max, field_min,
             color=colorshade[i], alpha=0.3)
-
+    # ax1.title()
     # plt.title('Trace Length')
-    ax1.legend()
+    ax1.legend(title='$\it{m}$')
     ax1.set_xlabel('Epochs')
-    ax1.set_ylabel('Computation Time')
+    ax1.set_ylabel('Computation Time (sec)')
 
     # ax1.set_yticks(
     #     np.linspace(min(self.data[i]), max(self.data[i])+1, 10))
@@ -448,9 +448,13 @@ def results():
 
 
 def main():
-    time_comparasion([80, 90, 100, 120, 150])
-    trace_comparasion([80, 90, 100, 120, 150])
-    sucess_comparasion([80, 90, 100, 120, 150])
+    # time_comparasion([80, 90, 100, 120, 150])
+    # trace_comparasion([80, 90, 100, 120, 150])
+    # sucess_comparasion([80, 90, 100, 120, 150])
+
+    time_comparasion([30, 40, 50, 60])
+    trace_comparasion([30, 40, 50, 60])
+    sucess_comparasion([30, 40, 50, 60])
     # distance_dist()
 
 
