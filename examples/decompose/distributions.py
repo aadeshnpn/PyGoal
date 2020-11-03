@@ -76,8 +76,8 @@ def all_combine():
     print(a4, b4)
     meu = [a1, a2, a3, a4]
     scale = [b1, b2, b3, b4]
-    drawf = [normalpdf, logistpdf]
-    labels = ['Normal', 'Logistic']
+    drawf = [normalpdf, logistpdf, normalcdf, logistcdf]
+    labels = ['Normal PDF', 'Logistic PDF', 'Normal CDF', 'Logistic CDF']
     for i in range(len(drawf)):
         draw(i, meu, scale, (-10, 10), labels, drawf[i])
 
@@ -87,9 +87,9 @@ def all_combine():
 
 
 def main():
-    compare()
+    # compare()
     # linear_combine()
-    # all_combine()
+    all_combine()
 
 
 if __name__ == '__main__':
