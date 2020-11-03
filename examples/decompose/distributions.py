@@ -4,10 +4,12 @@ import scipy.stats as stats
 
 
 def logistpdf(x, loc, scale):
+    scale = (np.sqrt(3) / np.pi) * scale
     return np.exp((loc-x)/scale)/(scale*(1+np.exp((loc-x)/scale))**2)
 
 
 def logistcdf(x, loc, scale):
+    scale = (np.sqrt(3) / np.pi) * scale
     return 1/(1+np.exp((loc-x)/scale))
 
 
@@ -20,7 +22,7 @@ def normalcdf(x, loc, std):
 
 
 def draw(j, meu, scale, xrang, labels, logist=logistpdf):
-    plt.subplot(1, 2, j+1)
+    plt.subplot(2, 2, j+1)
     for i in range(len(meu)):
         # s = np.random.logistic(meu[i], scale[i], 10000)
         # count, bins, ignored = plt.hist(s, bins=50)
@@ -85,9 +87,9 @@ def all_combine():
 
 
 def main():
-    # compare()
+    compare()
     # linear_combine()
-    all_combine()
+    # all_combine()
 
 
 if __name__ == '__main__':
