@@ -6,21 +6,27 @@ from flloat.parser.ltlf import LTLfParser
 
 # parse the formula
 parser = LTLfParser()
-formula = "(F r)" # U (F t)  # F(b) U F(p)"
+# formula = "r U (t U (b U p))"  # F(b) U F(p)"
+# formula = "p U (b U (t U r))"
+formula = "((F r U t) U F b) U F p"
 parsed_formula = parser(formula)
 print(parsed_formula)
 # evaluate over finite traces
 t1 = [
-    {"r": False, "t": False, "b": False, "p": False},
+    {"r": True, "t": False, "b": False, "p": False},
     {"r": True, "t": False, "b": False, "p": False},
     {"r": False, "t": True, "b": False, "p": False},
     {"r": False, "t": False, "b": True, "p": False},
     {"r": False, "t": False, "b": False, "p": True},
-    # {"r": False, "t": False, "b": False, "p": False},
-    # {"r": False, "t": False, "b": False, "p": False},
-    # {"r": False, "t": False, "b": False, "p": False},
-
 ]
+# t1 = [
+#     {"r": False, "t": True, "b": False, "p": False},
+#     {"r": True, "t": False, "b": False, "p": False},
+#     {"r": False, "t": False, "b": False, "p": False},
+#     {"r": False, "t": False, "b": True, "p": False},
+#     {"r": False, "t": False, "b": False, "p": True}
+#     ]
+
 print('t1', parsed_formula.truth(t1, 0))
 
 # t2 = [
@@ -32,9 +38,9 @@ print('t1', parsed_formula.truth(t1, 0))
 
 # # from LTLf formula to DFA
 dfa = parsed_formula.to_automaton()
-print(dir(dfa))
+# print(dir(dfa))
 print(dfa.get_transitions(), dfa.size)
-assert dfa.accepts(t1)
+# assert dfa.accepts(t1)
 # assert not dfa.accepts(t2)
 
 # # print the automaton
