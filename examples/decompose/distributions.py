@@ -106,20 +106,39 @@ def get_para():
             (5)) * np.random.choice([0.8, 0.83, 0.85])
     # print(y.shape, y)
     from scipy.optimize import curve_fit
+    # plt.subplot(1, 2, 1)
     popt, pcov = curve_fit(logistfunc, x, y)
-    # print(popt, pcov)
+    scale = popt[2]
+    std = (scale * np.pi) / np.sqrt(3)
     plt.plot(x, y, 'b-', label='data')
     plt.plot(
         x, logistfunc(x, *popt), 'g--',
         label='3P Logistic: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt))
+    # plt.plot(
+    #     x, normalcdf(x, popt[1], std), 'y--',
+    #     label='3P Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
+    plt.plot(
+        x, logistpdf(x, popt[1], std), 'g--',
+        label='3P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
+
     popt, pcov = curve_fit(logistfunc1, x, y)
+    scale = popt[1]
+    std = (scale * np.pi) / np.sqrt(3)
     plt.plot(
         x, logistfunc1(x, *popt), 'r--',
         label='2P Logistic: a=%5.3f, b=%5.3f' % tuple(popt))
+    # plt.plot(
+    #     x, normalcdf(x, popt[0], std), 'c--',
+    #     label='2P Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[0], std]))
+    plt.plot(
+        x, logistpdf(x, popt[0], std), 'r--',
+        label='2P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
     plt.ylabel('Probability')
     plt.xlabel('Time')
     plt.legend()
     plt.tight_layout()
+    # plt.subplot(1, 2, 2)
+
     plt.show()
 
 
