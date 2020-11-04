@@ -83,7 +83,7 @@ def all_combine():
     a3, b3 = [a1+a2, np.sqrt(b1**2 + b2**2)]
     a4 = (a1 * (b2**2) + a2 * (b1**2)) / (b2**2 + b1**2)
     b4 = b2**2 * b1**2 / (b2**2 + b1**2)
-    print(a4, b4)
+    # print(a4, b4)
     meu = [a1, a2, a3, a4]
     scale = [b1, b2, b3, b4]
     drawf = [normalpdf, logistpdf, normalcdf, logistcdf]
@@ -142,11 +142,71 @@ def get_para():
     plt.show()
 
 
+def do_comp():
+    x1 = list(range(100))
+    y1 = np.array(range(100), dtype=np.float)
+    y1[:30] = np.zeros((30,))
+    y1[30:40] = [0.35, 0.4, 0.6, 0.65, 0.7, 0.75, 0.75, 0.76, 0.78, 0.79]
+    for i in range(40, 100, 5):
+        y1[i:i+5] = np.ones(
+            (5)) * np.random.choice([0.8, 0.83, 0.85])
+
+    x2 = list(range(100))
+    y2 = np.array(range(100), dtype=np.float)
+    y2[:40] = np.zeros((40,))
+    y2[40:50] = [0.3, 0.4, 0.5, 0.6, 0.62, 0.65, 0.68, 0.71, 0.75, 0.85]
+    for i in range(50, 100, 5):
+        y2[i:i+5] = np.ones(
+            (5)) * np.random.choice([0.9, 0.92, 0.95])
+
+    from scipy.optimize import curve_fit
+    popt1, pcov1 = curve_fit(logistfunc, x1, y1)
+    # scale = popt[2]
+    # std = (scale * np.pi) / np.sqrt(3)
+    plt.plot(x1, y1, 'b-', label='data1')
+    plt.plot(
+        x1, logistfunc(x1, *popt1), 'b-.',
+        label='3P Logistic: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt1))
+
+    popt2, pcov2 = curve_fit(logistfunc, x2, y2)
+    # scale = popt[2]
+    # std = (scale * np.pi) / np.sqrt(3)
+    plt.plot(x2, y2, 'r-', label='data1')
+    plt.plot(
+        x2, logistfunc(x2, *popt2), 'r-.',
+        label='3P Logistic: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt2))
+
+    mpopt = (popt1 + popt2) / 2
+    plt.plot(
+        x2, logistfunc(x2, *mpopt), 'c--',
+        label='Merge: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(mpopt))
+    x = x1 + x2
+    print(x)
+    print(y1.shape, y2.shape)
+    y = np.hstack((y1, y2))
+    popt3, pcov3 = curve_fit(logistfunc, x, y)
+    # print(x)
+    plt.plot(
+        x1, logistfunc(x1, *popt3), 'c-.',
+        label='All data: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt3))
+    # plt.plot(
+    #     x, logistpdf(x, popt[0], std), 'r--',
+    #     label='2P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
+    plt.ylabel('Probability')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.tight_layout()
+    # plt.subplot(1, 2, 2)
+
+    plt.show()
+
+
 def main():
     # compare()
     # linear_combine()
     # all_combine()
-    get_para()
+    # get_para()
+    do_comp()
 
 
 if __name__ == '__main__':
