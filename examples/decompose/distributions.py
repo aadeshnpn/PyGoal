@@ -13,6 +13,16 @@ def logistcdf(x, loc, scale):
     return 1/(1+np.exp((loc-x)/scale))
 
 
+def logistfunc(x, L, loc, scale):
+    # scale = (np.sqrt(3) / np.pi) * scale
+    return L/(1+np.exp((loc-x)/scale))
+
+
+def logistfunc1(x, loc, scale):
+    # scale = (np.sqrt(3) / np.pi) * scale
+    return 1/(1+np.exp((loc-x)/scale))
+
+
 def normalpdf(x, loc, std):
     return stats.norm.pdf(x, loc, std)
 
@@ -86,10 +96,38 @@ def all_combine():
     plt.show()
 
 
+def get_para():
+    x = list(range(100))
+    y = np.array(range(100), dtype=np.float)
+    y[:30] = np.zeros((30,))
+    y[30:40] = [0.35, 0.4, 0.6, 0.65, 0.7, 0.75, 0.75, 0.76, 0.78, 0.79]
+    for i in range(40, 100, 5):
+        y[i:i+5] = np.ones(
+            (5)) * np.random.choice([0.8, 0.83, 0.85])
+    # print(y.shape, y)
+    from scipy.optimize import curve_fit
+    popt, pcov = curve_fit(logistfunc, x, y)
+    # print(popt, pcov)
+    plt.plot(x, y, 'b-', label='data')
+    plt.plot(
+        x, logistfunc(x, *popt), 'g--',
+        label='3P Logistic: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt))
+    popt, pcov = curve_fit(logistfunc1, x, y)
+    plt.plot(
+        x, logistfunc1(x, *popt), 'r--',
+        label='2P Logistic: a=%5.3f, b=%5.3f' % tuple(popt))
+    plt.ylabel('Probability')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
 def main():
     # compare()
     # linear_combine()
-    all_combine()
+    # all_combine()
+    get_para()
 
 
 if __name__ == '__main__':
