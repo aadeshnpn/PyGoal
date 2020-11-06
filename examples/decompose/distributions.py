@@ -284,28 +284,41 @@ def fig3():
 
     from scipy.optimize import curve_fit
     popt2, pcov2 = curve_fit(logistfunc, x2, y2)
-    scale2 = popt2[2]
-    std2 = (scale2 * np.pi) / np.sqrt(3)
+    # scale2 = popt2[2]
+    # std2 = (scale2 * np.pi) / np.sqrt(3)
     # plt.subplot(1, 2, 1)
-    plt.plot(x2, [0.8]*100, 'r.', label="$\\theta$", linewidth=1, alpha=0.3)
-    plt.plot(x2, [popt2[0]]*100, 'c.', label="$L_2$", linewidth=1, alpha=0.3)
+    popt3 = [popt2[0], popt2[1]-popt2[2], popt2[2]]
+    popt4 = [popt2[0], popt2[1]+popt2[2], popt2[2]]
+    plt.plot(x2, [0.8]*100, 'r--', label="$\\theta$", linewidth=2, alpha=0.3)
     plt.plot(x2, y2, 'g-', label='data2')
     plt.plot(
         x2, logistfunc(x2, *popt2), 'g-.',
         label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt2))
+    plt.fill_between(
+        x2, logistfunc(x2, *popt3), logistfunc(x2, *popt4),
+        color='green', alpha=0.2)
+    # plt.plot(
+    #     x2, normalpdf(x2, popt2[1], std2), 'g--',
+    #     label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt2[1], std2]),
+    #     linewidth=2, alpha=0.5)
+    # plt.fill_between(
+    #     xvalues, field_max, field_min, color='DodgerBlue', alpha=0.3)
+    # y3 = normalpdf(x3, popt2[0], 1-popt2[0]) * 15
+    # print(x3, y3)
+    # plt.plot(
+    #     y3, x3, 'c--',
+    #     label='Confidence: $L_2$=%5.3f, $1-L_2$=%5.3f' % tuple([popt2[0], 1-popt2[0]]),
+    #     linewidth=2, alpha=0.5)
+    x3 = range(int(popt2[1]), 100)
     plt.plot(
-        x2, normalpdf(x2, popt2[1], std2), 'g--',
-        label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt2[1], std2]),
-        linewidth=2, alpha=0.5)
-    x3 = np.linspace(popt2[0] - (1-popt2[0]), 1.0, 100)
-    y3 = normalpdf(x3, popt2[0], 1-popt2[0]) * 15
-    print(x3, y3)
-    plt.plot(
-        y3, x3, 'c--',
-        label='Confidence: $L_2$=%5.3f, $1-L_2$=%5.3f' % tuple([popt2[0], 1-popt2[0]]),
-        linewidth=2, alpha=0.5)
+        x3, [popt2[0]]*len(x3), 'm-.',
+        label="$L_2$=%5.3f, $1-L_2$=%5.3f" % tuple([popt2[0], 1-popt2[0]]),
+        linewidth=2, alpha=0.3)
+    plt.fill_between(
+        x3, [popt2[0]-(1-popt2[0])] * len(x3),
+        [popt2[0]+(1-popt2[0])] * len(x3), color='orchid', alpha=0.3)
     plt.tight_layout()
-    plt.title('Competency and Confidence distribution')
+    plt.title('Competency and Confidence')
     plt.ylabel('Probability')
     plt.xlabel('Time')
     plt.legend()
