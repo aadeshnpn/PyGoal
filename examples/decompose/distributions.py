@@ -273,12 +273,69 @@ def do_comp():
     plt.show()
 
 
+def fig3():
+    x2 = list(range(100))
+    y2 = np.array(range(100), dtype=np.float)
+    y2[:40] = np.zeros((40,))
+    y2[40:50] = [0.3, 0.4, 0.5, 0.6, 0.62, 0.65, 0.68, 0.71, 0.75, 0.85]
+    for i in range(50, 100, 5):
+        y2[i:i+5] = np.ones(
+            (5)) * np.random.choice([0.9, 0.92, 0.95])
+
+    from scipy.optimize import curve_fit
+    popt2, pcov2 = curve_fit(logistfunc, x2, y2)
+    scale2 = popt2[2]
+    std2 = (scale2 * np.pi) / np.sqrt(3)
+    # plt.subplot(1, 2, 1)
+    plt.plot(x2, [0.8]*100, 'r.', label="$\\theta$", linewidth=1, alpha=0.3)
+    plt.plot(x2, [popt2[0]]*100, 'c.', label="$L_2$", linewidth=1, alpha=0.3)
+    plt.plot(x2, y2, 'g-', label='data2')
+    plt.plot(
+        x2, logistfunc(x2, *popt2), 'g-.',
+        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt2))
+    plt.plot(
+        x2, normalpdf(x2, popt2[1], std2), 'g--',
+        label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt2[1], std2]),
+        linewidth=2, alpha=0.5)
+    x3 = np.linspace(popt2[0] - (1-popt2[0]), 1.0, 100)
+    y3 = normalpdf(x3, popt2[0], 1-popt2[0]) * 15
+    print(x3, y3)
+    plt.plot(
+        y3, x3, 'c--',
+        label='Confidence: $L_2$=%5.3f, $1-L_2$=%5.3f' % tuple([popt2[0], 1-popt2[0]]),
+        linewidth=2, alpha=0.5)
+    plt.tight_layout()
+    plt.title('Competency and Confidence distribution')
+    plt.ylabel('Probability')
+    plt.xlabel('Time')
+    plt.legend()
+    plt.show()
+
+
+def fig4():
+    x3 = np.linspace(0.0, 1.0, 100)
+    y3 = normalpdf(x3, 0.9, 0.1) * 100
+    print(x3, y3)
+    plt.plot(
+        y3, x3, 'c--',
+        label='Normal: $L_2$=%5.3f, $1-L_2$=%5.3f' % tuple([0.9, 0.1]),
+        linewidth=5, alpha=0.5)
+    plt.tight_layout()
+    # plt.title('PDF')
+    # plt.ylabel('Probability')
+    # plt.xlabel('Time')
+    plt.legend()
+    plt.show()
+
+
 def main():
     # compare()
     # linear_combine()
     # all_combine()
     # get_para()
-    do_comp()
+    # do_comp()
+    # fig4()
+    fig3()
 
 
 if __name__ == '__main__':
