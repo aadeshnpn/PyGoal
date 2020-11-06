@@ -160,82 +160,115 @@ def do_comp():
             (5)) * np.random.choice([0.9, 0.92, 0.95])
 
     from scipy.optimize import curve_fit
-    popt1, pcov1 = curve_fit(logistfunc, x1, y1)
+    # popt1, pcov1 = curve_fit(logistfunc, x1, y1)
     # scale1 = popt1[2]
     # std1 = (scale1 * np.pi) / np.sqrt(3)
-    plt.subplot(1, 2, 1)
-    plt.plot(x1, y1, 'b-', label='data1')
-    plt.plot(
-        x1, logistfunc(x1, *popt1), 'b-.',
-        label='3P Logistic: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt1))
+    # plt.subplot(1, 2, 1)
+    # plt.plot(x1, y1, 'b-', label='data1')
+    # plt.plot(
+    #     x1, logistfunc(x1, *popt1), 'b-.',
+    #     label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt1))
 
-    popt2, pcov2 = curve_fit(logistfunc, x2, y2)
+    # popt2, pcov2 = curve_fit(logistfunc, x2, y2)
     # scale2 = popt2[2]
     # std2 = (scale2 * np.pi) / np.sqrt(3)
-    plt.plot(x2, y2, 'r-', label='data2')
-    plt.plot(
-        x2, logistfunc(x2, *popt2), 'r-.',
-        label='3P Logistic: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt2))
-
-    mpopt = (popt1 + popt2) / 2
-    plt.plot(
-        x2, logistfunc(x2, *mpopt), 'c--',
-        label='Merge: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(mpopt))
-    x = x1 + x2
-    print(y1.shape, y2.shape)
-    y = np.hstack((y1, y2))
-    popt3, pcov3 = curve_fit(logistfunc, x, y)
-    # print(x)
-    plt.plot(
-        x1, logistfunc(x1, *popt3), 'c-.',
-        label='All data: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt3))
+    # plt.plot(x2, y2, 'g-', label='data2')
     # plt.plot(
-    #     x, logistpdf(x, popt[0], std), 'r--',
-    #     label='2P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
-    plt.ylabel('Probability')
-    plt.xlabel('Time')
-    plt.legend()
-    plt.tight_layout()
+    #     x2, logistfunc(x2, *popt2), 'g-.',
+    #     label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt2))
+    # plt.plot(x2, [0.8]*100, 'r.', label="$\\theta$", linewidth=1, alpha=0.3)
+    # mpopt = (popt1 + popt2) / 2
+    # plt.plot(
+    #     x2, logistfunc(x2, *mpopt), 'c--',
+    #     label='Merge: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(mpopt))
+    # x = x1 + x2
+    # print(y1.shape, y2.shape)
+    # y = np.hstack((y1, y2))
+    # popt3, pcov3 = curve_fit(logistfunc, x, y)
+    # # print(x)
+    # plt.plot(
+    #     x1, logistfunc(x1, *popt3), 'c-.',
+    #     label='All data: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt3))
+    # # plt.plot(
+    # #     x, logistpdf(x, popt[0], std), 'r--',
+    # #     label='2P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
+    # plt.ylabel('Probability')
+    # plt.xlabel('Time')
+    # plt.legend()
+    # plt.tight_layout()
+    # # plt.subplot(1, 2, 2)
     # plt.subplot(1, 2, 2)
-    plt.subplot(1, 2, 2)
-    popt1, pcov1 = curve_fit(logistfunc1, x1, y1)
-    scale1 = popt1[1]
+    popt1, pcov1 = curve_fit(logistfunc, x1, y1)
+    scale1 = popt1[2]
     std1 = (scale1 * np.pi) / np.sqrt(3)
-    plt.plot(
-        x1, normalcdf(x1, popt1[0], std1), 'b--',
-        label='CDF Data1')
-    plt.plot(
-        x1, normalpdf(x1, popt1[0], std1), 'b-.',
-        label='PDF Data1')
-    popt2, pcov2 = curve_fit(logistfunc1, x2, y2)
-    scale2 = popt2[1]
+    popt2, pcov2 = curve_fit(logistfunc, x2, y2)
+    scale2 = popt2[2]
     std2 = (scale2 * np.pi) / np.sqrt(3)
+    plt.subplot(1, 2, 1)
+    plt.plot(x2, [0.8]*100, 'r.', label="$\\theta$", linewidth=1, alpha=0.3)
     plt.plot(
-        x2, normalcdf(x2, popt2[0], std2), 'r--',
-        label='CDF Data2')
-    plt.plot(
-        x2, normalpdf(x2, popt2[0], std2), 'r-.',
-        label='PDF Data2')
-    popt, pcov = curve_fit(logistfunc1, x, y)
-    scale = popt[1]
-    std = (scale * np.pi) / np.sqrt(3)
-    plt.plot(
-        x1, normalcdf(x1, popt[0], std), 'c--',
-        label='CDF DataAll')
-    plt.plot(
-        x1, normalpdf(x1, popt[0], std), 'c-.',
-        label='PDF DataAll')
-    mean, std = [(popt1[0]+popt2[0])/2, np.sqrt(0.5*std1**2 + 0.5*std2**2)]
-    print(mean, popt1[0], popt2[0], std1, std2)
-    plt.plot(
-        x1, normalcdf(x1, mean, std), 'g--',
-        label='CDF Mixed')
-    plt.plot(
-        x1, normalpdf(x1, mean, std), 'g-.',
-        label='PDF Mixed')
+        x1, normalcdf(x1, popt1[1], std1), 'b--',
+        label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt1[1], std1]),
+        linewidth=4, alpha=0.5)
 
+    plt.plot(
+        x1, logistcdf(x1, popt1[1], std1), 'b-.',
+        label='Logistic: $\mu$=%5.3f, s=%5.3f' % tuple(popt1[1:]), alpha=0.5)
+    plt.plot(
+        x2, normalcdf(x2, popt2[1], std2), 'g--',
+        label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt2[1], std2]),
+        linewidth=4, alpha=0.5)
+    plt.plot(
+        x1, logistcdf(x2, popt2[1], std2), 'g-.',
+        label='Logistic: $\mu$=%5.3f, s=%5.3f' % tuple(popt2[1:]), alpha=0.5)
+    plt.title('CDF')
+    plt.legend()
     plt.ylabel('Probability')
     plt.xlabel('Time')
+    plt.subplot(1, 2, 2)
+
+    plt.plot(
+        x1, normalpdf(x1, popt1[1], std1), 'b--',
+        label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt1[1], std1]),
+        linewidth=4, alpha=0.5)
+
+    plt.plot(
+        x1, logistpdf(x1, popt1[1], std1), 'b-.',
+        label='Logistic: $\mu$=%5.3f, s=%5.3f' % tuple(popt1[1:]), alpha=0.5)
+    plt.plot(
+        x2, normalpdf(x2, popt2[1], std2), 'g--',
+        label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt2[1], std2]),
+        linewidth=4, alpha=0.5)
+    plt.plot(
+        x1, logistpdf(x2, popt2[1], std2), 'g-.',
+        label='Logistic: $\mu$=%5.3f, s=%5.3f' % tuple(popt2[1:]), alpha=0.5)
+    # plt.plot(
+    #     x1, normalpdf(x1, popt1[0], std1), 'b-.',
+    #     label='Data1 : $\mu$=%5.3f, s=%5.3f' % tuple(popt1))
+    # plt.plot(
+    #     x2, normalpdf(x2, popt2[0], std2), 'g-.',
+    #     label='Data2 : $\mu$=%5.3f, s=%5.3f' % tuple(popt2))
+    # popt, pcov = curve_fit(logistfunc1, x, y)
+    # scale = popt[1]
+    # std = (scale * np.pi) / np.sqrt(3)
+    # plt.plot(
+    #     x1, normalcdf(x1, popt[0], std), 'c--',
+    #     label='CDF DataAll')
+    # plt.plot(
+    #     x1, normalpdf(x1, popt[0], std), 'c-.',
+    #     label='PDF DataAll')
+    # mean, std = [(popt1[0]+popt2[0])/2, np.sqrt(0.5*std1**2 + 0.5*std2**2)]
+    # print(mean, popt1[0], popt2[0], std1, std2)
+    # plt.plot(
+    #     x1, normalcdf(x1, mean, std), 'g--',
+    #     label='CDF Mixed')
+    # plt.plot(
+    #     x1, normalpdf(x1, mean, std), 'g-.',
+    #     label='PDF Mixed')
+    plt.tight_layout()
+    plt.title('PDF')
+    # plt.ylabel('Probability')
+    # plt.xlabel('Time')
     plt.legend()
     plt.show()
 
