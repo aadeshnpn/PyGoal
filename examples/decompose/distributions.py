@@ -342,43 +342,47 @@ def fig4():
 
 
 def fig5():
-    x1 = list(range(100))
-    y1 = np.array(range(100), dtype=np.float)
-    y1[:30] = np.zeros((30,))
-    y1[30:40] = [0.35, 0.4, 0.6, 0.65, 0.7, 0.75, 0.75, 0.76, 0.78, 0.79]
-    for i in range(40, 100, 5):
+    x1 = list(range(80))
+    y1 = np.array(range(80), dtype=np.float)
+    y1[:20] = np.zeros((20,))
+    y1[20:30] = [0.35, 0.4, 0.6, 0.65, 0.7, 0.75, 0.75, 0.76, 0.78, 0.79]
+    for i in range(30, 80, 5):
         y1[i:i+5] = np.ones(
             (5)) * np.random.choice([0.8, 0.83, 0.85])
 
-    x2 = list(range(100))
-    y2 = np.array(range(100), dtype=np.float)
-    y2[:40] = np.zeros((40,))
-    y2[40:50] = [0.3, 0.4, 0.5, 0.6, 0.62, 0.65, 0.68, 0.71, 0.75, 0.85]
-    for i in range(50, 100, 5):
+    x2 = list(range(80))
+    y2 = np.array(range(80), dtype=np.float)
+    y2[:30] = np.zeros((30,))
+    y2[30:40] = [0.3, 0.4, 0.5, 0.6, 0.62, 0.65, 0.68, 0.71, 0.75, 0.85]
+    for i in range(40, 80, 5):
         y2[i:i+5] = np.ones(
             (5)) * np.random.choice([0.9, 0.92, 0.95])
 
-    x3 = list(range(100))
-    y3 = np.array(range(100), dtype=np.float)
-    y3[:30] = np.zeros((30,))
-    y3[30:51] = [
+    x3 = list(range(81))
+    y3 = np.array(range(81), dtype=np.float)
+    y3[:40] = np.zeros((40,))
+    y3[40:60] = [
         0.2, 0.24, 0.29, 0.34, 0.4, 0.45, 0.49, 0.53, 0.58, 0.65,
-        0.69, 0.73, 0.75, 0.76, 0.78, 0.79, 0.80, 0.81, 0.82, 0.83, 0.83]
-    for i in range(51, 99, 3):
+        0.69, 0.73, 0.75, 0.76, 0.78, 0.79, 0.80, 0.81, 0.82, 0.83]
+    for i in range(60, 81, 3):
         y3[i:i+3] = np.ones(
-            (3, )) * np.random.choice([0.84, 0.87, 0.89])
-    y3[99] = 0.89
+            (3)) * np.random.choice([0.84, 0.87, 0.89])
+    y3[80] = 0.89
     from scipy.optimize import curve_fit
+    # Combine data
+    xall = x1 + x2 + x3
+    yall = np.concatenate((y1, y2, y3))
+
     x = [x1, x2, x3]
     y = [y1, y2, y3]
-    style = ['g-', 'b-', 'c-']
-    label = ['data1', 'data2', 'data3']
+    style = ['g-', 'b-', 'c-', 'm-']
+    # label = ['data1', 'data2', 'data3', 'alldata']
     dist = []
     for i in range(len(x)):
         popt, pcov = curve_fit(logistfunc, x[i], y[i])
-        print(popt)
+        # print(popt)
         dist.append(popt)
-        plt.plot(x[i], y[i], style[i], label=label[i])
+        # plt.plot(x[i], y[i], style[i], label=label[i])
         plt.plot(
             x[i], logistfunc(x[i], *popt), style[i]+'.',
             label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt))
@@ -390,7 +394,7 @@ def fig5():
     # Final competency curve
     paras = sequence(dist)
     print(paras)
-    fx = list(range(100))
+    fx = list(range(80))
     plt.plot(
         fx, logistfunc(fx, *paras), 'r-.',
         label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(paras))
@@ -398,6 +402,7 @@ def fig5():
         fx, logistfunc1(fx, *paras[1:]), 'r--',
         label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f'
         % tuple([1, paras[1], paras[2]]))
+
     plt.tight_layout()
     plt.legend()
     plt.ylabel('Probability')
@@ -418,12 +423,19 @@ def sequence(nodes):
     m = weights.shape[0]
     M = (m * (m+1)) / 2
     weights = weights / M
+    # weights = np.ones((len(nodes)), dtype=np.float) / len(nodes)
+    # weights = np.ones((len(nodes)), dtype=np.float)
+    # print(weights)
+    # weights = np.ones((len(nodes)))
     # print(weights)
     # Let X ~ N(mu, std), then Y = kX
-    # Y(mu) = k * mu, Y(std) = k^2 * std
+    # Y(mu) = k * mu, Y(std) = |k| * std
     means = np.array([node[1] for node in nodes]) * weights
-    stds = np.array([stdf(node[2]) for node in nodes]) * np.power(weights, 2)
-    print(means, stds, np.power(stds, 2))
+    stds = np.array([stdf(node[2]) for node in nodes]) * weights
+    # print([node[2] for node in nodes])
+    # print(stds)
+    # stds = np.array([stdf(node[2]) for node in nodes]) * np.power(weights, 2)
+    # print(means, stds, np.power(stds, 2))
     # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
     # Z = X + Y, Z ~ N(mu1+mu2, std1^2 + std2^2)
     mean = np.sum(means)
@@ -431,6 +443,7 @@ def sequence(nodes):
     confidence = np.array([node[0] for node in nodes]) * weights
     # print(confidence, weights)
     confidence = np.sum(confidence)
+    # onfidence = np.mean(confidence)
     return [confidence, mean, scale]
 
 
