@@ -369,19 +369,77 @@ def fig5():
             (3, )) * np.random.choice([0.84, 0.87, 0.89])
     y3[99] = 0.89
     from scipy.optimize import curve_fit
-    popt1, pcov1 = curve_fit(logistfunc, x1, y1)
-    plt.plot(x2, y2, 'g*', label='data')
+    x = [x1, x2, x3]
+    y = [y1, y2, y3]
+    style = ['g-', 'b-', 'c-']
+    label = ['data1', 'data2', 'data3']
+    dist = []
+    for i in range(len(x)):
+        popt, pcov = curve_fit(logistfunc, x[i], y[i])
+        print(popt)
+        dist.append(popt)
+        plt.plot(x[i], y[i], style[i], label=label[i])
+        plt.plot(
+            x[i], logistfunc(x[i], *popt), style[i]+'.',
+            label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt))
+        plt.plot(
+            x[i], logistfunc1(x[i], *popt[1:]), style[i]+'-',
+            label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f'
+            % tuple([1, popt[1], popt[2]]))
+
+    # Final competency curve
+    paras = sequence(dist)
+    print(paras)
+    fx = list(range(100))
     plt.plot(
-        x2, logistfunc(x2, *popt1), 'g-.',
-        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt1))
+        fx, logistfunc(fx, *paras), 'r-.',
+        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(paras))
     plt.plot(
-        x2, logistfunc1(x2, *popt1[1:]), 'g--',
-        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple([1, popt1[1], popt1[2]]))
+        fx, logistfunc1(fx, *paras[1:]), 'r--',
+        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f'
+        % tuple([1, paras[1], paras[2]]))
     plt.tight_layout()
     plt.legend()
     plt.ylabel('Probability')
     plt.xlabel('Time')
     plt.show()
+
+
+def stdf(scale):
+    return (scale * np.pi) / np.sqrt(3)
+
+
+def scalef(std):
+    return (np.sqrt(3) / np.pi) * std
+
+
+def sequence(nodes):
+    weights = np.array(list(range(len(nodes), 0, -1)), dtype=np.float)
+    m = weights.shape[0]
+    M = (m * (m+1)) / 2
+    weights = weights / M
+    # print(weights)
+    # Let X ~ N(mu, std), then Y = kX
+    # Y(mu) = k * mu, Y(std) = k^2 * std
+    means = np.array([node[1] for node in nodes]) * weights
+    stds = np.array([stdf(node[2]) for node in nodes]) * np.power(weights, 2)
+    print(means, stds, np.power(stds, 2))
+    # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
+    # Z = X + Y, Z ~ N(mu1+mu2, std1^2 + std2^2)
+    mean = np.sum(means)
+    scale = scalef(np.sum(np.power(stds, 2)))
+    confidence = np.array([node[0] for node in nodes]) * weights
+    # print(confidence, weights)
+    confidence = np.sum(confidence)
+    return [confidence, mean, scale]
+
+
+def selector():
+    pass
+
+
+def parallel():
+    pass
 
 
 def main():
