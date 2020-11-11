@@ -341,6 +341,49 @@ def fig4():
     plt.show()
 
 
+def fig5():
+    x1 = list(range(100))
+    y1 = np.array(range(100), dtype=np.float)
+    y1[:30] = np.zeros((30,))
+    y1[30:40] = [0.35, 0.4, 0.6, 0.65, 0.7, 0.75, 0.75, 0.76, 0.78, 0.79]
+    for i in range(40, 100, 5):
+        y1[i:i+5] = np.ones(
+            (5)) * np.random.choice([0.8, 0.83, 0.85])
+
+    x2 = list(range(100))
+    y2 = np.array(range(100), dtype=np.float)
+    y2[:40] = np.zeros((40,))
+    y2[40:50] = [0.3, 0.4, 0.5, 0.6, 0.62, 0.65, 0.68, 0.71, 0.75, 0.85]
+    for i in range(50, 100, 5):
+        y2[i:i+5] = np.ones(
+            (5)) * np.random.choice([0.9, 0.92, 0.95])
+
+    x3 = list(range(100))
+    y3 = np.array(range(100), dtype=np.float)
+    y3[:30] = np.zeros((30,))
+    y3[30:51] = [
+        0.2, 0.24, 0.29, 0.34, 0.4, 0.45, 0.49, 0.53, 0.58, 0.65,
+        0.69, 0.73, 0.75, 0.76, 0.78, 0.79, 0.80, 0.81, 0.82, 0.83, 0.83]
+    for i in range(51, 99, 3):
+        y3[i:i+3] = np.ones(
+            (3, )) * np.random.choice([0.84, 0.87, 0.89])
+    y3[99] = 0.89
+    from scipy.optimize import curve_fit
+    popt1, pcov1 = curve_fit(logistfunc, x1, y1)
+    plt.plot(x2, y2, 'g*', label='data')
+    plt.plot(
+        x2, logistfunc(x2, *popt1), 'g-.',
+        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt1))
+    plt.plot(
+        x2, logistfunc1(x2, *popt1[1:]), 'g--',
+        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple([1, popt1[1], popt1[2]]))
+    plt.tight_layout()
+    plt.legend()
+    plt.ylabel('Probability')
+    plt.xlabel('Time')
+    plt.show()
+
+
 def main():
     # compare()
     # linear_combine()
@@ -348,7 +391,8 @@ def main():
     # get_para()
     # do_comp()
     # fig4()
-    fig3()
+    # fig3()
+    fig5()
 
 
 if __name__ == '__main__':
