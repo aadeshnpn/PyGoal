@@ -375,8 +375,8 @@ def fig5():
 
     x = [x1, x2, x3]
     y = [y1, y2, y3]
-    style = ['g-', 'b-', 'c-', 'm-']
-    # label = ['data1', 'data2', 'data3', 'alldata']
+    style = ['g-', 'b-', 'c-']
+    label = ['data1', 'data2', 'data3']
     dist = []
     for i in range(len(x)):
         popt, pcov = curve_fit(logistfunc, x[i], y[i])
@@ -385,23 +385,36 @@ def fig5():
         # plt.plot(x[i], y[i], style[i], label=label[i])
         plt.plot(
             x[i], logistfunc(x[i], *popt), style[i]+'.',
-            label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt))
-        plt.plot(
-            x[i], logistfunc1(x[i], *popt[1:]), style[i]+'-',
-            label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f'
-            % tuple([1, popt[1], popt[2]]))
+            label=label[i]+' : L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt))
+        # plt.plot(
+        #     x[i], logistfunc1(x[i], *popt[1:]), style[i]+'-',
+        #     label=label[i]+' : L=%5.3f, $\mu$=%5.3f, s=%5.3f'
+        #     % tuple([1, popt[1], popt[2]]))
 
-    # Final competency curve
-    paras = sequence(dist)
-    print(paras)
-    fx = list(range(80))
-    plt.plot(
-        fx, logistfunc(fx, *paras), 'r-.',
-        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(paras))
-    plt.plot(
-        fx, logistfunc1(fx, *paras[1:]), 'r--',
-        label='3P Logistic: L=%5.3f, $\mu$=%5.3f, s=%5.3f'
-        % tuple([1, paras[1], paras[2]]))
+    # Final competency curve using sequence
+    args = [sequence, selector, parallel]
+    labels = ['Sequence', 'Selector', 'Parallel']
+    color = ['orange', 'tomato', 'sienna']
+    for i in range(3):
+        paras = args[i](dist)
+        # print(paras)
+        fx = list(range(80))
+        plt.plot(
+            fx, logistfunc(fx, *paras), '-.', color=color[i],
+            label=labels[i]+ ': L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(paras))
+        # plt.plot(
+        #     fx, logistfunc1(fx, *paras[1:]),'--', color=color[i],
+        #     label=labels[i]+': L=%5.3f, $\mu$=%5.3f, s=%5.3f'
+        #     % tuple([1, paras[1], paras[2]]))
+
+    # popt, pcov = curve_fit(logistfunc, xall, yall)
+    # plt.plot(
+    #     fx, logistfunc(fx, *popt), 'y-.',
+    #     label='Real: L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt))
+    # plt.plot(
+    #     fx, logistfunc1(fx, *popt[1:]), 'y--',
+    #     label='Real: L=%5.3f, $\mu$=%5.3f, s=%5.3f'
+    #     % tuple([1, popt[1], popt[2]]))
 
     plt.tight_layout()
     plt.legend()
@@ -423,36 +436,52 @@ def sequence(nodes):
     m = weights.shape[0]
     M = (m * (m+1)) / 2
     weights = weights / M
-    # weights = np.ones((len(nodes)), dtype=np.float) / len(nodes)
-    # weights = np.ones((len(nodes)), dtype=np.float)
-    # print(weights)
-    # weights = np.ones((len(nodes)))
-    # print(weights)
     # Let X ~ N(mu, std), then Y = kX
     # Y(mu) = k * mu, Y(std) = |k| * std
     means = np.array([node[1] for node in nodes]) * weights
     stds = np.array([stdf(node[2]) for node in nodes]) * weights
-    # print([node[2] for node in nodes])
-    # print(stds)
-    # stds = np.array([stdf(node[2]) for node in nodes]) * np.power(weights, 2)
-    # print(means, stds, np.power(stds, 2))
     # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
     # Z = X + Y, Z ~ N(mu1+mu2, std1^2 + std2^2)
     mean = np.sum(means)
     scale = scalef(np.sum(np.power(stds, 2)))
     confidence = np.array([node[0] for node in nodes]) * weights
-    # print(confidence, weights)
     confidence = np.sum(confidence)
-    # onfidence = np.mean(confidence)
     return [confidence, mean, scale]
 
 
-def selector():
-    pass
+def selector(nodes):
+    weights = np.ones((len(nodes))) / len(nodes)
+    # Let X ~ N(mu, std), then Y = kX
+    # Y(mu) = k * mu, Y(std) = |k| * std
+    means = np.array([node[1] for node in nodes]) * weights
+    stds = np.array([stdf(node[2]) for node in nodes]) * weights
+    # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
+    # Z = X + Y, Z ~ N(mu1+mu2, std1^2 + std2^2)
+    mean = np.sum(means)
+    scale = scalef(np.sum(np.power(stds, 2)))
+    confidence = np.array([node[0] for node in nodes]) * weights
+    confidence = np.sum(confidence)
+    return [confidence, mean, scale]
 
 
-def parallel():
-    pass
+def parallel(nodes):
+    # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
+    # Z = X * Y,
+    # Z(meu) = mu1/std1**2 + mu2/std2**2 / (1/std1**2 + 1/std2**2)
+    # z(std) = std1**2 * std2**2 / (std1**2 + std2**2)
+    node = nodes[0]
+    for i in range(1, len(nodes)):
+        std1sqred = node[2]**2
+        std2sqred = nodes[i][2]**2
+        invstd1 = 1 / std1sqred
+        invstd2 = 1 / std2sqred
+        std = (std1sqred * std2sqred) / (std1sqred + std2sqred)
+        meannum = (node[1] * invstd1) + (nodes[i][1] * invstd2)
+        meandem = invstd1 + invstd2
+        mean = meannum / meandem
+        L = node[0] * nodes[i][0]
+        node = [L, mean, std]
+    return node
 
 
 def main():
