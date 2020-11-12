@@ -149,3 +149,23 @@ def test_goal_paper():
     assert rootname == 'Sequence'
     assert name == 'U'
     assert num_child == 3
+
+
+def test_goal_standard():
+    psi1 = 'F P_[A][True,none,==]'
+    psi2 = 'F P_[B][True,none,==]'
+    psi3 = 'F P_[C][True,none,==]'
+    psi4 = 'F P_[D][True,none,==]'
+    psi5 = 'F P_[E][True,none,==]'
+    psi6 = 'F P_[F][True,none,==]'
+    psi7 = 'F P_[G][True,none,==]'
+    goalspec = '('+psi1+' & '+psi2+') U ('+psi3+' U '+psi4+') U ('+psi5+' U '+psi6+' U '+psi7+')'   # noqa: E501
+
+    print(goalspec)
+    root = goalspec2BT(goalspec)
+    rootname = type(root).__name__
+    name, num_child = root.name, len(root.children)
+    print(root.children, [node.name for node in root.children])
+    assert rootname == 'Sequence'
+    assert name == 'U'
+    assert num_child == 6

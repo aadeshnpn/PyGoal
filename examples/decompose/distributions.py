@@ -116,7 +116,8 @@ def get_para():
         label='3P Logistic: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt))
     # plt.plot(
     #     x, normalcdf(x, popt[1], std), 'y--',
-    #     label='3P Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
+    #     label='3P Normal: $\mu$=%5.3f, $\delta$=%5.3f'
+    #       % tuple([popt[1], std]))
     plt.plot(
         x, logistpdf(x, popt[1], std), 'g--',
         label='3P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
@@ -129,7 +130,8 @@ def get_para():
         label='2P Logistic: a=%5.3f, b=%5.3f' % tuple(popt))
     # plt.plot(
     #     x, normalcdf(x, popt[0], std), 'c--',
-    #     label='2P Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[0], std]))
+    #     label='2P Normal: $\mu$=%5.3f, $\delta$=%5.3f'
+    # % tuple([popt[0], std]))
     plt.plot(
         x, logistpdf(x, popt[0], std), 'r--',
         label='2P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
@@ -191,7 +193,8 @@ def do_comp():
     #     label='All data: a=%5.3f, b=%5.3f, c=%5.3f' % tuple(popt3))
     # # plt.plot(
     # #     x, logistpdf(x, popt[0], std), 'r--',
-    # #     label='2P PDF: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt[1], std]))
+    # #     label='2P PDF: $\mu$=%5.3f, $\delta$=%5.3f'
+    # % tuple([popt[1], std]))
     # plt.ylabel('Probability')
     # plt.xlabel('Time')
     # plt.legend()
@@ -299,7 +302,8 @@ def fig3():
         color='green', alpha=0.2)
     # plt.plot(
     #     x2, normalpdf(x2, popt2[1], std2), 'g--',
-    #     label='Normal: $\mu$=%5.3f, $\delta$=%5.3f' % tuple([popt2[1], std2]),
+    #     label='Normal: $\mu$=%5.3f, $\delta$=%5.3f'
+    # % tuple([popt2[1], std2]),
     #     linewidth=2, alpha=0.5)
     # plt.fill_between(
     #     xvalues, field_max, field_min, color='DodgerBlue', alpha=0.3)
@@ -307,7 +311,8 @@ def fig3():
     # print(x3, y3)
     # plt.plot(
     #     y3, x3, 'c--',
-    #     label='Confidence: $L_2$=%5.3f, $1-L_2$=%5.3f' % tuple([popt2[0], 1-popt2[0]]),
+    #     label='Confidence: $L_2$=%5.3f, $1-L_2$=%5.3f'
+    # % tuple([popt2[0], 1-popt2[0]]),
     #     linewidth=2, alpha=0.5)
     x3 = range(int(popt2[1]), 100)
     plt.plot(
@@ -370,13 +375,13 @@ def fig5():
     y3[80] = 0.89
     from scipy.optimize import curve_fit
     # Combine data
-    xall = x1 + x2 + x3
-    yall = np.concatenate((y1, y2, y3))
+    # xall = x1 + x2 + x3
+    # yall = np.concatenate((y1, y2, y3))
 
     x = [x1, x2, x3]
     y = [y1, y2, y3]
-    style = ['g-', 'b-', 'c-']
-    label = ['data1', 'data2', 'data3']
+    style = ['g--', 'b--', 'c--']
+    label = ['data1 fit', 'data2 fit', 'data3 fit']
     dist = []
     for i in range(len(x)):
         popt, pcov = curve_fit(logistfunc, x[i], y[i])
@@ -384,7 +389,7 @@ def fig5():
         dist.append(popt)
         # plt.plot(x[i], y[i], style[i], label=label[i])
         plt.plot(
-            x[i], logistfunc(x[i], *popt), style[i]+'.',
+            x[i], logistfunc(x[i], *popt), style[i],
             label=label[i]+' : L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(popt))
         # plt.plot(
         #     x[i], logistfunc1(x[i], *popt[1:]), style[i]+'-',
@@ -401,7 +406,8 @@ def fig5():
         fx = list(range(80))
         plt.plot(
             fx, logistfunc(fx, *paras), '-.', color=color[i],
-            label=labels[i]+ ': L=%5.3f, $\mu$=%5.3f, s=%5.3f' % tuple(paras))
+            label=labels[i] + ': L=%5.3f, $\mu$=%5.3f, s=%5.3f'
+            % tuple(paras))
         # plt.plot(
         #     fx, logistfunc1(fx, *paras[1:]),'--', color=color[i],
         #     label=labels[i]+': L=%5.3f, $\mu$=%5.3f, s=%5.3f'
