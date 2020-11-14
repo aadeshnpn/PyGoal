@@ -151,6 +151,9 @@ class GenRecProp:
 
         trace = updateTrace(trace, state)
         j = 0
+        if verbose:
+            self.env.render()
+
         while True:
             # next_state, reward, done, info = self.env.step(
             #    self.env.env_action_dict[action])
