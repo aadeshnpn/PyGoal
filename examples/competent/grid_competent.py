@@ -55,10 +55,11 @@ class GenRecPropKeyDoor(GenRecProp):
         carrykey = 1 if isinstance(env.carrying, Key) else 0
 
         # # Ball
-        carryball = 1 if isinstance(env.carrying, Ball) else 0
-
+        carryball1 = 1 if (isinstance(env.carrying, Ball) and env.carrying.color == 'blue') else 0  # noqa: E501
+        carryball2 = 1 if (isinstance(env.carrying, Ball) and env.carrying.color == 'red') else 0   # noqa: E501
         # # Box
-        carrybox = 1 if isinstance(env.carrying, Box) else 0
+        carrybox1 = 1 if (isinstance(env.carrying, Box) and env.carrying.color == 'blue') else 0    # noqa: E501
+        carrybox2 = 1 if (isinstance(env.carrying, Box) and env.carrying.color == 'red') else 0     # noqa: E501
 
         # Room 1 or 2
         room1 = 1
@@ -71,9 +72,11 @@ class GenRecPropKeyDoor(GenRecProp):
         # Goal near
         goal = 1 if isinstance(item, Goal) else 0
         # Box near
-        box = 1 if isinstance(item, Box) else 0
+        box1 = 1 if (isinstance(item, Box) and item.color == 'blue') else 0
+        box2 = 1 if (isinstance(item, Box) and item.color == 'red') else 0
         # Ball near
-        ball = 1 if isinstance(item, Ball) else 0
+        ball1 = 1 if (isinstance(item, Ball) and item.color == 'blue') else 0
+        ball2 = 1 if (isinstance(item, Ball) and item.color == 'red') else 0
         # Lava near
         lava = 1 if isinstance(item, Lava) else 0
 
@@ -94,20 +97,40 @@ class GenRecPropKeyDoor(GenRecProp):
         return (
             str(pos[0]) + str(pos[1]) + str(ori),
             str(fwd_pos[0]) + str(fwd_pos[1]),
-            str(key), str(door), str(box), str(ball), str(lava), str(goal),
-            str(carrykey), str(carrybox), str(carryball),
+            str(key), str(door),
+            str(box1), str(ball1), str(box2), str(ball2),
+            str(lava), str(goal), str(carrykey),
+            str(carrybox1), str(carryball1), str(carrybox2), str(carryball2),
             str(door_open), str(room1)
             )
 
     # Need to work on this
     def set_state(self, env, trace, i):
-        env = self.unwrapped
-        full_grid = env.grid.encode()
-        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+        envobs = env.unwrapped
+        full_grid = envobs.grid.encode()
+        full_grid[envobs.agent_pos[0]][envobs.agent_pos[1]] = np.array([
             OBJECT_TO_IDX['agent'],
             COLOR_TO_IDX['red'],
-            env.agent_dir
+            envobs.agent_dir
         ])
+
+        def set_items(val, obj, itemcode, env, color=2):
+            if val == '0':
+                pass
+            elif val == '1':
+                if env.carrying is None:
+                    full_grid[:, :, 0] == itemcode
+                    i, j = np.where(full_grid['image'][:, :, 0] == 4)
+                    if len(i) == 1:
+                        item = env.grid.get(i[0], j[0])
+                    else:
+                        for k in range(len(i)):
+                            if full_grid['image'][i[k], j[k]][1] == color:
+                                item = env.grid.get(i[k], j[k])
+                    if isinstance(item, obj):
+                        env.carrying = item
+                        env.carrying.cur_pos = np.array([-1, -1])
+                        env.grid.set((i, j), None)
 
         for k in self.keys:
             # print('set trace', k, trace[k][i])
@@ -130,22 +153,21 @@ class GenRecPropKeyDoor(GenRecProp):
                     item.is_open = status
 
             # Need to work on this function
-            elif k == 'C':
+            elif k == 'CK':
                 c = trace[k][i][-1]
-                if c == '0':
-                    status = False
-                elif c == '1':
-                    status = True
-                    # print('set state', env.carrying)
-                    if env.carrying is None:
-                        full_grid[:, :, 0] == 4
-                        i, j = np.where(full_grid['image'][:, :, 0] == 4)
-                        item = env.grid.get(i, j)
-                        if isinstance(item, Key):
-                            env.carrying = item
-                            env.carrying.cur_pos = np.array([-1, -1])
-                            env.grid.set((i, j), None)
-                    # print('set state', env.carrying)
+                set_items(c, Key, 5, env)
+            elif k == 'CBB':
+                c = trace[k][i][-1]
+                set_items(c, Box, 7, env)
+            elif k == 'CBR':
+                c = trace[k][i][-1]
+                set_items(c, Box, 7, env, color=0)
+            elif k == 'CAB':
+                c = trace[k][i][-1]
+                set_items(c, Ball, 7, env)
+            elif k == 'CAR':
+                c = trace[k][i][-1]
+                set_items(c, Ball, 7, env, color=0)
 
     def create_trace_skeleton(self, state):
         # Create a skeleton for trace
@@ -219,30 +241,30 @@ def goals():
     # env.render(mode='human')
     state, reward, done, _ = env.step(2)
     print(state['image'].shape, reward, done, _)
-    print(OBJECT_TO_IDX)
-    print(state['image'][3][1])
-    print(state['image'][6][1])
-    print(state['image'][:,:,0].shape)
-    i, j = np.where(state['image'][:,:,0]==4)
-    print(i[0], j[0])
-    i, j = np.where(state['image'][:,:,0]==6)
-    print(i, j )
+    # print(OBJECT_TO_IDX)
+    # print(state['image'][3][1])
+    # print(state['image'][6][1])
+    # print(state['image'][:,:,0].shape)
+    # i, j = np.where(state['image'][:,:,0]==4)
+    # print(i[0], j[0])
+    # print(np.where(state['image'][:,:,:]==6))
+    # print(np.where(state['image'][:,:,:]==2))
+    # print(state['image'][i, j])
     # print(np.where(state['image'][:,:,0]==9))
     # time.sleep(15)
     # print(state['image'].shape)
 
-    agent_state = (env.agent_pos, env.agent_dir)
+    # agent_state = (env.agent_pos, env.agent_dir)
     # print(agent_state)
     # print(dir(env.observation_space))
-    exit()
     # Find the key
     goalspec = 'F P_[KE][1,none,==]'
     # keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
     keys = [
         'LO', 'FW', 'KE', 'DR',
-        'BO1', 'BO2', 'BA1', 'BA2'
+        'BOB', 'BOR', 'BAB', 'BAR'
         'LV', 'GO', 'CK',
-        'CB1', 'CB2', 'CA1', 'CA2'
+        'CBB', 'CBR', 'CAB', 'CAR'
         'DO', 'RM']
 
     actions = [0, 1, 2, 3, 4, 5]
