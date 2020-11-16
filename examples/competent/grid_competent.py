@@ -23,11 +23,15 @@ from pygoal.lib.genrecprop import GenRecProp
 class GenRecPropKeyDoor(GenRecProp):
     def __init__(
         self, env, keys, goalspec, gtable=dict(), max_trace=40,
-            actions=[0, 1, 2, 3], epoch=10, seed=None):
+            actions=[0, 1, 2, 3], epoch=10, seed=None, allkeys=None):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.tcount = 0
         self.door_history = 0
+        if allkeys is None:
+            self.allkeys = keys
+        else:
+            self.allkeys = allkeys
 
     def env_action_dict(self, action):
         return action
@@ -94,15 +98,28 @@ class GenRecPropKeyDoor(GenRecProp):
         else:
             door = 0
 
-        return (
-            str(pos[0]) + str(pos[1]) + str(ori),
-            str(fwd_pos[0]) + str(fwd_pos[1]),
-            str(key), str(door),
-            str(box1), str(ball1), str(box2), str(ball2),
-            str(lava), str(goal), str(carrykey),
-            str(carrybox1), str(carryball1), str(carrybox2), str(carryball2),
-            str(door_open), str(room1)
-            )
+        # return (
+        #     str(pos[0]) + str(pos[1]) + str(ori),
+        #     str(fwd_pos[0]) + str(fwd_pos[1]),
+        #     str(key), str(door),
+        #     str(box1), str(box2), str(ball1), str(ball2),
+        #     str(lava), str(goal), str(carrykey),
+        #     str(carrybox1), str(carrybox2), str(carryball1), str(carryball2),
+        #     str(door_open), str(room1)
+        #     )
+        generalizess = {
+            self.allkeys[0]: str(pos[0]) + str(pos[1]) + str(ori),
+            self.allkeys[1]: str(fwd_pos[0]) + str(fwd_pos[1]),
+            self.allkeys[2]: str(key), self.allkeys[3]: str(door),
+            self.allkeys[4]: str(box1), self.allkeys[5]: str(box2),
+            self.allkeys[6]: str(ball1), self.allkeys[7]: str(ball2),
+            self.allkeys[8]: str(lava), self.allkeys[9]: str(goal),
+            self.allkeys[10]: str(carrykey), self.allkeys[11]: str(carrybox1),
+            self.allkeys[12]: str(carrybox2), self.allkeys[13]: str(carryball1),
+            self.allkeys[14]: str(carryball2), self.allkeys[15]: str(door_open),
+            self.allkeys[16]: str(room1)
+        }
+        return [generalizess[k] for k in self.keys]
 
     # Need to work on this
     def set_state(self, env, trace, i):
@@ -210,6 +227,7 @@ class GenRecPropKeyDoor(GenRecProp):
         trace = self.generator()
         # Recognizer
         result, trace = self.recognizer(trace)
+        print(result, trace['KE'])
         # No need to propagate results after exciding the train epoch
         if self.tcount <= epoch:
             # Progagrate the error generate from recognizer
@@ -222,6 +240,7 @@ class GenRecPropKeyDoor(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
+        # print(policy)
         return self.run_policy(policy, self.max_trace_len, verbose=True)
 
 
@@ -240,32 +259,19 @@ def goals():
     env.reset()
     # env.render(mode='human')
     state, reward, done, _ = env.step(2)
-    print(state['image'].shape, reward, done, _)
-    # print(OBJECT_TO_IDX)
-    # print(state['image'][3][1])
-    # print(state['image'][6][1])
-    # print(state['image'][:,:,0].shape)
-    # i, j = np.where(state['image'][:,:,0]==4)
-    # print(i[0], j[0])
-    # print(np.where(state['image'][:,:,:]==6))
-    # print(np.where(state['image'][:,:,:]==2))
-    # print(state['image'][i, j])
-    # print(np.where(state['image'][:,:,0]==9))
-    # time.sleep(15)
-    # print(state['image'].shape)
-
-    # agent_state = (env.agent_pos, env.agent_dir)
-    # print(agent_state)
-    # print(dir(env.observation_space))
+    # print(state['image'].shape, reward, done, _)
     # Find the key
     goalspec = 'F P_[KE][1,none,==]'
     # keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
-    keys = [
+    allkeys = [
         'LO', 'FW', 'KE', 'DR',
-        'BOB', 'BOR', 'BAB', 'BAR'
+        'BOB', 'BOR', 'BAB', 'BAR',
         'LV', 'GO', 'CK',
-        'CBB', 'CBR', 'CAB', 'CAR'
+        'CBB', 'CBR', 'CAB', 'CAR',
         'DO', 'RM']
+
+    keys = [
+        'LO', 'FW', 'KE']
 
     actions = [0, 1, 2, 3, 4, 5]
 
@@ -275,7 +281,7 @@ def goals():
 
     planner = GenRecPropKeyDoor(
         env, keys, child.name, dict(), actions=actions,
-        max_trace=40, seed=None)
+        max_trace=40, seed=None, allkeys=allkeys)
 
     child.setup(0, planner, True, 100)
     print(child.goalspec, child.planner.goalspec, type(child.planner.env))
