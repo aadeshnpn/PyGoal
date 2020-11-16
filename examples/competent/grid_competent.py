@@ -227,7 +227,6 @@ class GenRecPropKeyDoor(GenRecProp):
         trace = self.generator()
         # Recognizer
         result, trace = self.recognizer(trace)
-        print(result, trace['KE'])
         # No need to propagate results after exciding the train epoch
         if self.tcount <= epoch:
             # Progagrate the error generate from recognizer
@@ -249,7 +248,7 @@ def reset_env(env, seed=12345):
     env.reset()
 
 
-def goals():
+def find_key():
     env_name = 'MiniGrid-Goals-v0'
     env = gym.make(env_name)
     env = ReseedWrapper(env, seeds=[3])
@@ -301,5 +300,61 @@ def goals():
     print(i, 'Inference', behaviour_tree.root.status)
 
 
+def carry_key():
+    env_name = 'MiniGrid-Goals-v0'
+    env = gym.make(env_name)
+    env = ReseedWrapper(env, seeds=[3])
+    env = FullyObsWrapper(env)
+    env.max_steps = min(env.max_steps, 200)
+    env.agent_view_size = 1
+    env.reset()
+    # env.render(mode='human')
+    state, reward, done, _ = env.step(2)
+    # print(state['image'].shape, reward, done, _)
+    # Find the key
+    goalspec = 'F P_[KE][1,none,==] U F P_[CK][1,none,==]'
+    # keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
+    allkeys = [
+        'LO', 'FW', 'KE', 'DR',
+        'BOB', 'BOR', 'BAB', 'BAR',
+        'LV', 'GO', 'CK',
+        'CBB', 'CBR', 'CAB', 'CAR',
+        'DO', 'RM']
+
+    keys = [
+        'LO', 'FW', 'KE', 'CK']
+
+    actions = [0, 1, 2, 3, 4, 5]
+
+    root = goalspec2BT(goalspec, planner=None)
+    behaviour_tree = BehaviourTree(root)
+    epoch = [50, 20]
+    j = 0
+    for child in behaviour_tree.root.children:
+        planner = GenRecPropKeyDoor(
+            env, keys, child.name, dict(), actions=actions,
+            max_trace=40, seed=None, allkeys=allkeys)
+
+        child.setup(0, planner, True, epoch[j])
+        j += 1
+        print(child.goalspec, child.planner.goalspec, type(child.planner.env))
+    # Train
+    for i in range(100):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print(i, 'Training', behaviour_tree.root.status)
+
+    for child in behaviour_tree.root.children:
+        child.train = False
+    # Inference
+    for i in range(1):
+        behaviour_tree.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print(i, 'Inference', behaviour_tree.root.status)
+
+
 if __name__ == "__main__":
-    goals()
+    # find_key()
+    carry_key()
