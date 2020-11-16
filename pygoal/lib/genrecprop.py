@@ -5,6 +5,7 @@ from abc import abstractmethod
 
 from flloat.parser.ltlfg import LTLfGParser
 from flloat.semantics.ltlfg import FiniteTrace, FiniteTraceDict
+import time
 
 
 # GenRecProp algorithm
@@ -151,12 +152,13 @@ class GenRecProp:
 
         trace = updateTrace(trace, state)
         j = 0
-        if verbose:
-            self.env.render()
 
         while True:
             # next_state, reward, done, info = self.env.step(
             #    self.env.env_action_dict[action])
+            if verbose:
+                self.env.render()
+                time.sleep(1)
             next_state, reward, done, info = self.env.step(
                 self.env_action_dict(action))
 

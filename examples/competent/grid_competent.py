@@ -1,9 +1,11 @@
 """Compute Competency in a GridWorld"""
 import time
+import numpy as np
 import gym
 import gym_minigrid     # noqa: F401
 from gym_minigrid.minigrid import (     # noqa: F401
-    Grid, OBJECT_TO_IDX, Key, Door, Goal)
+    Grid, OBJECT_TO_IDX, Key, Door, Goal, Ball, Box, Lava,
+    COLOR_TO_IDX)
 
 
 # from utils import (
@@ -14,7 +16,7 @@ from gym_minigrid.minigrid import (     # noqa: F401
 
 from py_trees.trees import BehaviourTree
 from pygoal.utils.bt import goalspec2BT
-from gym_minigrid.wrappers import ReseedWrapper
+from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
 
 
@@ -25,6 +27,7 @@ class GenRecPropKeyDoor(GenRecProp):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.tcount = 0
+        self.door_history = 0
 
     def env_action_dict(self, action):
         return action
@@ -32,12 +35,15 @@ class GenRecPropKeyDoor(GenRecProp):
     def get_curr_state(self, env):
         # Things that I need to make the trace
         # # Agent location
-        # # Caryying 0 or 1
-        # # Key or not
-        # # Door or not
-        # # Goal patch or not
-        # # State (x, y, carry, key, door, goal, reward)
-        # # Location
+        # # Agent direction
+        # # Carrying key or not
+        # # Carrying ball or not
+        # # Carring box or not
+        # # Room 1 or Room 2
+        # # Near Lava or not
+        # # Near door or not
+        # # Door open or closed
+        # # Goal or not
         pos = env.agent_pos
         ori = env.agent_dir
 
@@ -45,21 +51,33 @@ class GenRecPropKeyDoor(GenRecProp):
         # Open door variable
         door_open = 0
 
-        # # Carrying
-        # if env.carrying is None or type(env.carrying).__name__ != 'Key':
-        if isinstance(env.carrying, Key):
-            carry = 1
-        else:
-            carry = 0
+        # # Key
+        carrykey = 1 if isinstance(env.carrying, Key) else 0
 
-        # Key capture
+        # # Ball
+        carryball = 1 if isinstance(env.carrying, Ball) else 0
+
+        # # Box
+        carrybox = 1 if isinstance(env.carrying, Box) else 0
+
+        # Room 1 or 2
+        room1 = 1
+
+        # Front item
         item = env.grid.get(fwd_pos[0], fwd_pos[1])
-        if isinstance(item, Key):
-            key = 1
-        else:
-            key = 0
 
-        # Door capture
+        # Key near
+        key = 1 if isinstance(item, Key) else 0
+        # Goal near
+        goal = 1 if isinstance(item, Goal) else 0
+        # Box near
+        box = 1 if isinstance(item, Box) else 0
+        # Ball near
+        ball = 1 if isinstance(item, Ball) else 0
+        # Lava near
+        lava = 1 if isinstance(item, Lava) else 0
+
+        # Door near
         if isinstance(item, Door):
             door = 1
             # print(item, item.is_open, env.carrying)
@@ -67,42 +85,49 @@ class GenRecPropKeyDoor(GenRecProp):
                 door_open = 1
             else:
                 door_open = 0
+            if self.door_history != door_open:
+                room1 ^= 1  # biwise XOR to filp the integers
+            self.door_history = door_open
         else:
             door = 0
 
-        # Goal
-        if isinstance(item, Goal):
-            goal = 1
-        else:
-            goal = 0
-
         return (
             str(pos[0]) + str(pos[1]) + str(ori),
-            str(fwd_pos[0]) + str(fwd_pos[1]), str(key), str(door),
-            str(carry), str(goal), str(door_open)
+            str(fwd_pos[0]) + str(fwd_pos[1]),
+            str(key), str(door), str(box), str(ball), str(lava), str(goal),
+            str(carrykey), str(carrybox), str(carryball),
+            str(door_open), str(room1)
             )
 
     # Need to work on this
     def set_state(self, env, trace, i):
+        env = self.unwrapped
+        full_grid = env.grid.encode()
+        full_grid[env.agent_pos[0]][env.agent_pos[1]] = np.array([
+            OBJECT_TO_IDX['agent'],
+            COLOR_TO_IDX['red'],
+            env.agent_dir
+        ])
+
         for k in self.keys:
             # print('set trace', k, trace[k][i])
-            if k == 'L':
+            if k == 'LO':
                 x, y, d = trace[k][i][-1]
                 env.agent_pos = (int(x), int(y))
                 env.agent_dir = int(d)
             # elif k == 'F':
             #    fx, fy = trace[k][i][-1]
-            elif k == 'O':
+            elif k == 'DO':
                 o = trace[k][i][-1]
                 if o == '0':
                     status = False
                 else:
                     status = True
-                for i in range(1, 7):
-                    for j in range(1, 7):
-                        item = env.grid.get(i, j)
-                        if isinstance(item, Door):
-                            item.is_open = status
+                full_grid[:, :, 0] == 4
+                i, j = np.where(full_grid['image'][:, :, 0] == 4)
+                item = env.grid.get(i[0], j[0])
+                if isinstance(item, Door):
+                    item.is_open = status
 
             # Need to work on this function
             elif k == 'C':
@@ -113,11 +138,13 @@ class GenRecPropKeyDoor(GenRecProp):
                     status = True
                     # print('set state', env.carrying)
                     if env.carrying is None:
-                        for i in range(1, 7):
-                            for j in range(1, 7):
-                                item = env.grid.get(i, j)
-                                if isinstance(item, Key):
-                                    env.carrying = item
+                        full_grid[:, :, 0] == 4
+                        i, j = np.where(full_grid['image'][:, :, 0] == 4)
+                        item = env.grid.get(i, j)
+                        if isinstance(item, Key):
+                            env.carrying = item
+                            env.carrying.cur_pos = np.array([-1, -1])
+                            env.grid.set((i, j), None)
                     # print('set state', env.carrying)
 
     def create_trace_skeleton(self, state):
@@ -173,7 +200,7 @@ class GenRecPropKeyDoor(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        return self.run_policy(policy, self.max_trace_len)
+        return self.run_policy(policy, self.max_trace_len, verbose=True)
 
 
 def reset_env(env, seed=12345):
@@ -185,20 +212,39 @@ def goals():
     env_name = 'MiniGrid-Goals-v0'
     env = gym.make(env_name)
     env = ReseedWrapper(env, seeds=[3])
-    # env = OneHotPartialObsWrapper(env)
+    env = FullyObsWrapper(env)
     env.max_steps = min(env.max_steps, 200)
     env.agent_view_size = 1
     env.reset()
-    env.render(mode='human')
+    # env.render(mode='human')
     state, reward, done, _ = env.step(2)
     print(state['image'].shape, reward, done, _)
-    time.sleep(15)
+    print(OBJECT_TO_IDX)
+    print(state['image'][3][1])
+    print(state['image'][6][1])
+    print(state['image'][:,:,0].shape)
+    i, j = np.where(state['image'][:,:,0]==4)
+    print(i[0], j[0])
+    i, j = np.where(state['image'][:,:,0]==6)
+    print(i, j )
+    # print(np.where(state['image'][:,:,0]==9))
+    # time.sleep(15)
+    # print(state['image'].shape)
 
-    state = (env.agent_pos, env.agent_dir)
-    print(state)
+    agent_state = (env.agent_pos, env.agent_dir)
+    # print(agent_state)
+    # print(dir(env.observation_space))
+    exit()
     # Find the key
-    goalspec = 'F P_[K][1,none,==]'
-    keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
+    goalspec = 'F P_[KE][1,none,==]'
+    # keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
+    keys = [
+        'LO', 'FW', 'KE', 'DR',
+        'BO1', 'BO2', 'BA1', 'BA2'
+        'LV', 'GO', 'CK',
+        'CB1', 'CB2', 'CA1', 'CA2'
+        'DO', 'RM']
+
     actions = [0, 1, 2, 3, 4, 5]
 
     root = goalspec2BT(goalspec, planner=None)
@@ -219,7 +265,6 @@ def goals():
     print(i, 'Training', behaviour_tree.root.status)
 
     child.train = False
-    child.verbose = True
     # Inference
     for i in range(1):
         behaviour_tree.tick(
