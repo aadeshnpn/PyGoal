@@ -1,5 +1,5 @@
 """Compute Competency in a GridWorld"""
-import time
+# import time
 import numpy as np
 import gym
 import gym_minigrid     # noqa: F401
@@ -7,11 +7,6 @@ from gym_minigrid.minigrid import (     # noqa: F401
     Grid, OBJECT_TO_IDX, Key, Door, Goal, Ball, Box, Lava,
     COLOR_TO_IDX)
 
-# from utils import (
-#     KeyDoorEnvironmentFactory,
-#     KeyDoorPolicyNetwork, TransformerModel, Attention, Regression,
-#     ValueNetwork, ppo, RegressionLoss, multinomial_likelihood
-#     )
 
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
@@ -123,8 +118,10 @@ class GenRecPropKeyDoor(GenRecProp):
             self.allkeys[6]: str(ball1), self.allkeys[7]: str(ball2),
             self.allkeys[8]: str(lava), self.allkeys[9]: str(goal),
             self.allkeys[10]: str(carrykey), self.allkeys[11]: str(carrybox1),
-            self.allkeys[12]: str(carrybox2), self.allkeys[13]: str(carryball1),
-            self.allkeys[14]: str(carryball2), self.allkeys[15]: str(door_open),
+            self.allkeys[12]: str(carrybox2),
+            self.allkeys[13]: str(carryball1),
+            self.allkeys[14]: str(carryball2),
+            self.allkeys[15]: str(door_open),
             self.allkeys[16]: str(room1)
         }
         return [generalizess[k] for k in self.keys]
@@ -285,7 +282,7 @@ class GenRecPropKeyDoor(GenRecProp):
 
     def extract_key(self):
         import re
-        match = re.search('\[[A-Z0-9]+\]', self.goalspec)
+        match = re.search('\[[A-Z0-9]+\]', self.goalspec)   # noqa: W605
         gkey = match.group(0)[1:-1]
         return gkey
 
@@ -422,7 +419,6 @@ def carry_key():
 
         child.setup(0, planner, True, epoch[j])
         j += 1
-        # print(child.goalspec, child.planner.goalspec, type(child.planner.env))
         # print(
         #     type(child), child.name, child.planner.goalspec,
         #     child.planner.blackboard.shared_content)

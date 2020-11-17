@@ -70,7 +70,7 @@ def compare_curve(
             color=colors[i], linewidth=1, alpha=0.5)
         plt.plot(
             x, logistfunc(x, *popt), linepat[1], color=colors[i],
-            label='Logistic : L=%5.2f, $\mu$=%5.2f, s=%5.2f'
+            label='Logistic : L=%5.2f, $\mu$=%5.2f, s=%5.2f'    # noqa: W605
             % tuple(popt), linewidth=2, alpha=0.8)
 
     plt.legend()
