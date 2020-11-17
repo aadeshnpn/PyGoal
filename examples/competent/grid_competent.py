@@ -19,6 +19,7 @@ from pygoal.utils.bt import goalspec2BT
 from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.lib.bt import CompetentNode
+from pygoal.utils.distribution import logistfunc
 
 
 class GenRecPropKeyDoor(GenRecProp):
@@ -286,11 +287,20 @@ class GenRecPropKeyDoor(GenRecProp):
         gkey = match.group(0)[1:-1]
         return gkey
 
-    def compute_competency(self):
-        ctdata = np.mean(
-            self.blackboard.shared_content['ctdata'][self.name], axis=0)
-        cidata = np.mean(
-            self.blackboard.shared_content['cidata'][self.name], axis=0)
+    def compute_competency(self, train=True):
+        from scipy.optimize import curve_fit
+        if train:
+            data = np.mean(
+                self.blackboard.shared_content[
+                    'ctdata'][self.goalspec], axis=0)
+            popt, pcov = curve_fit(logistfunc, range(data.shape[0]), data)
+        else:
+            data = np.mean(
+                self.blackboard.shared_content[
+                    'cidata'][self.goalspec], axis=0)
+            popt, pcov = curve_fit(logistfunc, range(data.shape[0]), data)
+        self.blackboard.shared_content['curve'] = popt
+        return popt
 
 
 def reset_env(env, seed=12345):
@@ -359,6 +369,10 @@ def find_key():
     print(np.mean(
         planner.blackboard.shared_content['cidata'][child.name], axis=0))
     print(i, 'Inference', behaviour_tree.root.status)
+
+    print(
+        planner.compute_competency(),
+        planner.blackboard.shared_content['curve'])
 
 
 def carry_key():
