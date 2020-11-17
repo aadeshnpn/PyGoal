@@ -172,13 +172,14 @@ class GenRecProp:
             except KeyError:
                 trace['A'].append(9)
             # Run the policy as long as the goal is not achieved or less than j
+            # print(j, trace)
             traceset = trace.copy()
             if self.evaluate_trace(self.goalspec, traceset):
-                return True
+                return True, trace
             if j > max_trace_len:
-                return False
+                return False, trace
             j += 1
-        return False
+        return False, trace
 
     def generator(self, env_reset=False):
         if env_reset:
@@ -376,7 +377,8 @@ class GenRecPropMDP(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        return self.run_policy(policy, self.max_trace_len)
+        result, trace = self.run_policy(policy, self.max_trace_len)
+        return result
 
 
 class GenRecPropMDPNear(GenRecProp):
@@ -468,7 +470,8 @@ class GenRecPropMDPNear(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        return self.run_policy(policy, self.max_trace_len)
+        result, trace = self.run_policy(policy, self.max_trace_len)
+        return result
 
 
 class GenRecPropTaxi(GenRecProp):
@@ -552,4 +555,5 @@ class GenRecPropTaxi(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        return self.run_policy(policy, self.max_trace_len)
+        result, trace = self.run_policy(policy, self.max_trace_len)
+        return result

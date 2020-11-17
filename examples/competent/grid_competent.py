@@ -231,17 +231,12 @@ class GenRecPropKeyDoor(GenRecProp):
         # Recognizer
         result, trace = self.recognizer(trace)
         # No need to propagate results after exciding the train epoch
-        import re
-        match = re.search('\[[A-Z0-9]+\]', self.goalspec)
-        gkey = match.group(0)[1:-1]
+        gkey = self.extract_key()
         if self.tcount <= epoch:
             # Update the data to compute competency
-            data = np.zeros((self.max_trace_len))
-            if result:
-                data[:len(trace[gkey])] = np.array(
-                    data[len(trace[gkey])], dtype=np.float)
-                data[len(trace[gkey]):] = 1.0
-            self.blackboard.shared_content['cdata'][self.goalspec].append(data)
+            data = self.aggrigate_data(len(trace[gkey]), result)
+            self.blackboard.shared_content[
+                'ctdata'][self.goalspec].append(data)
             # Progagrate the error generate from recognizer
             self.propagate(result, trace)
             # Increment the count
@@ -254,7 +249,31 @@ class GenRecPropKeyDoor(GenRecProp):
         # Run the policy trained so far
         policy = self.get_policy()
         # print(policy)
-        return self.run_policy(policy, self.max_trace_len, verbose=True)
+        result, trace = self.run_policy(
+            policy, self.max_trace_len, verbose=verbose)
+        gkey = self.extract_key()
+        # print('from inference', self.tcount, self.epoch)
+        print(result, trace)
+        if self.tcount <= self.epoch:
+            data = self.aggrigate_data(len(trace[gkey]), result)
+            self.blackboard.shared_content[
+                'cidata'][self.goalspec].append(data)
+            self.tcount += 1
+        return result
+
+    def aggrigate_data(self, size, result):
+        data = np.zeros((self.max_trace_len+2))
+        if result:
+            data[:size] = np.array(
+                data[size], dtype=np.float)
+            data[size:] = 1.0
+        return data
+
+    def extract_key(self):
+        import re
+        match = re.search('\[[A-Z0-9]+\]', self.goalspec)
+        gkey = match.group(0)[1:-1]
+        return gkey
 
 
 def reset_env(env, seed=12345):
@@ -296,25 +315,32 @@ def find_key():
         env, keys, child.name, dict(), actions=actions,
         max_trace=40, seed=None, allkeys=allkeys)
 
-    child.setup(0, planner, True, 100)
-    print(child.goalspec, child.planner.goalspec, type(child.planner.env))
+    pepoch = 50
+    child.setup(0, planner, True, pepoch)
+    print(
+        child.goalspec, child.planner.goalspec, type(child.planner.env))
     # Train
-    for i in range(100):
+    for i in range(pepoch):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
     # print(
     #     planner.blackboard.shared_content['cdata'],
     #     len(planner.blackboard.shared_content['cdata'][child.name]))
-    print(np.mean(planner.blackboard.shared_content['cdata'][child.name], axis=0))
+    print(np.mean(
+        planner.blackboard.shared_content['ctdata'][child.name], axis=0))
     print(i, 'Training', behaviour_tree.root.status)
 
-    child.train = False
     # Inference
-    for i in range(1):
+    child.train = False
+    child.planner.epoch = 4
+    child.planner.tcount = 0
+    for i in range(4):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
+    print(np.mean(
+        planner.blackboard.shared_content['cidata'][child.name], axis=0))
     print(i, 'Inference', behaviour_tree.root.status)
 
 
