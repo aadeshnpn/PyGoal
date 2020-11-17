@@ -1,5 +1,12 @@
+import os
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib
+
+# If there is $DISPLAY, display the plot
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt     # noqa: E402
 import scipy.stats as stats
 
 

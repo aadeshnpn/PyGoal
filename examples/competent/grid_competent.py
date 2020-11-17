@@ -19,7 +19,8 @@ from pygoal.utils.bt import goalspec2BT
 from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.lib.bt import CompetentNode
-from pygoal.utils.distribution import logistfunc
+from pygoal.utils.distribution import (
+    logistfunc, compare_curve)
 
 
 class GenRecPropKeyDoor(GenRecProp):
@@ -275,7 +276,7 @@ class GenRecPropKeyDoor(GenRecProp):
         return result
 
     def aggrigate_data(self, size, result):
-        data = np.zeros((self.max_trace_len+2))
+        data = np.zeros((self.max_trace_len+3))
         if result:
             data[:size] = np.array(
                 data[size], dtype=np.float)
@@ -297,14 +298,14 @@ class GenRecPropKeyDoor(GenRecProp):
             # print(data)
             popt, pcov = curve_fit(
                 logistfunc, range(data.shape[0]), data,
-                maxfev=1000)
+                maxfev=800)
         else:
             data = np.mean(
                 self.blackboard.shared_content[
                     'cidata'][self.goalspec], axis=0)
             popt, pcov = curve_fit(
                 logistfunc, range(data.shape[0]), data,
-                maxfev=1000)
+                maxfev=800)
         self.blackboard.shared_content['curve'] = popt
         return popt
 
@@ -348,37 +349,37 @@ def find_key():
         env, keys, child.name, dict(), actions=actions,
         max_trace=40, seed=None, allkeys=allkeys)
 
-    pepoch = 50
-    child.setup(0, planner, True, pepoch)
+    def run(pepoch=50, iepoch=10):
+        # pepoch = 50
+        child.setup(0, planner, True, pepoch)
+        # Train
+        for i in range(pepoch):
+            behaviour_tree.tick(
+                pre_tick_handler=reset_env(env)
+            )
+        # Inference
+        child.train = False
+        child.planner.epoch = iepoch
+        child.planner.tcount = 0
+        for i in range(iepoch):
+            behaviour_tree.tick(
+                pre_tick_handler=reset_env(env)
+            )
+    competency = []
+    epochs = [(50, 10)] * 2
+    datas = []
+    for i in range(2):
+        run(epochs[i][0], epochs[i][1])
+        datas.append(
+            np.mean(
+                planner.blackboard.shared_content[
+                    'ctdata'][planner.goalspec], axis=0))
+        competency.append(planner.compute_competency())
+    print(competency)
+    compare_curve(competency, datas)
     # print(
-    #     child.goalspec, child.planner.goalspec, type(child.planner.env))
-    # Train
-    for i in range(pepoch):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    # print(
-    #     planner.blackboard.shared_content['cdata'],
-    #     len(planner.blackboard.shared_content['cdata'][child.name]))
-    # print(np.mean(
-    #     planner.blackboard.shared_content['ctdata'][child.name], axis=0))
-    # print(i, 'Training', behaviour_tree.root.status)
-
-    # Inference
-    child.train = False
-    child.planner.epoch = 50
-    child.planner.tcount = 0
-    for i in range(50):
-        behaviour_tree.tick(
-            pre_tick_handler=reset_env(env)
-        )
-    # print(np.mean(
-    #     planner.blackboard.shared_content['cidata'][child.name], axis=0))
-    # print(i, 'Inference', behaviour_tree.root.status)
-
-    print(
-        planner.compute_competency(),
-        planner.blackboard.shared_content['curve'])
+    #     planner.compute_competency(),
+    #     planner.blackboard.shared_content['curve'])
 
 
 def carry_key():
@@ -447,5 +448,5 @@ def carry_key():
 
 
 if __name__ == "__main__":
-    # find_key()
-    carry_key()
+    find_key()
+    # carry_key()
