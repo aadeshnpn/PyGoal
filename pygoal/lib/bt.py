@@ -91,12 +91,14 @@ class CompetentNode(Behaviour):
 
     def __init__(self, name, planner, train=True):
         """Init method for the policy behavior."""
-        super(GoalNode, self).__init__(name)
+        super(CompetentNode, self).__init__(name)
         self.blackboard = Blackboard()
         self.planner = planner
         self.train = train
         self.blackboard.shared_content = dict()
         self.blackboard.shared_content['curve'] = [0, 0, 0]
+        self.blackboard.shared_content['cdata'] = dict()
+        self.blackboard.shared_content['cdata'][name] = list()
 
     def setup(
             self, timeout, planner=Planner.DEFAULT,

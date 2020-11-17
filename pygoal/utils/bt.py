@@ -35,13 +35,13 @@ def rparser(formula, root, planner):
     return root
 
 
-def goalspec2BT(goalspec, planner=Planner.DEFAULT):
+def goalspec2BT(goalspec, planner=Planner.DEFAULT, node=GoalNode):
     parser = LTLfGParser()
     ltlformula = parser(goalspec)
     # If the specification is already atomic no need to call his
     if type(ltlformula) in [LTLfgAtomic, LTLfEventually, LTLfAlways]:
         # root = DummyNode(str(ltlformula), planner)
-        root = GoalNode(str(ltlformula), planner)
+        root = node(str(ltlformula), planner)
     else:
         rootnode = find_control_node(ltlformula.operator_symbol)
         root = rparser(ltlformula.formulas, rootnode, planner)

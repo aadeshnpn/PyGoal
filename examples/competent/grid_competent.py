@@ -7,7 +7,6 @@ from gym_minigrid.minigrid import (     # noqa: F401
     Grid, OBJECT_TO_IDX, Key, Door, Goal, Ball, Box, Lava,
     COLOR_TO_IDX)
 
-
 # from utils import (
 #     KeyDoorEnvironmentFactory,
 #     KeyDoorPolicyNetwork, TransformerModel, Attention, Regression,
@@ -15,9 +14,11 @@ from gym_minigrid.minigrid import (     # noqa: F401
 #     )
 
 from py_trees.trees import BehaviourTree
+from py_trees import Blackboard
 from pygoal.utils.bt import goalspec2BT
 from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
+from pygoal.lib.bt import CompetentNode
 
 
 class GenRecPropKeyDoor(GenRecProp):
@@ -32,6 +33,8 @@ class GenRecPropKeyDoor(GenRecProp):
             self.allkeys = keys
         else:
             self.allkeys = allkeys
+        # Initialize blackboard to store data
+        self.blackboard = Blackboard()
 
     def env_action_dict(self, action):
         return action
@@ -228,12 +231,23 @@ class GenRecPropKeyDoor(GenRecProp):
         # Recognizer
         result, trace = self.recognizer(trace)
         # No need to propagate results after exciding the train epoch
+        import re
+        match = re.search('\[[A-Z0-9]+\]', self.goalspec)
+        gkey = match.group(0)[1:-1]
         if self.tcount <= epoch:
+            # Update the data to compute competency
+            data = np.zeros((self.max_trace_len))
+            if result:
+                data[:len(trace[gkey])] = np.array(
+                    data[len(trace[gkey])], dtype=np.float)
+                data[len(trace[gkey]):] = 1.0
+            self.blackboard.shared_content['cdata'][self.goalspec].append(data)
             # Progagrate the error generate from recognizer
             self.propagate(result, trace)
             # Increment the count
             self.tcount += 1
-
+            # print(self.tcount, trace[gkey], result)
+            # print(self.tcount, data)
         return result
 
     def inference(self, render=False, verbose=False):
@@ -274,7 +288,7 @@ def find_key():
 
     actions = [0, 1, 2, 3, 4, 5]
 
-    root = goalspec2BT(goalspec, planner=None)
+    root = goalspec2BT(goalspec, planner=None, node=CompetentNode)
     behaviour_tree = BehaviourTree(root)
     child = behaviour_tree.root
 
@@ -285,10 +299,14 @@ def find_key():
     child.setup(0, planner, True, 100)
     print(child.goalspec, child.planner.goalspec, type(child.planner.env))
     # Train
-    for i in range(50):
+    for i in range(100):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
+    # print(
+    #     planner.blackboard.shared_content['cdata'],
+    #     len(planner.blackboard.shared_content['cdata'][child.name]))
+    print(np.mean(planner.blackboard.shared_content['cdata'][child.name], axis=0))
     print(i, 'Training', behaviour_tree.root.status)
 
     child.train = False
@@ -356,5 +374,5 @@ def carry_key():
 
 
 if __name__ == "__main__":
-    # find_key()
-    carry_key()
+    find_key()
+    # carry_key()
