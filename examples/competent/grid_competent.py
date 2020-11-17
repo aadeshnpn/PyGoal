@@ -16,7 +16,8 @@ from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.lib.bt import CompetentNode
 from pygoal.utils.distribution import (
-    logistfunc, compare_curve)
+    logistfunc, compare_curve,
+    sequence, selector, parallel)
 
 
 class GenRecPropKeyDoor(GenRecProp):
@@ -304,7 +305,7 @@ class GenRecPropKeyDoor(GenRecProp):
             popt, pcov = curve_fit(
                 logistfunc, range(data.shape[0]), data,
                 maxfev=800)
-        self.blackboard.shared_content['curve'] = popt
+        self.blackboard.shared_content['curve'][self.goalspec] = popt
         return popt
 
 
@@ -419,7 +420,7 @@ def carry_key():
     # behaviour_tree.root.add_children([lseq, rseq])
     # epoch = [80, 20]
     epoch = 80
-    j = 0
+    # j = 0
 
     def fn_c(child):
         pass
@@ -436,7 +437,7 @@ def carry_key():
         child.planner.epoch = 5
         child.planner.tcount = 0
 
-    def fn_ecomp(child, datas=None, competency=None):
+    def fn_ecomp(child):
         # datas.append(
         #     np.mean(
         #         child.planner.blackboard.shared_content[
@@ -444,9 +445,10 @@ def carry_key():
         child.planner.compute_competency()
         print(
             child.name,
-            child.planner.blackboard.shared_content['curve'])
+            child.planner.blackboard.shared_content['curve'][child.name])
 
     recursive_setup(behaviour_tree.root, fn_eset, fn_c)
+    # recursive_setup(behaviour_tree.root, fn_c, fn_c)
     # py_trees.logging.level = py_trees.logging.Level.DEBUG
     # py_trees.display.print_ascii_tree(behaviour_tree.root)
 
@@ -465,6 +467,8 @@ def carry_key():
         )
     print(i, 'Inference', behaviour_tree.root.status)
     recursive_setup(behaviour_tree.root, fn_ecomp, fn_c)
+    # recursive_setup(behaviour_tree.root, fn_c, fn_c)
+    print(recursive_com(behaviour_tree.root))
 
 
 def recursive_setup(node, fn_e, fn_c):
@@ -480,6 +484,25 @@ def recursive_setup(node, fn_e, fn_c):
         # Execution nodes
         # print('execution nodes', node.name)
         return fn_e(node)
+
+
+def recursive_com(node):
+    # print(c.name)
+    if isinstance(node, Sequence):
+        return sequence(
+            [recursive_com(child) for child in node.children])
+    elif isinstance(node, Selector):
+        return selector(
+            [recursive_com(child) for child in node.children])
+    elif isinstance(node, Parallel):
+        return parallel(
+            [recursive_com(child) for child in node.children])
+
+    else:
+        # Execution nodes
+        # print('execution nodes', node.name)
+        # return fn_e(node)
+        return node.planner.blackboard.shared_content['curve'][node.name]
 
 
 if __name__ == "__main__":

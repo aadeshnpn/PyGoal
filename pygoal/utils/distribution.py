@@ -49,6 +49,14 @@ def normalcdf(x, loc, std):
     return stats.norm.cdf(x, loc, std)
 
 
+def stdf(scale):
+    return (scale * np.pi) / np.sqrt(3)
+
+
+def scalef(std):
+    return (np.sqrt(3) / np.pi) * std
+
+
 def compare_curve(
         competency, datas, visdata=True, vispdf=False,
         viscdf=True, name='competency'):
@@ -86,3 +94,56 @@ def compare_curve(
     fig.savefig(fname)  # pylint: disable = E1101
     plt.close(fig)
     # plt.show()
+
+
+def sequence(nodes):
+    weights = np.array(list(range(len(nodes), 0, -1)), dtype=np.float)
+    m = weights.shape[0]
+    M = (m * (m+1)) / 2
+    weights = weights / M
+    # Let X ~ N(mu, std), then Y = kX
+    # Y(mu) = k * mu, Y(std) = |k| * std
+    means = np.array([node[1] for node in nodes]) * weights
+    stds = np.array([stdf(node[2]) for node in nodes]) * weights
+    # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
+    # Z = X + Y, Z ~ N(mu1+mu2, std1^2 + std2^2)
+    mean = np.sum(means)
+    scale = scalef(np.sum(np.power(stds, 2)))
+    confidence = np.array([node[0] for node in nodes]) * weights
+    confidence = np.sum(confidence)
+    return [confidence, mean, scale]
+
+
+def selector(nodes):
+    weights = np.ones((len(nodes))) / len(nodes)
+    # Let X ~ N(mu, std), then Y = kX
+    # Y(mu) = k * mu, Y(std) = |k| * std
+    means = np.array([node[1] for node in nodes]) * weights
+    stds = np.array([stdf(node[2]) for node in nodes]) * weights
+    # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
+    # Z = X + Y, Z ~ N(mu1+mu2, std1^2 + std2^2)
+    mean = np.sum(means)
+    scale = scalef(np.sum(np.power(stds, 2)))
+    confidence = np.array([node[0] for node in nodes]) * weights
+    confidence = np.sum(confidence)
+    return [confidence, mean, scale]
+
+
+def parallel(nodes):
+    # Let X ~ N(mu1, std1) and Y ~ N(mu2, std2) then
+    # Z = X * Y,
+    # Z(meu) = mu1/std1**2 + mu2/std2**2 / (1/std1**2 + 1/std2**2)
+    # z(std) = std1**2 * std2**2 / (std1**2 + std2**2)
+    node = nodes[0]
+    for i in range(1, len(nodes)):
+        std1sqred = node[2]**2
+        std2sqred = nodes[i][2]**2
+        invstd1 = 1 / std1sqred
+        invstd2 = 1 / std2sqred
+        std = (std1sqred * std2sqred) / (std1sqred + std2sqred)
+        meannum = (node[1] * invstd1) + (nodes[i][1] * invstd2)
+        meandem = invstd1 + invstd2
+        mean = meannum / meandem
+        L = node[0] * nodes[i][0]
+        node = [L, mean, std]
+    return node

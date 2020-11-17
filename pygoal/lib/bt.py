@@ -96,9 +96,10 @@ class CompetentNode(Behaviour):
         self.planner = planner
         self.train = train
         try:
-            self.blackboard.shared_content['curve'] = [0, 0, 0]
+            self.blackboard.shared_content['curve'][name] = [0, 0, 0]
         except AttributeError:
             self.blackboard.shared_content = dict()
+            self.blackboard.shared_content['curve'] = dict()
         try:
             self.blackboard.shared_content[
                 'ctdata'][name] = list()
@@ -127,7 +128,6 @@ class CompetentNode(Behaviour):
         self.n = 0
         self.train = train
         self.planner.epoch = epoch
-
 
         # # This is the first node to get the environment
         # if (
