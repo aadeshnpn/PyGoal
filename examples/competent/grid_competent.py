@@ -318,13 +318,16 @@ def reset_env(env, seed=12345):
 def find_key():
     env_name = 'MiniGrid-Goals-v0'
     env = gym.make(env_name)
-    env = ReseedWrapper(env, seeds=[3])
+    # env = ReseedWrapper(env, seeds=[3])   # Easy
+    env = ReseedWrapper(env, seeds=[5])     # Medium
+    # env = ReseedWrapper(env, seeds=[7])     # Hard
     env = FullyObsWrapper(env)
     env.max_steps = min(env.max_steps, 200)
     env.agent_view_size = 1
     env.reset()
     # env.render(mode='human')
-    state, reward, done, _ = env.step(2)
+    # time.sleep(10)
+    # state, reward, done, _ = env.step(2)
     # print(state['image'].shape, reward, done, _)
     # Find the key
     goalspec = 'F P_[KE][1,none,==]'
@@ -339,7 +342,7 @@ def find_key():
     keys = [
         'LO', 'FW', 'KE']
 
-    actions = [0, 1, 2, 3, 4, 5]
+    actions = [0, 1, 2]
 
     root = goalspec2BT(goalspec, planner=None, node=CompetentNode)
     behaviour_tree = BehaviourTree(root)
@@ -347,7 +350,7 @@ def find_key():
 
     planner = GenRecPropKeyDoor(
         env, keys, child.name, dict(), actions=actions,
-        max_trace=40, seed=None, allkeys=allkeys)
+        max_trace=50, seed=None, allkeys=allkeys)
 
     def run(pepoch=50, iepoch=10):
         # pepoch = 50
@@ -366,7 +369,7 @@ def find_key():
                 pre_tick_handler=reset_env(env)
             )
     competency = []
-    epochs = [(50, 10)] * 2
+    epochs = [(80, 10)] * 2
     datas = []
     for i in range(2):
         run(epochs[i][0], epochs[i][1])
