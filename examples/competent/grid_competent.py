@@ -262,7 +262,6 @@ class GenRecPropKeyDoor(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        print(policy)
         result, trace = self.run_policy(
             policy, self.max_trace_len, verbose=False)
         gkey = self.extract_key()
@@ -295,12 +294,17 @@ class GenRecPropKeyDoor(GenRecProp):
             data = np.mean(
                 self.blackboard.shared_content[
                     'ctdata'][self.goalspec], axis=0)
-            popt, pcov = curve_fit(logistfunc, range(data.shape[0]), data)
+            # print(data)
+            popt, pcov = curve_fit(
+                logistfunc, range(data.shape[0]), data,
+                maxfev=1000)
         else:
             data = np.mean(
                 self.blackboard.shared_content[
                     'cidata'][self.goalspec], axis=0)
-            popt, pcov = curve_fit(logistfunc, range(data.shape[0]), data)
+            popt, pcov = curve_fit(
+                logistfunc, range(data.shape[0]), data,
+                maxfev=1000)
         self.blackboard.shared_content['curve'] = popt
         return popt
 
@@ -427,19 +431,19 @@ def carry_key():
 
     for child in behaviour_tree.root.children:
         child.train = False
-        child.planner.epoch = 1
+        child.planner.epoch = 5
         child.planner.tcount = 0
     # Inference
 
-    for i in range(1):
+    for i in range(5):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
     print(i, 'Inference', behaviour_tree.root.status)
     for child in behaviour_tree.root.children:
         print(
-            child.planner.compute_competency(),
-            child.planner.blackboard.shared_content['curve'])
+            child.name, child.planner.compute_competency(),
+            )
 
 
 if __name__ == "__main__":
