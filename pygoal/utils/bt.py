@@ -11,27 +11,29 @@ from pygoal.lib.planner import Planner
 
 
 # Recursive script to build a BT from LTL specs
-def rparser(formula, root, planner):
+def rparser(formula, root, planner, node):
     if len(formula) > 2:
         for i in range(len(formula)):
-            root.add_children([GoalNode(str(formula[i]), planner)])
+            root.add_children([node(str(formula[i]), planner)])
     elif len(formula) == 2:
         if type(formula[0]) not in [
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[0].operator_symbol)
-            root.add_children([rparser(formula[0].formulas, op, planner)])
+            root.add_children(
+                [rparser(formula[0].formulas, op, planner, node)])
         else:
             # Creat BT execution node
-            root.add_children([GoalNode(str(formula[0]), planner)])
+            root.add_children([node(str(formula[0]), planner)])
         if type(formula[1]) not in [
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[1].operator_symbol)
-            root.add_children([rparser(formula[0].formulas, op, planner)])
+            root.add_children(
+                [rparser(formula[0].formulas, op, planner, node)])
         else:
-            root.add_children([GoalNode(str(formula[1]), planner)])
+            root.add_children([node(str(formula[1]), planner)])
 
     elif len(formula) == 1:
-        root.add_children([GoalNode(str(formula), planner)])
+        root.add_children([node(str(formula), planner)])
     return root
 
 
@@ -44,7 +46,7 @@ def goalspec2BT(goalspec, planner=Planner.DEFAULT, node=GoalNode):
         root = node(str(ltlformula), planner)
     else:
         rootnode = find_control_node(ltlformula.operator_symbol)
-        root = rparser(ltlformula.formulas, rootnode, planner)
+        root = rparser(ltlformula.formulas, rootnode, planner, node)
 
     return root
 

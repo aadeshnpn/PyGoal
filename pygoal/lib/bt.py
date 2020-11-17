@@ -95,12 +95,22 @@ class CompetentNode(Behaviour):
         self.blackboard = Blackboard()
         self.planner = planner
         self.train = train
-        self.blackboard.shared_content = dict()
-        self.blackboard.shared_content['curve'] = [0, 0, 0]
-        self.blackboard.shared_content['ctdata'] = dict()
-        self.blackboard.shared_content['ctdata'][name] = list()
-        self.blackboard.shared_content['cidata'] = dict()
-        self.blackboard.shared_content['cidata'][name] = list()
+        try:
+            self.blackboard.shared_content['curve'] = [0, 0, 0]
+        except AttributeError:
+            self.blackboard.shared_content = dict()
+        try:
+            self.blackboard.shared_content[
+                'ctdata'][name] = list()
+            self.blackboard.shared_content[
+                'cidata'][name] = list()
+        except KeyError:
+            self.blackboard.shared_content['ctdata'] = dict()
+            self.blackboard.shared_content['cidata'] = dict()
+            self.blackboard.shared_content[
+                'ctdata'][name] = list()
+            self.blackboard.shared_content[
+                'cidata'][name] = list()
 
     def setup(
             self, timeout, planner=Planner.DEFAULT,
@@ -117,6 +127,8 @@ class CompetentNode(Behaviour):
         self.n = 0
         self.train = train
         self.planner.epoch = epoch
+
+
         # # This is the first node to get the environment
         # if (
         #     'env' not in self.blackboard.shared_content.keys()

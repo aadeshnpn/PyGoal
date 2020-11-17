@@ -139,6 +139,7 @@ class GenRecProp:
         try:
             action = self.get_action_policy(policy, state)
         except KeyError:
+            print('State does not exist in the policy', state)
             return False
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))
         trace['A'] = [action]
@@ -239,7 +240,7 @@ class GenRecProp:
             t = self.create_trace_flloat(traceset, i)
             result = parsed_formula.truth(t)
             if result is True:
-                # self.set_state(self.env, trace, i)
+                self.set_state(self.env, trace, i)
                 return True, self.create_trace_dict(trace, i)
 
         return result, self.create_trace_dict(trace, i)

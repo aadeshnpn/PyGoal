@@ -138,23 +138,25 @@ class GenRecPropKeyDoor(GenRecProp):
             envobs.agent_dir
         ])
 
-        def set_items(val, obj, itemcode, env, color=2):
+        def set_items(val, obj, itemcode, env, full_grid, color=2):
             if val == '0':
                 pass
             elif val == '1':
+                k = 0
                 if env.carrying is None:
                     full_grid[:, :, 0] == itemcode
-                    i, j = np.where(full_grid['image'][:, :, 0] == 4)
+                    i, j = np.where(full_grid[:, :, 0] == itemcode)
                     if len(i) == 1:
                         item = env.grid.get(i[0], j[0])
                     else:
                         for k in range(len(i)):
-                            if full_grid['image'][i[k], j[k]][1] == color:
+                            if full_grid[i[k], j[k]][1] == color:
                                 item = env.grid.get(i[k], j[k])
+                                break
                     if isinstance(item, obj):
                         env.carrying = item
                         env.carrying.cur_pos = np.array([-1, -1])
-                        env.grid.set((i, j), None)
+                        env.grid.set(i[k], j[k], None)
 
         for k in self.keys:
             # print('set trace', k, trace[k][i])
@@ -170,8 +172,8 @@ class GenRecPropKeyDoor(GenRecProp):
                     status = False
                 else:
                     status = True
-                full_grid[:, :, 0] == 4
-                i, j = np.where(full_grid['image'][:, :, 0] == 4)
+                # full_grid[:, :, 0] == 4
+                i, j = np.where(full_grid[:, :, 0] == 4)
                 item = env.grid.get(i[0], j[0])
                 if isinstance(item, Door):
                     item.is_open = status
@@ -179,19 +181,19 @@ class GenRecPropKeyDoor(GenRecProp):
             # Need to work on this function
             elif k == 'CK':
                 c = trace[k][i][-1]
-                set_items(c, Key, 5, env)
+                set_items(c, Key, 5, env, full_grid)
             elif k == 'CBB':
                 c = trace[k][i][-1]
-                set_items(c, Box, 7, env)
+                set_items(c, Box, 7, env, full_grid)
             elif k == 'CBR':
                 c = trace[k][i][-1]
-                set_items(c, Box, 7, env, color=0)
+                set_items(c, Box, 7, env, full_grid, color=0)
             elif k == 'CAB':
                 c = trace[k][i][-1]
-                set_items(c, Ball, 7, env)
+                set_items(c, Ball, 6, env, full_grid)
             elif k == 'CAR':
                 c = trace[k][i][-1]
-                set_items(c, Ball, 7, env, color=0)
+                set_items(c, Ball, 6, env, full_grid, color=0)
 
     def create_trace_skeleton(self, state):
         # Create a skeleton for trace
@@ -260,9 +262,9 @@ class GenRecPropKeyDoor(GenRecProp):
     def inference(self, render=False, verbose=False):
         # Run the policy trained so far
         policy = self.get_policy()
-        # print(policy)
+        print(policy)
         result, trace = self.run_policy(
-            policy, self.max_trace_len, verbose=verbose)
+            policy, self.max_trace_len, verbose=False)
         gkey = self.extract_key()
         # print('from inference', self.tcount, self.epoch)
         # print(result, trace)
@@ -344,8 +346,8 @@ def find_key():
 
     pepoch = 50
     child.setup(0, planner, True, pepoch)
-    print(
-        child.goalspec, child.planner.goalspec, type(child.planner.env))
+    # print(
+    #     child.goalspec, child.planner.goalspec, type(child.planner.env))
     # Train
     for i in range(pepoch):
         behaviour_tree.tick(
@@ -354,9 +356,9 @@ def find_key():
     # print(
     #     planner.blackboard.shared_content['cdata'],
     #     len(planner.blackboard.shared_content['cdata'][child.name]))
-    print(np.mean(
-        planner.blackboard.shared_content['ctdata'][child.name], axis=0))
-    print(i, 'Training', behaviour_tree.root.status)
+    # print(np.mean(
+    #     planner.blackboard.shared_content['ctdata'][child.name], axis=0))
+    # print(i, 'Training', behaviour_tree.root.status)
 
     # Inference
     child.train = False
@@ -366,9 +368,9 @@ def find_key():
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
-    print(np.mean(
-        planner.blackboard.shared_content['cidata'][child.name], axis=0))
-    print(i, 'Inference', behaviour_tree.root.status)
+    # print(np.mean(
+    #     planner.blackboard.shared_content['cidata'][child.name], axis=0))
+    # print(i, 'Inference', behaviour_tree.root.status)
 
     print(
         planner.compute_competency(),
@@ -401,7 +403,7 @@ def carry_key():
 
     actions = [0, 1, 2, 3, 4, 5]
 
-    root = goalspec2BT(goalspec, planner=None)
+    root = goalspec2BT(goalspec, planner=None, node=CompetentNode)
     behaviour_tree = BehaviourTree(root)
     epoch = [50, 20]
     j = 0
@@ -412,7 +414,10 @@ def carry_key():
 
         child.setup(0, planner, True, epoch[j])
         j += 1
-        print(child.goalspec, child.planner.goalspec, type(child.planner.env))
+        # print(child.goalspec, child.planner.goalspec, type(child.planner.env))
+        # print(
+        #     type(child), child.name, child.planner.goalspec,
+        #     child.planner.blackboard.shared_content)
     # Train
     for i in range(100):
         behaviour_tree.tick(
@@ -422,14 +427,21 @@ def carry_key():
 
     for child in behaviour_tree.root.children:
         child.train = False
+        child.planner.epoch = 1
+        child.planner.tcount = 0
     # Inference
+
     for i in range(1):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
     print(i, 'Inference', behaviour_tree.root.status)
+    for child in behaviour_tree.root.children:
+        print(
+            child.planner.compute_competency(),
+            child.planner.blackboard.shared_content['curve'])
 
 
 if __name__ == "__main__":
-    find_key()
-    # carry_key()
+    # find_key()
+    carry_key()
