@@ -123,8 +123,8 @@ class CompetentNode(Behaviour):
         policy is the item the agent need to execute in the envrionment.
         """
         self.planner = planner
-        self.goalspec = self.name
-        self.planner.goalspec = self.goalspec
+        self.goalspec = planner.goalspec
+        # self.planner.goalspec = self.goalspec
         self.n = 0
         self.train = train
         self.planner.epoch = epoch

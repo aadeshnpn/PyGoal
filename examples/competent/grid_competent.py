@@ -24,7 +24,7 @@ class GenRecPropKeyDoor(GenRecProp):
     def __init__(
         self, env, keys, goalspec, gtable=dict(), max_trace=40,
             actions=[0, 1, 2, 3], epoch=10, seed=None, allkeys=None,
-            actionu=0.90):
+            actionu=0.90, id=None):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.tcount = 0
@@ -37,6 +37,8 @@ class GenRecPropKeyDoor(GenRecProp):
         self.blackboard = Blackboard()
         # Action uncertainty
         self.prob = actionu
+        # Id to reference the blackboard
+        self.id = self.goalspec if id is None else id
 
     def env_action_dict(self, action):
         return action
@@ -250,7 +252,7 @@ class GenRecPropKeyDoor(GenRecProp):
             # Update the data to compute competency
             data = self.aggrigate_data(len(trace[gkey]), result)
             self.blackboard.shared_content[
-                'ctdata'][self.goalspec].append(data)
+                'ctdata'][self.id].append(data)
             # Progagrate the error generate from recognizer
             self.propagate(result, trace)
             # Increment the count
@@ -270,7 +272,7 @@ class GenRecPropKeyDoor(GenRecProp):
         if self.tcount <= self.epoch:
             data = self.aggrigate_data(len(trace[gkey]), result)
             self.blackboard.shared_content[
-                'cidata'][self.goalspec].append(data)
+                'cidata'][self.id].append(data)
             self.tcount += 1
         return result
 
@@ -293,19 +295,25 @@ class GenRecPropKeyDoor(GenRecProp):
         if train:
             data = np.mean(
                 self.blackboard.shared_content[
-                    'ctdata'][self.goalspec], axis=0)
+                    'ctdata'][self.id], axis=0)
             # print(data)
-            popt, pcov = curve_fit(
-                logistfunc, range(data.shape[0]), data,
-                maxfev=800)
+            try:
+                popt, pcov = curve_fit(
+                    logistfunc, range(data.shape[0]), data,
+                    maxfev=800)
+            except RuntimeError:
+                popt = np.array([1, 1, 1])
         else:
             data = np.mean(
                 self.blackboard.shared_content[
-                    'cidata'][self.goalspec], axis=0)
-            popt, pcov = curve_fit(
-                logistfunc, range(data.shape[0]), data,
-                maxfev=800)
-        self.blackboard.shared_content['curve'][self.goalspec] = popt
+                    'cidata'][self.id], axis=0)
+            try:
+                popt, pcov = curve_fit(
+                    logistfunc, range(data.shape[0]), data,
+                    maxfev=800)
+            except RuntimeError:
+                popt = np.array([1, 1, 1])
+        self.blackboard.shared_content['curve'][self.id] = popt
         return popt
 
 
@@ -486,18 +494,26 @@ def recursive_setup(node, fn_e, fn_c):
         return fn_e(node)
 
 
-def recursive_com(node):
+def recursive_com(node, blackboard):
     # print(c.name)
     if isinstance(node, Sequence):
-        return sequence(
-            [recursive_com(child) for child in node.children])
+        val = sequence(
+            [recursive_com(child, blackboard) for child in node.children])
+        blackboard.shared_content[
+            'curve'][node.name] = val
+        return val
     elif isinstance(node, Selector):
-        return selector(
-            [recursive_com(child) for child in node.children])
+        val = selector(
+            [recursive_com(child, blackboard) for child in node.children])
+        blackboard.shared_content[
+            'curve'][node.name] = val
+        return val
     elif isinstance(node, Parallel):
-        return parallel(
-            [recursive_com(child) for child in node.children])
-
+        val = parallel(
+            [recursive_com(child, blackboard) for child in node.children])
+        blackboard.shared_content[
+            'curve'][node.name] = val
+        return val
     else:
         # Execution nodes
         # print('execution nodes', node.name)
@@ -505,6 +521,97 @@ def recursive_com(node):
         return node.planner.blackboard.shared_content['curve'][node.name]
 
 
+def test_comptency():
+    import py_trees
+    # behaviour_tree = BehaviourTree(root)
+    one = BehaviourTree(Sequence(name=str(1)))
+    two = Sequence(name=str(2))
+    three = Sequence(name=str(3))
+    four = Selector(name=str(4))
+    five = Sequence(name=str(5))
+    six = Sequence(name=str(6))
+    # seven = Parallel(name=str(7))
+    seven = Selector(name=str(7))
+    exenodes = [CompetentNode(
+        name=chr(ord('A')+i), planner=None) for i in range(0, 11)]
+    three.add_children(exenodes[:3])
+    four.add_children(exenodes[3:6])
+    six.add_children(exenodes[6:9])
+    seven.add_children(exenodes[9:])
+    two.add_children([three, four])
+    five.add_children([six, seven])
+    one.root.add_children([two, five])
+    # py_trees.logging.level = py_trees.logging.Level.DEBUG
+    # py_trees.display.print_ascii_tree(one.root)
+    blackboard = Blackboard()
+    env_name = 'MiniGrid-Goals-v0'
+    env = gym.make(env_name)
+    env = ReseedWrapper(env, seeds=[3])
+    env = FullyObsWrapper(env)
+    env.max_steps = min(env.max_steps, 200)
+    env.agent_view_size = 1
+    env.reset()
+    # env.render(mode='human')
+    state, reward, done, _ = env.step(2)
+    # print(state['image'].shape, reward, done, _)
+    # Find the key
+    goalspec = 'F P_[KE][1,none,==]'
+    # keys = ['L', 'F', 'K', 'D', 'C', 'G', 'O']
+    allkeys = [
+        'LO', 'FW', 'KE', 'DR',
+        'BOB', 'BOR', 'BAB', 'BAR',
+        'LV', 'GO', 'CK',
+        'CBB', 'CBR', 'CAB', 'CAR',
+        'DO', 'RM']
+
+    keys = [
+        'LO', 'FW', 'KE']
+
+    actions = [0, 1, 2, 3, 4, 5]
+
+    def fn_c(child):
+        pass
+
+    def fn_eset(child):
+        planner = GenRecPropKeyDoor(
+            env, keys, goalspec, dict(), actions=actions,
+            max_trace=40, seed=None, allkeys=allkeys, id=child.name)
+
+        child.setup(0, planner, True, 50)
+
+    def fn_einf(child):
+        child.train = False
+        child.planner.epoch = 5
+        child.planner.tcount = 0
+
+    def fn_ecomp(child):
+        child.planner.compute_competency()
+        print(
+            child.name,
+            child.planner.blackboard.shared_content['curve'][child.name])
+
+    recursive_setup(one.root, fn_eset, fn_c)
+    # Train
+    for i in range(100):
+        one.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print(i, 'Training', one.root.status)
+
+    # Inference
+    recursive_setup(one.root, fn_einf, fn_c)
+    for i in range(5):
+        one.tick(
+            pre_tick_handler=reset_env(env)
+        )
+    print(i, 'Inference', one.root.status)
+    recursive_setup(one.root, fn_ecomp, fn_c)
+    # Recursively compute competency for control nodes
+    recursive_com(one.root, blackboard)
+    print(exenodes[0].planner.blackboard.shared_content['curve'])
+
+
 if __name__ == "__main__":
     # find_key()
-    carry_key()
+    # carry_key()
+    test_comptency()
