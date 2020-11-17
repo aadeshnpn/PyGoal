@@ -410,7 +410,7 @@ def carry_key():
 
     root = goalspec2BT(goalspec, planner=None, node=CompetentNode)
     behaviour_tree = BehaviourTree(root)
-    epoch = [50, 20]
+    epoch = [80, 20]
     j = 0
     for child in behaviour_tree.root.children:
         planner = GenRecPropKeyDoor(
@@ -440,12 +440,20 @@ def carry_key():
             pre_tick_handler=reset_env(env)
         )
     print(i, 'Inference', behaviour_tree.root.status)
+    competency = []
+    datas = []
     for child in behaviour_tree.root.children:
+        datas.append(
+            np.mean(
+                child.planner.blackboard.shared_content[
+                    'ctdata'][child.planner.goalspec], axis=0))
+        competency.append(child.planner.compute_competency())
         print(
-            child.name, child.planner.compute_competency(),
+            child.name, child.blackboard.shared_content['curve']
             )
+    compare_curve(competency, datas, name='carry')
 
 
 if __name__ == "__main__":
-    find_key()
-    # carry_key()
+    # find_key()
+    carry_key()
