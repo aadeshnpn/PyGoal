@@ -24,7 +24,8 @@ from pygoal.lib.bt import CompetentNode
 class GenRecPropKeyDoor(GenRecProp):
     def __init__(
         self, env, keys, goalspec, gtable=dict(), max_trace=40,
-            actions=[0, 1, 2, 3], epoch=10, seed=None, allkeys=None):
+            actions=[0, 1, 2, 3], epoch=10, seed=None, allkeys=None,
+            actionu=0.90):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.tcount = 0
@@ -35,6 +36,8 @@ class GenRecPropKeyDoor(GenRecProp):
             self.allkeys = allkeys
         # Initialize blackboard to store data
         self.blackboard = Blackboard()
+        # Action uncertainty
+        self.prob = actionu
 
     def env_action_dict(self, action):
         return action
@@ -204,7 +207,15 @@ class GenRecPropKeyDoor(GenRecProp):
 
     def get_action_policy(self, policy, state):
         action = policy[tuple(state)]
+        action = self.action_uncertainty(action)
         return action
+
+    def action_uncertainty(self, action):
+        action_choices = {
+            2: [(1-self.prob)/2, (1-self.prob)/2, self.prob],
+            0: [self.prob, (1-self.prob)/2, (1-self.prob)/2],
+            1: [(1-self.prob)/2, self.prob, (1-self.prob)/2]}
+        return self.nprandom.choice([0, 1, 2], p=action_choices[action])
 
     def gtable_key(self, state):
         ss = state
@@ -253,7 +264,7 @@ class GenRecPropKeyDoor(GenRecProp):
             policy, self.max_trace_len, verbose=verbose)
         gkey = self.extract_key()
         # print('from inference', self.tcount, self.epoch)
-        print(result, trace)
+        # print(result, trace)
         if self.tcount <= self.epoch:
             data = self.aggrigate_data(len(trace[gkey]), result)
             self.blackboard.shared_content[
@@ -274,6 +285,12 @@ class GenRecPropKeyDoor(GenRecProp):
         match = re.search('\[[A-Z0-9]+\]', self.goalspec)
         gkey = match.group(0)[1:-1]
         return gkey
+
+    def compute_competency(self):
+        ctdata = np.mean(
+            self.blackboard.shared_content['ctdata'][self.name], axis=0)
+        cidata = np.mean(
+            self.blackboard.shared_content['cidata'][self.name], axis=0)
 
 
 def reset_env(env, seed=12345):
@@ -333,9 +350,9 @@ def find_key():
 
     # Inference
     child.train = False
-    child.planner.epoch = 4
+    child.planner.epoch = 50
     child.planner.tcount = 0
-    for i in range(4):
+    for i in range(50):
         behaviour_tree.tick(
             pre_tick_handler=reset_env(env)
         )
