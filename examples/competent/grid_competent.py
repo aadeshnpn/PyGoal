@@ -7,9 +7,10 @@ from gym_minigrid.minigrid import (     # noqa: F401
     Grid, OBJECT_TO_IDX, Key, Door, Goal, Ball, Box, Lava,
     COLOR_TO_IDX)
 
-
+import py_trees
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
+from py_trees.composites import Sequence, Selector, Parallel
 from pygoal.utils.bt import goalspec2BT
 from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
@@ -409,19 +410,56 @@ def carry_key():
     actions = [0, 1, 2, 3, 4, 5]
 
     root = goalspec2BT(goalspec, planner=None, node=CompetentNode)
-    behaviour_tree = BehaviourTree(root)
+    # behaviour_tree = BehaviourTree(root)
+    behaviour_tree = BehaviourTree(Sequence(name='root'))
+    lseq = Sequence(name='A')
+    rseq = Sequence(name='B')
+    lseq.add_children([root])
+    rseq.add_children([root])
+    behaviour_tree.root.add_children([lseq, rseq])
     epoch = [80, 20]
     j = 0
-    for child in behaviour_tree.root.children:
+
+    def fn_c(child):
+        pass
+
+    def fn_exe(child):
         planner = GenRecPropKeyDoor(
             env, keys, child.name, dict(), actions=actions,
             max_trace=40, seed=None, allkeys=allkeys)
 
-        child.setup(0, planner, True, epoch[j])
-        j += 1
-        # print(
-        #     type(child), child.name, child.planner.goalspec,
-        #     child.planner.blackboard.shared_content)
+        child.setup(0, planner, True, epoch)
+
+    # child = behaviour_tree.root.children
+    # while len(child) > 0:
+
+    # def recursive_setup(child, j):
+    #     #   for child in behaviour_tree.root.children:
+    #     # print(child, child.name)
+    #     if len(child) == 1:
+    #         print(child[0].name)
+    #         if isinstance(child[0], Sequence):
+    #             recursive_setup(child[0].children, j)
+    #         else:
+    #             planner = GenRecPropKeyDoor(
+    #                 env, keys, child[0].name, dict(), actions=actions,
+    #                 max_trace=40, seed=None, allkeys=allkeys)
+
+    #             child[0].setup(0, planner, True, epoch[j])
+    #             j += 1
+    #     elif len(child) > 1:
+    #         for c in child:
+    #             # print(c)
+    #             recursive_setup([c], j)
+
+    recursive_setup(behaviour_tree.root, fn_exe, fn_c)
+    py_trees.logging.level = py_trees.logging.Level.DEBUG
+    py_trees.display.print_ascii_tree(behaviour_tree.root)
+
+    exit()
+    # print(
+    #     type(child), child.name, child.planner.goalspec,
+    #     child.planner.blackboard.shared_content)
     # Train
     for i in range(100):
         behaviour_tree.tick(
@@ -452,6 +490,22 @@ def carry_key():
             child.name, child.blackboard.shared_content['curve']
             )
     compare_curve(competency, datas, name='carry')
+    # print(behaviour_tree.visitors)
+
+
+def recursive_setup(node, fn_e, fn_c):
+    if node.children:
+        for c in node.children:
+            if (
+                isinstance(c, Sequence) or isinstance(c, Selector) or
+                    isinstance(c, Parallel)):
+                print(c.name)
+                fn_c(c)
+            recursive_setup(c, fn_e, fn_c)
+    else:
+        # Execution nodes
+        print('execution nodes', node.name)
+        fn_e(node)
 
 
 if __name__ == "__main__":
