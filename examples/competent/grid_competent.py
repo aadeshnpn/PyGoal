@@ -523,8 +523,10 @@ def recursive_com(node, blackboard):
 
 
 def test_comptency():
-    import py_trees
+    # import py_trees
     # behaviour_tree = BehaviourTree(root)
+    # # Remember to comment set_state in GenRecProp before
+    # # running this test case
     one = BehaviourTree(Sequence(name=str(1)))
     two = Sequence(name=str(2))
     three = Sequence(name=str(3))
@@ -631,7 +633,8 @@ def test_comptency():
     c = exenodes[0].planner.blackboard.shared_content['curve']['C']
     threec = sequence([a, b, c])
     # print('three', threec)
-    # print('three', exenodes[0].planner.blackboard.shared_content['curve']['3'])
+    # print(
+    # 'three', exenodes[0].planner.blackboard.shared_content['curve']['3'])
     assert threec == exenodes[
         0].planner.blackboard.shared_content['curve']['3']
     # Second sub-tree
@@ -639,7 +642,8 @@ def test_comptency():
     e = exenodes[0].planner.blackboard.shared_content['curve']['E']
     f = exenodes[0].planner.blackboard.shared_content['curve']['F']
     fourc = selector([d, e, f])
-    # print('four', exenodes[0].planner.blackboard.shared_content['curve']['4'])
+    # print(
+    # 'four', exenodes[0].planner.blackboard.shared_content['curve']['4'])
     assert fourc == exenodes[
         0].planner.blackboard.shared_content['curve']['4']
     # Third sub-tree
@@ -647,16 +651,32 @@ def test_comptency():
     h = exenodes[0].planner.blackboard.shared_content['curve']['H']
     i = exenodes[0].planner.blackboard.shared_content['curve']['I']
     sixc = sequence([g, h, i])
-    # print('six', exenodes[0].planner.blackboard.shared_content['curve']['6'])
+    # print(
+    # 'six', exenodes[0].planner.blackboard.shared_content['curve']['6'])
     assert sixc == exenodes[
         0].planner.blackboard.shared_content['curve']['6']
     # Fourth sub-tree
     j = exenodes[0].planner.blackboard.shared_content['curve']['J']
     k = exenodes[0].planner.blackboard.shared_content['curve']['K']
     sevenc = selector([j, k])
-    # print('seven', exenodes[0].planner.blackboard.shared_content['curve']['7'])
+    # print(
+    # 'seven', exenodes[0].planner.blackboard.shared_content['curve']['7'])
     assert sevenc == exenodes[
         0].planner.blackboard.shared_content['curve']['7']
+
+    twoc = sequence([threec, fourc])
+    assert twoc == exenodes[
+        0].planner.blackboard.shared_content['curve']['2']
+
+    fivec = sequence([sixc, sevenc])
+    assert fivec == exenodes[
+        0].planner.blackboard.shared_content['curve']['5']
+
+    onec = sequence([twoc, fivec])
+    assert onec == exenodes[
+        0].planner.blackboard.shared_content['curve']['1']
+
+    print(onec)
 
 
 if __name__ == "__main__":
