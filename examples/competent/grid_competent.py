@@ -302,7 +302,7 @@ class GenRecPropKeyDoor(GenRecProp):
                     logistfunc, range(data.shape[0]), data,
                     maxfev=800)
             except RuntimeError:
-                popt = np.array([1, 1, 1])
+                popt = np.array([1., 1., 1.])
         else:
             data = np.mean(
                 self.blackboard.shared_content[
@@ -476,7 +476,8 @@ def carry_key():
     print(i, 'Inference', behaviour_tree.root.status)
     recursive_setup(behaviour_tree.root, fn_ecomp, fn_c)
     # recursive_setup(behaviour_tree.root, fn_c, fn_c)
-    print(recursive_com(behaviour_tree.root))
+    blackboard = Blackboard()
+    print(recursive_com(behaviour_tree.root, blackboard))
 
 
 def recursive_setup(node, fn_e, fn_c):
@@ -606,9 +607,56 @@ def test_comptency():
         )
     print(i, 'Inference', one.root.status)
     recursive_setup(one.root, fn_ecomp, fn_c)
+
+    # Manually setting the competency
+    ckeys = [chr(ord('A')+i) for i in range(0, 11)]
+    manval = [
+        np.array([0.84805786, 4.76735384, 0.20430223]),
+        np.array([0.54378425, 4.26958399, 3.50727315]),
+        np.array([0.50952059, 5.54225945, 5.28025611])
+        ]
+    j = 0
+    for c in ckeys:
+        blackboard.shared_content['curve'][c] = manval[j % 3]
+        j += 1
     # Recursively compute competency for control nodes
     recursive_com(one.root, blackboard)
-    print(exenodes[0].planner.blackboard.shared_content['curve'])
+    # print(exenodes[0].planner.blackboard.shared_content['curve'])
+
+    # Manually compare the recursively computed competency values
+    # for the control
+    # First sub-tree
+    a = exenodes[0].planner.blackboard.shared_content['curve']['A']
+    b = exenodes[0].planner.blackboard.shared_content['curve']['B']
+    c = exenodes[0].planner.blackboard.shared_content['curve']['C']
+    threec = sequence([a, b, c])
+    # print('three', threec)
+    # print('three', exenodes[0].planner.blackboard.shared_content['curve']['3'])
+    assert threec == exenodes[
+        0].planner.blackboard.shared_content['curve']['3']
+    # Second sub-tree
+    d = exenodes[0].planner.blackboard.shared_content['curve']['D']
+    e = exenodes[0].planner.blackboard.shared_content['curve']['E']
+    f = exenodes[0].planner.blackboard.shared_content['curve']['F']
+    fourc = selector([d, e, f])
+    # print('four', exenodes[0].planner.blackboard.shared_content['curve']['4'])
+    assert fourc == exenodes[
+        0].planner.blackboard.shared_content['curve']['4']
+    # Third sub-tree
+    g = exenodes[0].planner.blackboard.shared_content['curve']['G']
+    h = exenodes[0].planner.blackboard.shared_content['curve']['H']
+    i = exenodes[0].planner.blackboard.shared_content['curve']['I']
+    sixc = sequence([g, h, i])
+    # print('six', exenodes[0].planner.blackboard.shared_content['curve']['6'])
+    assert sixc == exenodes[
+        0].planner.blackboard.shared_content['curve']['6']
+    # Fourth sub-tree
+    j = exenodes[0].planner.blackboard.shared_content['curve']['J']
+    k = exenodes[0].planner.blackboard.shared_content['curve']['K']
+    sevenc = selector([j, k])
+    # print('seven', exenodes[0].planner.blackboard.shared_content['curve']['7'])
+    assert sevenc == exenodes[
+        0].planner.blackboard.shared_content['curve']['7']
 
 
 if __name__ == "__main__":
