@@ -12,7 +12,8 @@ from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.lib.bt import CompetentNode
 from pygoal.utils.distribution import (
-    recursive_com, recursive_setup, logistfunc)
+    recursive_com, recursive_setup, logistfunc,
+    compare_curve)
 
 
 class MultiGoalGridExp():
@@ -40,6 +41,7 @@ class MultiGoalGridExp():
         self.actions = actions
         root = goalspec2BT(goalspecs, planner=None, node=CompetentNode)
         self.behaviour_tree = BehaviourTree(root)
+        self.blackboard = Blackboard()
 
     def run(self):
         def fn_c(child):
@@ -60,9 +62,10 @@ class MultiGoalGridExp():
         def fn_ecomp(child):
             child.planner.compute_competency()
 
-            recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
-            # py_trees.logging.level = py_trees.logging.Level.DEBUG
-            # py_trees.display.print_ascii_tree(behaviour_tree.root)
+        # Setup planners
+        recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
+        # py_trees.logging.level = py_trees.logging.Level.DEBUG
+        # py_trees.display.print_ascii_tree(behaviour_tree.root)
 
         # Train
         for i in range(100):
@@ -82,11 +85,20 @@ class MultiGoalGridExp():
         recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
 
         # Recursive compute competency for control nodes
-        blackboard = Blackboard()
-        print(recursive_com(self.behaviour_tree.root, blackboard))
+        recursive_com(self.behaviour_tree.root, self.blackboard)
 
     def reset_env(self, seed=12345):
         self.env.reset()
+
+    def draw_plot(self, nodenames):
+        curves = []
+        datas = []
+        for nname in nodenames:
+            datas.append(np.mean(
+                self.blackboard.shared_content[
+                    'ctdata'][nname], axis=0))
+            curves.append(self.blackboard.shared_content['curve'][nname])
+        compare_curve(curves, datas, name=self.expname)
 
 
 class GenRecPropMultiGoal(GenRecProp):

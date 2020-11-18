@@ -20,7 +20,8 @@ from pygoal.utils.distribution import (
     sequence, selector,
     recursive_com, recursive_setup)
 
-from examples.competent.multigoalgrid import GenRecPropMultiGoal
+from examples.competent.multigoalgrid import (
+    GenRecPropMultiGoal, MultiGoalGridExp)
 
 
 def reset_env(env, seed=12345):
@@ -327,7 +328,17 @@ def test_comptency():
     print(onec)
 
 
+def expriment1():
+    goalspec = 'F P_[KE][1,none,==] U F P_[CK][1,none,==]'
+    keys = [
+        'LO', 'FW', 'KE', 'CK']
+    exp = MultiGoalGridExp('carrykey', goalspec, keys)
+    exp.run()
+    exp.draw_plot(['F(P_[KE][1,none,==])', 'F(P_[CK][1,none,==])'])
+
+
 if __name__ == "__main__":
     # find_key()
-    carry_key()
+    # carry_key()
     # test_comptency()
+    expriment1()
