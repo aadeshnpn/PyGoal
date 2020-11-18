@@ -8,6 +8,7 @@ if os.name == 'posix' and "DISPLAY" not in os.environ:
     matplotlib.use('Agg')
 
 import matplotlib.pyplot as plt     # noqa: E402
+from py_trees.composites import Sequence, Selector, Parallel
 
 
 def exp_norm(x):
@@ -147,3 +148,43 @@ def parallel(nodes):
         L = node[0] * nodes[i][0]
         node = [L, mean, std]
     return node
+
+
+
+def recursive_setup(node, fn_e, fn_c):
+    if node.children:
+        for c in node.children:
+            if (
+                isinstance(c, Sequence) or isinstance(c, Selector) or
+                    isinstance(c, Parallel)):
+                # Control nodes
+                fn_c(c)
+            recursive_setup(c, fn_e, fn_c)
+    else:
+        # Execution nodes
+        return fn_e(node)
+
+
+def recursive_com(node, blackboard):
+    # Control Nodes
+    if isinstance(node, Sequence):
+        val = sequence(
+            [recursive_com(child, blackboard) for child in node.children])
+        blackboard.shared_content[
+            'curve'][node.name] = val
+        return val
+    elif isinstance(node, Selector):
+        val = selector(
+            [recursive_com(child, blackboard) for child in node.children])
+        blackboard.shared_content[
+            'curve'][node.name] = val
+        return val
+    elif isinstance(node, Parallel):
+        val = parallel(
+            [recursive_com(child, blackboard) for child in node.children])
+        blackboard.shared_content[
+            'curve'][node.name] = val
+        return val
+    else:
+        # Execution nodes
+        return node.planner.blackboard.shared_content['curve'][node.name]

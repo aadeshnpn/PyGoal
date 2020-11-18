@@ -241,7 +241,7 @@ class GenRecProp:
             t = self.create_trace_flloat(traceset, i)
             result = parsed_formula.truth(t)
             if result is True:
-                # self.set_state(self.env, trace, i)
+                self.set_state(self.env, trace, i)
                 return True, self.create_trace_dict(trace, i)
 
         return result, self.create_trace_dict(trace, i)
