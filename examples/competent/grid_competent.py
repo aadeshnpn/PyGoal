@@ -335,6 +335,7 @@ def expriment1():
     exp = MultiGoalGridExp('carrykey', goalspec, keys)
     exp.run()
     exp.draw_plot(['F(P_[KE][1,none,==])', 'F(P_[CK][1,none,==])'])
+    exp.save_data()
 
 
 if __name__ == "__main__":

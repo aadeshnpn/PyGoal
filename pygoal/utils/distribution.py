@@ -60,10 +60,10 @@ def scalef(std):
 
 def compare_curve(
         competency, datas, visdata=True, vispdf=False,
-        viscdf=True, name='competency'):
+        viscdf=True, name='competency', root=False):
     fig = plt.figure()
     colors = [
-        'blue', 'orange', 'green', 'red', 'purple',
+        'blue', 'orange', 'red', 'purple',
         'brown', 'pink', 'gray', 'olive', 'cyan']
     linepat = ['^', '-.']
     labels = ['data'+str(i) for i in range(len(competency))]
@@ -81,7 +81,11 @@ def compare_curve(
             x, logistfunc(x, *popt), linepat[1], color=colors[i],
             label='Logistic : L=%5.2f, $\mu$=%5.2f, s=%5.2f'    # noqa: W605
             % tuple(popt), linewidth=2, alpha=0.8)
-
+    if root is not False:
+        plt.plot(
+            x, logistfunc(x, *root), ':', color='green',
+            label='Root : L=%5.2f, $\mu$=%5.2f, s=%5.2f'    # noqa: W605
+            % tuple(root), linewidth=3, alpha=0.7)
     plt.legend()
     plt.ylabel('Probability')
     plt.xlabel('Time')

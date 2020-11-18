@@ -90,7 +90,17 @@ class MultiGoalGridExp():
     def reset_env(self, seed=12345):
         self.env.reset()
 
-    def draw_plot(self, nodenames):
+    def save_data(self):
+        # Create folder if not exists
+        import pathlib
+        import os
+        dname = os.path.join('/tmp', 'pygoal', 'data', 'experiments')
+        pathlib.Path(dname).mkdir(parents=True, exist_ok=True)
+        fname = os.path.join(dname, self.expname + '.pkl')
+        import pickle
+        pickle.dump(self.blackboard, open(fname, "wb"))
+
+    def draw_plot(self, nodenames, root=False):
         curves = []
         datas = []
         for nname in nodenames:
@@ -98,7 +108,7 @@ class MultiGoalGridExp():
                 self.blackboard.shared_content[
                     'ctdata'][nname], axis=0))
             curves.append(self.blackboard.shared_content['curve'][nname])
-        compare_curve(curves, datas, name=self.expname)
+        compare_curve(curves, datas, name=self.expname, root=root)
 
 
 class GenRecPropMultiGoal(GenRecProp):
