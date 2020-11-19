@@ -139,7 +139,8 @@ class GenRecProp:
         try:
             action = self.get_action_policy(policy, state)
         except KeyError:
-            print('State does not exist in the policy', state)
+            if verbose:
+                print('State does not exist in the policy', state)
             action = self.nprandom.choice(self.actionsidx)
             # return False
         trace = dict(zip(self.keys, [list() for k in range(len(self.keys))]))

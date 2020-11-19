@@ -9,6 +9,7 @@ if os.name == 'posix' and "DISPLAY" not in os.environ:
 
 import matplotlib.pyplot as plt     # noqa: E402
 from py_trees.composites import Sequence, Selector, Parallel
+plt.style.use("fivethirtyeight")
 
 
 def exp_norm(x):
@@ -61,7 +62,8 @@ def scalef(std):
 def plot_competency_variance(data, name):
     # mean = np.mean(data, axis=1)
     # Using quartile instead of mean and std
-    median = np.quantile(data, 0.5, axis=0)
+    # median = np.quantile(data, 0.5, axis=0)
+    median = np.mean(data, axis=0)
     q1 = np.quantile(data, 0.25, axis=0)
     q3 = np.quantile(data, 0.75, axis=0)
     fig = plt.figure()
@@ -81,9 +83,9 @@ def plot_competency_variance(data, name):
             logistfunc, xvalues, q3,
             maxfev=800)
     except RuntimeError:
-        poptmed = np.array([1.0, 1.0, 1.0])
-        poptq1 = np.array([1.0, 1.0, 1.0])
-        poptq3 = np.array([1.0, 1.0, 1.0])
+        poptmed = np.array([0.0, 1.0, 1.0])
+        poptq1 = np.array([0.0, 1.0, 1.0])
+        poptq3 = np.array([0.0, 1.0, 1.0])
 
     plt.plot(
         range(len(median)), [0.8]*len(median), '*', label="$\\theta$",
@@ -103,6 +105,7 @@ def plot_competency_variance(data, name):
         logistfunc(xvalues, *poptq1),
         logistfunc(xvalues, *poptq3),
         color="DodgerBlue", alpha=0.3)
+    plt.ylim(-0.1, 1.1)
     plt.legend()
     plt.ylabel('Probability')
     plt.xlabel('Time')
@@ -145,6 +148,8 @@ def compare_curve(
             x, logistfunc(x, *root), ':', color='green',
             label='Root : L=%5.2f, $\mu$=%5.2f, s=%5.2f'    # noqa: W605
             % tuple(root), linewidth=3, alpha=0.7)
+
+    plt.ylim(-0.1, 1.1)
     plt.legend()
     plt.ylabel('Probability')
     plt.xlabel('Time')

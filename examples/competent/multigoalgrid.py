@@ -20,7 +20,7 @@ class MultiGoalGridExp():
     def __init__(
             self, expname='key', goalspecs='F P_[KE][1,none,==]',
             keys=['LO', 'FW', 'KE'], actions=list(range(5)),
-            seed=None, epoch=80):
+            seed=None, maxtracelen=40, trainc=False, epoch=80):
         env_name = 'MiniGrid-Goals-v0'
         env = gym.make(env_name)
         if seed is None:
@@ -35,6 +35,8 @@ class MultiGoalGridExp():
         self.expname = expname
         self.goalspecs = goalspecs
         self.epoch = epoch
+        self.maxtracelen = maxtracelen
+        self.trainc = trainc
         self.allkeys = [
             'LO', 'FW', 'KE', 'DR',
             'BOB', 'BOR', 'BAB', 'BAR',
@@ -54,7 +56,7 @@ class MultiGoalGridExp():
         def fn_eset(child):
             planner = GenRecPropMultiGoal(
                 self.env, self.keys, child.name, dict(), actions=self.actions,
-                max_trace=40, seed=None, allkeys=self.allkeys)
+                max_trace=self.maxtracelen, seed=None, allkeys=self.allkeys)
 
             child.setup(0, planner, True, self.epoch)
 
@@ -64,7 +66,9 @@ class MultiGoalGridExp():
             child.planner.tcount = 0
 
         def fn_ecomp(child):
-            child.planner.compute_competency()
+            child.planner.compute_competency(self.trainc)
+
+        # Save the environment to visualize
 
         # Setup planners
         recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
@@ -76,15 +80,15 @@ class MultiGoalGridExp():
             self.behaviour_tree.tick(
                 pre_tick_handler=self.reset_env(self.env)
             )
-        print(i, 'Training', self.behaviour_tree.root.status)
+        # print(i, 'Training', self.behaviour_tree.root.status)
 
         # Inference
         recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        for i in range(5):
+        for i in range(10):
             self.behaviour_tree.tick(
                 pre_tick_handler=self.reset_env(self.env)
             )
-        print(i, 'Inference', self.behaviour_tree.root.status)
+        # print(i, 'Inference', self.behaviour_tree.root.status)
         # Recursive compute competency for execution nodes
         recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
 
@@ -104,13 +108,18 @@ class MultiGoalGridExp():
         import pickle
         pickle.dump(self.blackboard, open(fname, "wb"))
 
-    def draw_plot(self, nodenames, root=False):
+    def draw_plot(self, nodenames, root=False, train=True):
         curves = []
         datas = []
         for nname in nodenames:
-            datas.append(np.mean(
-                self.blackboard.shared_content[
-                    'ctdata'][nname], axis=0))
+            if train:
+                datas.append(np.mean(
+                    self.blackboard.shared_content[
+                        'ctdata'][nname], axis=0))
+            else:
+                datas.append(np.mean(
+                    self.blackboard.shared_content[
+                        'cidata'][nname], axis=0))
             curves.append(self.blackboard.shared_content['curve'][nname])
         compare_curve(curves, datas, name=self.expname, root=root)
 
@@ -307,7 +316,7 @@ class GenRecPropMultiGoal(GenRecProp):
 
     def get_action_policy(self, policy, state):
         action = policy[tuple(state)]
-        action = self.action_uncertainty(action)
+        # action = self.action_uncertainty(action)
         return action
 
     def action_uncertainty(self, action):
@@ -397,7 +406,7 @@ class GenRecPropMultiGoal(GenRecProp):
                     logistfunc, range(data.shape[0]), data,
                     maxfev=800)
             except RuntimeError:
-                popt = np.array([1., 1., 1.])
+                popt = np.array([0., 1., 1.])
         else:
             data = np.mean(
                 self.blackboard.shared_content[
@@ -407,6 +416,6 @@ class GenRecPropMultiGoal(GenRecProp):
                     logistfunc, range(data.shape[0]), data,
                     maxfev=800)
             except RuntimeError:
-                popt = np.array([1, 1, 1])
+                popt = np.array([0., 1., 1.])
         self.blackboard.shared_content['curve'][self.id] = popt
         return popt
