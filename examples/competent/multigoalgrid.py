@@ -19,14 +19,18 @@ from pygoal.utils.distribution import (
 class MultiGoalGridExp():
     def __init__(
             self, expname='key', goalspecs='F P_[KE][1,none,==]',
-            keys=['LO', 'FW', 'KE'], actions=list(range(5)), epoch=80):
+            keys=['LO', 'FW', 'KE'], actions=list(range(5)),
+            seed=None, epoch=80):
         env_name = 'MiniGrid-Goals-v0'
         env = gym.make(env_name)
-        env = ReseedWrapper(env, seeds=[3])
+        if seed is None:
+            pass
+        else:
+            env = ReseedWrapper(env, seeds=[seed])
         env = FullyObsWrapper(env)
         self.env = env
         self.env.max_steps = min(env.max_steps, 200)
-        self.env.agent_view_size = 1
+        # self.env.agent_view_size = 1
         self.env.reset()
         self.expname = expname
         self.goalspecs = goalspecs
