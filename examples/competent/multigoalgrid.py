@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import gym
 import gym_minigrid     # noqa: F401
 from gym_minigrid.minigrid import (     # noqa: F401
@@ -14,6 +15,14 @@ from pygoal.lib.bt import CompetentNode
 from pygoal.utils.distribution import (
     recursive_com, recursive_setup, logistfunc,
     compare_curve)
+
+import matplotlib
+
+# If there is $DISPLAY, display the plot
+if os.name == 'posix' and "DISPLAY" not in os.environ:
+    matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt     # noqa: E402
 
 
 class MultiGoalGridExp():
@@ -69,7 +78,7 @@ class MultiGoalGridExp():
             child.planner.compute_competency(self.trainc)
 
         # Save the environment to visualize
-
+        self.save_data(env=True)
         # Setup planners
         recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
         # py_trees.logging.level = py_trees.logging.Level.DEBUG
@@ -98,15 +107,20 @@ class MultiGoalGridExp():
     def reset_env(self, seed=12345):
         self.env.reset()
 
-    def save_data(self):
+    def save_data(self, env=False):
         # Create folder if not exists
         import pathlib
         import os
         dname = os.path.join('/tmp', 'pygoal', 'data', 'experiments')
         pathlib.Path(dname).mkdir(parents=True, exist_ok=True)
-        fname = os.path.join(dname, self.expname + '.pkl')
-        import pickle
-        pickle.dump(self.blackboard, open(fname, "wb"))
+        if env:
+            fname = os.path.join(dname, self.expname + '_env.png')
+            img = self.env.render(mode='exp')
+            plt.imsave(fname, img)
+        else:
+            fname = os.path.join(dname, self.expname + '.pkl')
+            import pickle
+            pickle.dump(self.blackboard, open(fname, "wb"))
 
     def draw_plot(self, nodenames, root=False, train=True):
         curves = []

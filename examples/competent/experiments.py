@@ -75,7 +75,7 @@ def main():
 
     # Total Samples: 50 * 80(epoch) * 80 (states)
     run_experiments(
-        exp_find_key, name='exp_find_key_10_', runs=20, train=False)
+        exp_find_key, name='exp_find_key_10_', runs=20, train=True)
 
 
 if __name__ == "__main__":
