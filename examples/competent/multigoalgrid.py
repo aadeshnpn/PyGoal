@@ -396,11 +396,11 @@ class GenRecPropMultiGoal(GenRecProp):
         return result
 
     def aggrigate_data(self, size, result):
-        data = np.zeros((self.max_trace_len+3))
+        data = np.zeros((self.max_trace_len+4))
         if result:
-            data[:size-1] = np.array(
+            data[:size] = np.array(
                 data[size], dtype=np.float)
-            data[size-1:] = 1.0
+            data[size:] = 1.0
         return data
 
     def extract_key(self):
