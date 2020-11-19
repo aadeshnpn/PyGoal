@@ -17,28 +17,29 @@ def save_pickle(data, name):
     pickle.dump(data, open(fname, "wb"))
 
 
-def run_experiments(fn, name, train=True, runs=50):
+def run_experiments(fn, name, train=True, runs=50, seed=None):
     datas = []
     for i in tqdm(range(runs)):
-        datas += [fn(i, name, train)]
+        datas += [fn(i, name, train, seed)]
 
     # print(datas, np.array(datas).shape)
     # Plot the data
     save_pickle(datas, name)
     plot_competency_variance(datas, name)
+    return np.mean(datas, axis=0)
 
 
-def exp_find_key(expid, name='exp_find_key', train=False):
+def exp_find_key(expid, name='exp_find_key', train=False, seed=None):
     goalspec = 'F P_[KE][1,none,==]'
     keys = [
         'LO', 'FW', 'KE']
     exp = MultiGoalGridExp(
         name+str(expid), goalspec, keys,
-        actions=list(range(7)), seed=None, maxtracelen=50,
+        actions=list(range(3)), seed=seed, maxtracelen=50,
         epoch=100, trainc=train)
     exp.run()
-    exp.draw_plot(['F(P_[KE][1,none,==])'], train=train)
-    exp.save_data()
+    # exp.draw_plot(['F(P_[KE][1,none,==])'], train=train)
+    # exp.save_data()
     if train:
         return np.mean(
             exp.blackboard.shared_content[
@@ -60,6 +61,28 @@ def exp_carry_key():
     exp.save_data()
 
 
+def run_experiments_seed_batch():
+    # Use parallel in here to speed up
+    from joblib import Parallel, delayed
+    # randseeds = list(np.random.randint(0, 100, 4))
+    randseeds = [3, 5, 7, 9]
+    datas = Parallel(
+        n_jobs=2)(
+            delayed(run_experiments)(
+                exp_find_key,
+                name='exp_find_key_'+str(50)+'_'+str(i)+'_',
+                runs=50, train=False, seed=int(i)
+                ) for i in randseeds)
+
+    # for i in randseeds:
+    #     datas.append(run_experiments(
+    #         exp_find_key, name='exp_find_key_10_',
+    #         runs=50, train=False, seed=int(i)))
+    print('plotting main competency')
+    save_pickle(datas, 'exp_find_key_50_all')
+    plot_competency_variance(datas, 'exp_find_key_50_all')
+
+
 def main():
     # exp_find_key()
     # exp_carry_key()
@@ -74,8 +97,7 @@ def main():
     #     exp_find_key, name='exp_find_key_10_', runs=10)
 
     # Total Samples: 50 * 80(epoch) * 80 (states)
-    run_experiments(
-        exp_find_key, name='exp_find_key_10_', runs=20, train=True)
+    run_experiments_seed_batch()
 
 
 if __name__ == "__main__":

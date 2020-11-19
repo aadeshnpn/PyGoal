@@ -78,7 +78,8 @@ class MultiGoalGridExp():
             child.planner.compute_competency(self.trainc)
 
         # Save the environment to visualize
-        self.save_data(env=True)
+        # self.save_data(env=True)
+
         # Setup planners
         recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
         # py_trees.logging.level = py_trees.logging.Level.DEBUG
@@ -330,7 +331,7 @@ class GenRecPropMultiGoal(GenRecProp):
 
     def get_action_policy(self, policy, state):
         action = policy[tuple(state)]
-        # action = self.action_uncertainty(action)
+        action = self.action_uncertainty(action)
         return action
 
     def action_uncertainty(self, action):
@@ -397,9 +398,9 @@ class GenRecPropMultiGoal(GenRecProp):
     def aggrigate_data(self, size, result):
         data = np.zeros((self.max_trace_len+3))
         if result:
-            data[:size] = np.array(
+            data[:size-1] = np.array(
                 data[size], dtype=np.float)
-            data[size:] = 1.0
+            data[size-1:] = 1.0
         return data
 
     def extract_key(self):
