@@ -95,7 +95,7 @@ def plot_competency_variance(data, name):
         xvalues,
         logistfunc(xvalues, *poptmed),
         color="blue",
-        label='Median=%5.2f, $\mu$=%5.2f, s=%5.2f' % tuple(
+        label='Mean=%5.2f, $\mu$=%5.2f, s=%5.2f' % tuple(
             poptmed), linewidth=1.0, alpha=0.8,
         linestyle="dashdot",
     )
