@@ -83,9 +83,9 @@ def plot_competency_variance(data, name):
             logistfunc, xvalues, q3,
             maxfev=800)
     except RuntimeError:
-        poptmed = np.array([0.0, 1.0, 1.0])
-        poptq1 = np.array([0.0, 1.0, 1.0])
-        poptq3 = np.array([0.0, 1.0, 1.0])
+        poptmed = np.array([0.99, 1.0, 1.0])
+        poptq1 = np.array([0.99, 1.0, 1.0])
+        poptq3 = np.array([0.99, 1.0, 1.0])
 
     plt.plot(
         range(len(median)), [0.8]*len(median), '*', label="$\\theta$",

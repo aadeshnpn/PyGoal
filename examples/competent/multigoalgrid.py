@@ -421,7 +421,7 @@ class GenRecPropMultiGoal(GenRecProp):
                     logistfunc, range(data.shape[0]), data,
                     maxfev=800)
             except RuntimeError:
-                popt = np.array([0., 1., 1.])
+                popt = np.array([0.99, 1., 1.])
         else:
             data = np.mean(
                 self.blackboard.shared_content[
@@ -430,7 +430,7 @@ class GenRecPropMultiGoal(GenRecProp):
                 popt, pcov = curve_fit(
                     logistfunc, range(data.shape[0]), data,
                     maxfev=800)
-            except RuntimeError:
-                popt = np.array([0., 1., 1.])
+            except (RuntimeError, IndexError):
+                popt = np.array([0.99, 1., 1.])
         self.blackboard.shared_content['curve'][self.id] = popt
         return popt

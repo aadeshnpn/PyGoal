@@ -2,7 +2,7 @@
 
 from examples.competent.multigoalgrid import (
     MultiGoalGridExp)
-from pygoal.utils.distribution import plot_competency_variance
+from pygoal.utils.distribution import plot_competency_variance, logistfunc
 import numpy as np
 from tqdm import tqdm
 
@@ -50,37 +50,56 @@ def exp_find_key(expid, name='exp_find_key', train=False, seed=None):
              'cidata']['F(P_[KE][1,none,==])'], axis=0)
 
 
-def exp_carry_key():
+def exp_carry_key(expid, name='exp_carry_key', train=False, seed=None):
     goalspec = 'F P_[KE][1,none,==] U F P_[CK][1,none,==]'
     keys = [
         'LO', 'FW', 'KE', 'CK']
-    exp = MultiGoalGridExp('exp_carry_key', goalspec, keys)
+
+    exp = MultiGoalGridExp(
+        name+str(expid), goalspec, keys,
+        actions=list(range(4)), seed=seed, maxtracelen=50,
+        epoch=100, trainc=train)
     exp.run()
-    root = exp.blackboard.shared_content['curve']['U']
-    exp.draw_plot(['F(P_[KE][1,none,==])', 'F(P_[CK][1,none,==])'], root)
-    exp.save_data()
+    if train:
+        popt = exp.blackboard.shared_content[
+                'curve']['U']
+    else:
+        popt = exp.blackboard.shared_content[
+                'curve']['U']
+    # print(popt)
+    # print(
+    #     exp.blackboard.shared_content['curve']['F(P_[KE][1,none,==])'],
+    #     exp.blackboard.shared_content['curve']['F(P_[CK][1,none,==])'],
+    #     exp.blackboard.shared_content['curve']['U'],
+    #     )
+    return np.array(logistfunc(range(50+4), *popt))
+    # exp = MultiGoalGridExp('exp_carry_key', goalspec, keys)
+    # exp.run()
+    # root = exp.blackboard.shared_content['curve']['U']
+    # exp.draw_plot(['F(P_[KE][1,none,==])', 'F(P_[CK][1,none,==])'], root)
+    # exp.save_data()
 
 
-def run_experiments_seed_batch():
+def run_experiments_seed_batch(
+        seeds=[3, 5, 7, 9], threads=4, fn=exp_find_key,
+        expname='exp_fine_key_', runs=50, train=False):
     # Use parallel in here to speed up
     from joblib import Parallel, delayed
-    # randseeds = list(np.random.randint(0, 100, 4))
-    randseeds = [3, 5, 7, 9]
+    if seeds is None:
+        randseeds = list(np.random.randint(0, 100, 4))
+    else:
+        randseeds = seeds
     datas = Parallel(
-        n_jobs=2)(
+        n_jobs=threads)(
             delayed(run_experiments)(
-                exp_find_key,
-                name='exp_find_key_'+str(50)+'_'+str(i)+'_',
-                runs=50, train=False, seed=int(i)
+                fn,
+                name=expname+str(runs)+'_'+str(i)+'_',
+                runs=runs, train=train, seed=int(i)
                 ) for i in randseeds)
 
-    # for i in randseeds:
-    #     datas.append(run_experiments(
-    #         exp_find_key, name='exp_find_key_10_',
-    #         runs=50, train=False, seed=int(i)))
     print('plotting main competency')
-    save_pickle(datas, 'exp_find_key_50_all')
-    plot_competency_variance(datas, 'exp_find_key_50_all')
+    save_pickle(datas, expname + str(runs)+'_all')
+    plot_competency_variance(datas, expname + str(runs)+'_all')
 
 
 def main():
@@ -97,7 +116,12 @@ def main():
     #     exp_find_key, name='exp_find_key_10_', runs=10)
 
     # Total Samples: 50 * 80(epoch) * 80 (states)
-    run_experiments_seed_batch()
+    # run_experiments_seed_batch()
+    # run_experiments_seed_batch()
+    # print(exp_carry_key(1, seed=9, train=True))
+    run_experiments_seed_batch(
+        seeds=[3, 9], threads=2, fn=exp_carry_key,
+        expname='exp_carry_key', runs=30, train=True)
 
 
 if __name__ == "__main__":
