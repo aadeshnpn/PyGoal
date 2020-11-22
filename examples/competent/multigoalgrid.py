@@ -88,7 +88,7 @@ class MultiGoalGridExp():
         # print(dir(self.behaviour_tree.root.children[0]))
         # print(self.behaviour_tree.root.children[0].parent.children)
         # Train
-        for i in range(100):
+        for i in range(150):
             self.behaviour_tree.tick(
                 pre_tick_handler=self.reset_env(self.env)
             )
