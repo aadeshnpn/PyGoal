@@ -155,7 +155,7 @@ class GenRecProp:
 
         trace = updateTrace(trace, state)
         j = 0
-
+        result = False
         while True:
             # next_state, reward, done, info = self.env.step(
             #    self.env.env_action_dict[action])
@@ -177,12 +177,17 @@ class GenRecProp:
             # Run the policy as long as the goal is not achieved or less than j
             # print(j, trace)
             traceset = trace.copy()
-            if self.evaluate_trace(self.goalspec, traceset):
-                return True, trace
+            result = self.evaluate_trace(self.goalspec, traceset)
+            if self.goalspec[0] == 'G':
+                if not result:
+                    return result, trace
+            else:
+                if result:
+                    return True, trace
             if j > max_trace_len:
-                return False, trace
+                return result, trace
             j += 1
-        return False, trace
+        return result, trace
 
     def generator(self, env_reset=False):
         if env_reset:
@@ -241,9 +246,12 @@ class GenRecProp:
         for i in range(0, len(traceset[akey])):
             t = self.create_trace_flloat(traceset, i)
             result = parsed_formula.truth(t)
-            if result is True:
-                self.set_state(self.env, trace, i)
-                return True, self.create_trace_dict(trace, i)
+            if self.goalspec[0] == 'G':
+                if not result:
+                    return result, self.create_trace_dict(trace, i)
+            else:
+                if result:
+                    return result, self.create_trace_dict(trace, i)
 
         return result, self.create_trace_dict(trace, i)
 

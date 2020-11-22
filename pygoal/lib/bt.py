@@ -2,6 +2,7 @@
 
 from py_trees import Behaviour, Blackboard, Status
 from pygoal.lib.planner import Planner
+from py_trees.composites import Parallel
 
 
 class GoalNode(Behaviour):
@@ -154,6 +155,10 @@ class CompetentNode(Behaviour):
 
         Run the planner.
         """
+        # Trick
+        if isinstance(self.parent, Parallel):
+            self.planner.gtable = self.parent.children[0].planner.gtable
+
         if self.train:
             return self.planner.train(self.planner.epoch)
         else:

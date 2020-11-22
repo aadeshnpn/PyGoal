@@ -6,7 +6,7 @@ import gym_minigrid     # noqa: F401
 from gym_minigrid.minigrid import (     # noqa: F401
     Grid, OBJECT_TO_IDX, Key, Door, Goal, Ball, Box, Lava,
     COLOR_TO_IDX)
-
+# import py_trees
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
 from pygoal.utils.bt import goalspec2BT
@@ -14,7 +14,7 @@ from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp
 from pygoal.lib.bt import CompetentNode
 from pygoal.utils.distribution import (
-    recursive_com, recursive_setup, logistfunc,
+    recursive_com, logistfunc, recursive_setup,
     compare_curve)
 
 import matplotlib
@@ -84,10 +84,11 @@ class MultiGoalGridExp():
         # Setup planners
         recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
         # py_trees.logging.level = py_trees.logging.Level.DEBUG
-        # py_trees.display.print_ascii_tree(behaviour_tree.root)
-
+        # py_trees.display.print_ascii_tree(self.behaviour_tree.root)
+        # print(dir(self.behaviour_tree.root.children[0]))
+        # print(self.behaviour_tree.root.children[0].parent.children)
         # Train
-        for i in range(3):
+        for i in range(100):
             self.behaviour_tree.tick(
                 pre_tick_handler=self.reset_env(self.env)
             )
@@ -95,7 +96,7 @@ class MultiGoalGridExp():
 
         # Inference
         recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        for i in range(3):
+        for i in range(10):
             self.behaviour_tree.tick(
                 pre_tick_handler=self.reset_env(self.env)
             )
@@ -332,7 +333,7 @@ class GenRecPropMultiGoal(GenRecProp):
 
     def get_action_policy(self, policy, state):
         action = policy[tuple(state)]
-        action = self.action_uncertainty(action)
+        # action = self.action_uncertainty(action)
         return action
 
     def action_uncertainty(self, action):
@@ -366,7 +367,7 @@ class GenRecPropMultiGoal(GenRecProp):
         trace = self.generator()
         # Recognizer
         result, trace = self.recognizer(trace)
-        print(self.tcount, trace, self.goalspec, result)
+        # print(self.tcount, self.goalspec, result)
         # No need to propagate results after exciding the train epoch
         gkey = self.extract_key()
         if self.tcount <= epoch:
