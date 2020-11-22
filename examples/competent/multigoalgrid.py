@@ -1,5 +1,6 @@
 import numpy as np
 import os
+import copy
 import gym
 import gym_minigrid     # noqa: F401
 from gym_minigrid.minigrid import (     # noqa: F401
@@ -86,7 +87,7 @@ class MultiGoalGridExp():
         # py_trees.display.print_ascii_tree(behaviour_tree.root)
 
         # Train
-        for i in range(100):
+        for i in range(3):
             self.behaviour_tree.tick(
                 pre_tick_handler=self.reset_env(self.env)
             )
@@ -94,7 +95,7 @@ class MultiGoalGridExp():
 
         # Inference
         recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        for i in range(10):
+        for i in range(3):
             self.behaviour_tree.tick(
                 pre_tick_handler=self.reset_env(self.env)
             )
@@ -174,9 +175,8 @@ class GenRecPropMultiGoal(GenRecProp):
         # # Near door or not
         # # Door open or closed
         # # Goal or not
-        pos = env.agent_pos
-        ori = env.agent_dir
-
+        pos = copy.copy(env.agent_pos)
+        ori = copy.copy(env.agent_dir)
         fwd_pos = env.front_pos
         # Open door variable
         door_open = 0
@@ -251,6 +251,7 @@ class GenRecPropMultiGoal(GenRecProp):
 
     # Need to work on this
     def set_state(self, env, trace, i):
+        # envobs = copy.copy(env)
         envobs = env.unwrapped
         full_grid = envobs.grid.encode()
         full_grid[envobs.agent_pos[0]][envobs.agent_pos[1]] = np.array([
@@ -259,7 +260,7 @@ class GenRecPropMultiGoal(GenRecProp):
             envobs.agent_dir
         ])
 
-        def set_items(val, obj, itemcode, env, full_grid, color=2):
+        def set_items(val, obj, itemcode, envobs, full_grid, color=2):
             if val == '0':
                 pass
             elif val == '1':
@@ -268,23 +269,23 @@ class GenRecPropMultiGoal(GenRecProp):
                     full_grid[:, :, 0] == itemcode
                     i, j = np.where(full_grid[:, :, 0] == itemcode)
                     if len(i) == 1:
-                        item = env.grid.get(i[0], j[0])
+                        item = envobs.grid.get(i[0], j[0])
                     else:
                         for k in range(len(i)):
                             if full_grid[i[k], j[k]][1] == color:
-                                item = env.grid.get(i[k], j[k])
+                                item = envobs.grid.get(i[k], j[k])
                                 break
                     if isinstance(item, obj):
-                        env.carrying = item
-                        env.carrying.cur_pos = np.array([-1, -1])
-                        env.grid.set(i[k], j[k], None)
+                        envobs.carrying = item
+                        envobs.carrying.cur_pos = np.array([-1, -1])
+                        envobs.grid.set(i[k], j[k], None)
 
         for k in self.keys:
             # print('set trace', k, trace[k][i])
             if k == 'LO':
                 x, y, d = trace[k][i][-1]
-                env.agent_pos = (int(x), int(y))
-                env.agent_dir = int(d)
+                envobs.agent_pos = (int(x), int(y))
+                envobs.agent_dir = int(d)
             # elif k == 'F':
             #    fx, fy = trace[k][i][-1]
             elif k == 'DO':
@@ -295,7 +296,7 @@ class GenRecPropMultiGoal(GenRecProp):
                     status = True
                 # full_grid[:, :, 0] == 4
                 i, j = np.where(full_grid[:, :, 0] == 4)
-                item = env.grid.get(i[0], j[0])
+                item = envobs.grid.get(i[0], j[0])
                 if isinstance(item, Door):
                     item.is_open = status
 
@@ -365,6 +366,7 @@ class GenRecPropMultiGoal(GenRecProp):
         trace = self.generator()
         # Recognizer
         result, trace = self.recognizer(trace)
+        print(self.tcount, trace, self.goalspec, result)
         # No need to propagate results after exciding the train epoch
         gkey = self.extract_key()
         if self.tcount <= epoch:
