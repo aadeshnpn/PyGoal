@@ -568,3 +568,77 @@ class GenRecPropTaxi(GenRecProp):
         policy = self.get_policy()
         result, trace = self.run_policy(policy, self.max_trace_len)
         return result
+
+
+class GenRecPropUpdated(GenRecProp):
+    def __init__(
+        self, env, keys, goalspec, gtable=dict(), max_trace=40,
+            actions=[0, 1, 2, 3], epoch=10, seed=None):
+        super().__init__(
+            env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
+        self.trace = None
+
+    # Override generator method
+    def generator(self, env_reset=False):
+        state = self.get_curr_state(self.env)
+        # trace = self.create_trace_skeleton(state)
+        try:
+            if len(self.trace['A']) >= self.max_trace_len:
+                return self.trace
+        except KeyError:
+            self.trace = self.create_trace_skeleton(state)
+        # Explore action or exploit
+        try:
+            action = self.get_action(self.gtable_key(state))
+        except KeyError:
+            self.create_gtable_indv(self.gtable_key(state))
+            action = self.get_action(self.gtable_key(state))
+
+        # Add action to the trace
+        try:
+            temp = self.trace['A'][-1].copy()
+            temp.append(action)
+            self.trace['A'].append(temp)
+        except IndexError:
+            self.trace['A'].append(action)
+        # Map the action to env_action
+        # next_state, reward, done, info = self.env.step(
+        #     self.env.env_action_dict[action])
+        next_state, reward, done, info = self.env.step(
+            self.env_action_dict(action))
+
+        nstate = self.get_curr_state(self.env)
+        self.trace = self.trace_accumulator(self.trace, nstate)
+        # state = nstate
+
+        return self.trace
+
+    def recognizer(self, trace):
+        """Recognizer.
+
+        Which will reconize traces from the generator system."""
+        # parse the formula
+        parser = LTLfGParser()
+
+        # Define goal formula/specification
+        parsed_formula = parser(self.goalspec)
+
+        # Change list of trace to set
+        traceset = trace.copy()
+        akey = list(traceset.keys())[0]
+        # Loop through the trace to find the shortest best trace
+
+        t = self.create_trace_flloat(traceset, len(traceset[akey]))
+        result = parsed_formula.truth(t)
+        if self.goalspec[0] == 'G':
+            if not result:
+                return result, self.create_trace_dict(
+                    trace, len(traceset[akey]))
+        else:
+            if result:
+                return result, self.create_trace_dict(
+                    trace, len(traceset[akey]))
+
+        return result, self.create_trace_dict(
+            trace, len(traceset[akey]))
+
