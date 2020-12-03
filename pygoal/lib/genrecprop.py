@@ -576,7 +576,8 @@ class GenRecPropUpdated(GenRecProp):
             actions=[0, 1, 2, 3], epoch=10, seed=None):
         super().__init__(
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
-        self.trace = None
+        self.trace = dict()
+        self.itrace = dict()
 
     # Override generator method
     def generator(self, env_reset=False):
@@ -642,3 +643,57 @@ class GenRecPropUpdated(GenRecProp):
         return result, self.create_trace_dict(
             trace, len(traceset[akey]))
 
+    def run_policy(self, policy, max_trace_len=20, verbose=False):
+        state = self.get_curr_state(self.env)
+        try:
+            action = self.get_action_policy(policy, state)
+        except KeyError:
+            if verbose:
+                print('State does not exist in the policy', state)
+            action = self.nprandom.choice(self.actionsidx)
+            # return False
+        try:
+            self.itrace['A'] = [action]
+        except KeyError:
+            self.itrace = dict(
+                zip(self.keys, [list() for k in range(len(self.keys))]))
+
+        def updateTrace(trace, state):
+            j = 0
+            for k in self.keys:
+                trace[k].append(state[j])
+                j += 1
+            return trace
+
+        self.itrace = updateTrace(self.itrace, state)
+        # j = 0
+        result = False
+        if verbose:
+            self.env.render()
+            time.sleep(1)
+        next_state, reward, done, info = self.env.step(
+            self.env_action_dict(action))
+
+        next_state = self.get_curr_state(self.env)
+        self.itrace = updateTrace(self.itrace, next_state)
+        state = next_state
+        try:
+            action = self.get_action_policy(policy, state)
+            self.itrace['A'].append(action)
+        # Handeling terminal state
+        except KeyError:
+            self.itrace['A'].append(9)
+        # Run the policy as long as the goal is not achieved or less than j
+        # print(j, trace)
+        traceset = self.itrace.copy()
+        result = self.evaluate_trace(self.goalspec, traceset)
+        if self.goalspec[0] == 'G':
+            if not result:
+                return result, self.itrace
+        else:
+            if result:
+                return True, self.itrace
+        if len(self.itrace['A']) > max_trace_len:
+            return result, self.itrace
+
+        return result, self.itrace
