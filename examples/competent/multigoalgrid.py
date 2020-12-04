@@ -141,6 +141,126 @@ class MultiGoalGridExp():
         compare_curve(curves, datas, name=self.expname, root=root)
 
 
+class MultiGoalGridUExp():
+    def __init__(
+            self, expname='key', goalspecs='F P_[KE][1,none,==]',
+            keys=['LO', 'FW', 'KE'], actions=list(range(5)),
+            seed=None, maxtracelen=40, trainc=False, epoch=80):
+        env_name = 'MiniGrid-Goals-v0'
+        env = gym.make(env_name)
+        if seed is None:
+            pass
+        else:
+            env = ReseedWrapper(env, seeds=[seed])
+        env = FullyObsWrapper(env)
+        self.env = env
+        self.env.max_steps = min(env.max_steps, maxtracelen)
+        # self.env.agent_view_size = 1
+        self.env.reset()
+        self.expname = expname
+        self.goalspecs = goalspecs
+        self.epoch = epoch
+        self.maxtracelen = maxtracelen
+        self.trainc = trainc
+        self.allkeys = [
+            'LO', 'FW', 'KE', 'DR',
+            'BOB', 'BOR', 'BAB', 'BAR',
+            'LV', 'GO', 'CK',
+            'CBB', 'CBR', 'CAB', 'CAR',
+            'DO', 'RM']
+        self.keys = keys
+        self.actions = actions
+        root = goalspec2BT(goalspecs, planner=None, node=CompetentNode)
+        self.behaviour_tree = BehaviourTree(root)
+        self.blackboard = Blackboard()
+
+    def run(self):
+        def fn_c(child):
+            pass
+
+        def fn_eset(child):
+            planner = GenRecPropMultiGoalU(
+                self.env, self.keys, child.name, dict(), actions=self.actions,
+                max_trace=self.maxtracelen, seed=None, allkeys=self.allkeys)
+
+            child.setup(0, planner, True, self.epoch)
+
+        def fn_einf(child):
+            child.train = False
+            child.planner.epoch = 5
+            child.planner.tcount = 0
+
+        def fn_ecomp(child):
+            child.planner.compute_competency(self.trainc)
+
+        # Save the environment to visualize
+        # self.save_data(env=True)
+
+        # Setup planners
+        recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
+        # py_trees.logging.level = py_trees.logging.Level.DEBUG
+        # py_trees.display.print_ascii_tree(self.behaviour_tree.root)
+        # print(dir(self.behaviour_tree.root.children[0]))
+        # print(self.behaviour_tree.root.children[0].parent.children)
+        # Train
+        for i in range(self.epoch):
+            for j in range(self.maxtracelen):
+                self.behaviour_tree.tick(
+                    # pre_tick_handler=self.reset_env()
+                )
+            print(i, 'Training', self.behaviour_tree.root.status)
+
+        # Inference
+        # recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
+        # for i in range(10):
+        #     self.behaviour_tree.tick(
+        #         pre_tick_handler=self.reset_env(self.env)
+        #     )
+        # # print(i, 'Inference', self.behaviour_tree.root.status)
+        # # Recursive compute competency for execution nodes
+        # recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
+
+        # # Recursive compute competency for control nodes
+        # recursive_com(self.behaviour_tree.root, self.blackboard)
+
+    def reset_env(self):
+        self.env.reset()
+
+    def check_env_done(self):
+
+        self.reset_env()
+
+    def save_data(self, env=False):
+        # Create folder if not exists
+        import pathlib
+        import os
+        dname = os.path.join('/tmp', 'pygoal', 'data', 'experiments')
+        pathlib.Path(dname).mkdir(parents=True, exist_ok=True)
+        if env:
+            fname = os.path.join(dname, self.expname + '_env.png')
+            img = self.env.render(mode='exp')
+            plt.imsave(fname, img)
+        else:
+            fname = os.path.join(dname, self.expname + '.pkl')
+            import pickle
+            pickle.dump(self.blackboard, open(fname, "wb"))
+
+    def draw_plot(self, nodenames, root=False, train=True):
+        curves = []
+        datas = []
+        for nname in nodenames:
+            if train:
+                datas.append(np.mean(
+                    self.blackboard.shared_content[
+                        'ctdata'][nname], axis=0))
+            else:
+                datas.append(np.mean(
+                    self.blackboard.shared_content[
+                        'cidata'][nname], axis=0))
+            curves.append(self.blackboard.shared_content['curve'][nname])
+        compare_curve(curves, datas, name=self.expname, root=root)
+
+
 class GenRecPropMultiGoal(GenRecProp):
     def __init__(
         self, env, keys, goalspec, gtable=dict(), max_trace=40,
@@ -659,26 +779,25 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
 
     def train(self, epoch, verbose=False):
         # Run the generator, recognizer loop for some epocs
-        # for _ in range(epoch):
 
         # Generator
         trace = self.generator()
         # Recognizer
         result, trace = self.recognizer(trace)
-        # print(self.tcount, self.goalspec, result)
         # No need to propagate results after exciding the train epoch
         gkey = self.extract_key()
-        if self.tcount <= epoch:
-            # Update the data to compute competency
-            data = self.aggrigate_data(len(trace[gkey]), result)
-            self.blackboard.shared_content[
-                'ctdata'][self.id].append(data)
-            # Progagrate the error generate from recognizer
+        # Update the data to compute competency
+        data = self.aggrigate_data(len(trace[gkey]), result)
+        self.blackboard.shared_content[
+            'ctdata'][self.id].append(data)
+        # Progagrate the error generate from recognizer
+        if self.env_done or len(trace[gkey]) >= self.max_trace_len:
             self.propagate(result, trace)
-            # Increment the count
-            self.tcount += 1
-            # print(self.tcount, trace[gkey], result)
-            # print(self.tcount, data)
+            self.env.reset()
+            self.trace = dict()
+        # Increment the count
+
+        self.tcount += 1
         return result
 
     def inference(self, render=False, verbose=False):

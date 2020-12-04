@@ -1,7 +1,7 @@
 """Competency experiments with MultiGoalGrid for the IJCAIpaper"""
 
 from examples.competent.multigoalgrid import (
-    MultiGoalGridExp)
+    MultiGoalGridExp, MultiGoalGridUExp)
 from pygoal.utils.distribution import plot_competency_variance, logistfunc
 import numpy as np
 from tqdm import tqdm
@@ -177,27 +177,28 @@ def main():
 
 
 def updated_genrecprop(
-        name='find_key_u', expid=1, seed=7, train=True):
+        name='find_key_u', expid=1, seed=3, train=True):
     goalspec = 'F P_[KE][1,none,==]'
     keys = [
         'LO', 'FW', 'KE']
-    exp = MultiGoalGridExp(
+    exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=50,
-        epoch=100, trainc=train)
+        epoch=50, trainc=train)
     exp.run()
     # exp.draw_plot(['F(P_[KE][1,none,==])'], train=train)
     # exp.save_data()
-    if train:
-        return np.mean(
-            exp.blackboard.shared_content[
-             'ctdata']['F(P_[KE][1,none,==])'], axis=0)
-    else:
-        return np.mean(
-            exp.blackboard.shared_content[
-             'cidata']['F(P_[KE][1,none,==])'], axis=0)
-    pass
+    # if train:
+    #     return np.mean(
+    #         exp.blackboard.shared_content[
+    #          'ctdata']['F(P_[KE][1,none,==])'], axis=0)
+    # else:
+    #     return np.mean(
+    #         exp.blackboard.shared_content[
+    #          'cidata']['F(P_[KE][1,none,==])'], axis=0)
+    # pass
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    updated_genrecprop()

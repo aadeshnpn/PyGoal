@@ -578,6 +578,7 @@ class GenRecPropUpdated(GenRecProp):
             env, keys, goalspec, gtable, max_trace, actions, epoch, seed)
         self.trace = dict()
         self.itrace = dict()
+        self.env_done = False
 
     # Override generator method
     def generator(self, env_reset=False):
@@ -607,7 +608,8 @@ class GenRecPropUpdated(GenRecProp):
         #     self.env.env_action_dict[action])
         next_state, reward, done, info = self.env.step(
             self.env_action_dict(action))
-
+        # Collect the env done variable
+        self.env_done = done
         nstate = self.get_curr_state(self.env)
         self.trace = self.trace_accumulator(self.trace, nstate)
         # state = nstate
@@ -628,20 +630,20 @@ class GenRecPropUpdated(GenRecProp):
         traceset = trace.copy()
         akey = list(traceset.keys())[0]
         # Loop through the trace to find the shortest best trace
-
-        t = self.create_trace_flloat(traceset, len(traceset[akey]))
+        trace_len = len(traceset[akey])-1
+        t = self.create_trace_flloat(traceset, trace_len)
         result = parsed_formula.truth(t)
         if self.goalspec[0] == 'G':
             if not result:
                 return result, self.create_trace_dict(
-                    trace, len(traceset[akey]))
+                    trace, trace_len)
         else:
             if result:
                 return result, self.create_trace_dict(
-                    trace, len(traceset[akey]))
+                    trace, trace_len)
 
         return result, self.create_trace_dict(
-            trace, len(traceset[akey]))
+            trace, trace_len)
 
     def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
