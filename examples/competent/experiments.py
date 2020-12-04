@@ -186,7 +186,7 @@ def updated_genrecprop(
         actions=list(range(3)), seed=seed, maxtracelen=50,
         epoch=50, trainc=train)
     exp.run()
-    # exp.draw_plot(['F(P_[KE][1,none,==])'], train=train)
+    # exp.draw_plot(['F(P_[KE][1,none,==])'], train=False)
     # exp.save_data()
     # if train:
     #     return np.mean(

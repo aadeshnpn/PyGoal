@@ -204,6 +204,7 @@ class MultiGoalGridUExp():
         # print(self.behaviour_tree.root.children[0].parent.children)
         # Train
         for i in range(self.epoch):
+            self.env.reset()
             for j in range(self.maxtracelen):
                 self.behaviour_tree.tick(
                     # pre_tick_handler=self.reset_env()
@@ -212,11 +213,13 @@ class MultiGoalGridUExp():
 
         # Inference
         # recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        # for i in range(10):
-        #     self.behaviour_tree.tick(
-        #         pre_tick_handler=self.reset_env(self.env)
-        #     )
-        # # print(i, 'Inference', self.behaviour_tree.root.status)
+        # for i in range(self.epoch):
+        #     self.env.reset()
+        #     for j in range(self.maxtracelen):
+        #         self.behaviour_tree.tick(
+        #             # pre_tick_handler=self.reset_env(self.env)
+        #         )
+        #     print(i, 'Inference', self.behaviour_tree.root.status)
         # # Recursive compute competency for execution nodes
         # recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
 
@@ -791,13 +794,16 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
         self.blackboard.shared_content[
             'ctdata'][self.id].append(data)
         # Progagrate the error generate from recognizer
-        if self.env_done or len(trace[gkey]) >= self.max_trace_len:
+        if (
+                self.env_done or
+                len(trace[gkey]) >= self.max_trace_len or
+                result
+                ):
             self.propagate(result, trace)
-            self.env.reset()
             self.trace = dict()
         # Increment the count
 
-        self.tcount += 1
+        # self.tcount += 1
         return result
 
     def inference(self, render=False, verbose=False):
@@ -808,11 +814,16 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
         gkey = self.extract_key()
         # print('from inference', self.tcount, self.epoch)
         # print(result, trace)
-        if self.tcount <= self.epoch:
-            data = self.aggrigate_data(len(trace[gkey]), result)
-            self.blackboard.shared_content[
-                'cidata'][self.id].append(data)
-            self.tcount += 1
+        data = self.aggrigate_data(len(trace[gkey]), result)
+        self.blackboard.shared_content[
+            'cidata'][self.id].append(data)
+
+        if self.env_done or len(trace[gkey]) >= self.max_trace_len:
+            # if self.tcount <= self.epoch:
+            # print(len(trace[gkey]))
+            self.env.reset()
+            self.itrace = dict()
+        # self.tcount += 1
         return result
 
     def aggrigate_data(self, size, result):

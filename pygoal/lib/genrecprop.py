@@ -647,18 +647,21 @@ class GenRecPropUpdated(GenRecProp):
 
     def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
+
         try:
             action = self.get_action_policy(policy, state)
         except KeyError:
             if verbose:
                 print('State does not exist in the policy', state)
             action = self.nprandom.choice(self.actionsidx)
-            # return False
+
         try:
-            self.itrace['A'] = [action]
+            if len(self.itrace['A']) >= self.max_trace_len:
+                return self.trace
         except KeyError:
             self.itrace = dict(
                 zip(self.keys, [list() for k in range(len(self.keys))]))
+            self.itrace['A'] = [action]
 
         def updateTrace(trace, state):
             j = 0
@@ -666,7 +669,7 @@ class GenRecPropUpdated(GenRecProp):
                 trace[k].append(state[j])
                 j += 1
             return trace
-
+        # print(self.itrace)
         self.itrace = updateTrace(self.itrace, state)
         # j = 0
         result = False
