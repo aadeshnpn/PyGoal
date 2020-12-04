@@ -9,6 +9,7 @@ from gym_minigrid.minigrid import (     # noqa: F401
 # import py_trees
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
+from py_trees import Status
 from pygoal.utils.bt import goalspec2BT
 from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp, GenRecPropUpdated
@@ -154,7 +155,7 @@ class MultiGoalGridUExp():
             env = ReseedWrapper(env, seeds=[seed])
         env = FullyObsWrapper(env)
         self.env = env
-        self.env.max_steps = min(env.max_steps, maxtracelen)
+        self.env.max_steps = min(env.max_steps, maxtracelen-3)
         # self.env.agent_view_size = 1
         self.env.reset()
         self.expname = expname
@@ -181,7 +182,8 @@ class MultiGoalGridUExp():
         def fn_eset(child):
             planner = GenRecPropMultiGoalU(
                 self.env, self.keys, child.name, dict(), actions=self.actions,
-                max_trace=self.maxtracelen, seed=None, allkeys=self.allkeys)
+                max_trace=self.maxtracelen, epoch=50,
+                seed=None, allkeys=self.allkeys)
 
             child.setup(0, planner, True, self.epoch)
 
@@ -203,25 +205,40 @@ class MultiGoalGridUExp():
         # print(dir(self.behaviour_tree.root.children[0]))
         # print(self.behaviour_tree.root.children[0].parent.children)
         # Train
+        self.blackboard.shared_content['current'] = dict()
         for i in range(self.epoch):
             self.env.reset()
+            self.blackboard.shared_content['current']['epoch'] = i
             for j in range(self.maxtracelen):
                 self.behaviour_tree.tick(
                     # pre_tick_handler=self.reset_env()
                 )
+                # print(j, self.behaviour_tree.root.planner.gtable.keys())
+                if self.behaviour_tree.root.status == Status.SUCCESS:
+                    break
+                if self.blackboard.shared_content['current']['done']:
+                    break
             print(i, 'Training', self.behaviour_tree.root.status)
 
         # Inference
-        # recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        # for i in range(self.epoch):
-        #     self.env.reset()
-        #     for j in range(self.maxtracelen):
-        #         self.behaviour_tree.tick(
-        #             # pre_tick_handler=self.reset_env(self.env)
-        #         )
-        #     print(i, 'Inference', self.behaviour_tree.root.status)
-        # # Recursive compute competency for execution nodes
-        # recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
+        recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
+        for i in range(self.epoch//10):
+            self.env.reset()
+            self.blackboard.shared_content['current']['epoch'] = i
+            for j in range(self.maxtracelen):
+                self.behaviour_tree.tick(
+                    # pre_tick_handler=self.reset_env(self.env)
+                )
+                if self.behaviour_tree.root.status == Status.SUCCESS:
+                    break
+                if self.blackboard.shared_content['current']['done']:
+                    break
+            print(i, 'Inference', self.behaviour_tree.root.status)
+        # Recursive compute competency for execution nodes
+        recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
+        self.trainc = not self.trainc
+        # Recursive compute competency for execution nodes
+        recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
 
         # # Recursive compute competency for control nodes
         # recursive_com(self.behaviour_tree.root, self.blackboard)
@@ -260,8 +277,9 @@ class MultiGoalGridUExp():
                 datas.append(np.mean(
                     self.blackboard.shared_content[
                         'cidata'][nname], axis=0))
-            curves.append(self.blackboard.shared_content['curve'][nname])
-        compare_curve(curves, datas, name=self.expname, root=root)
+            curves.append(
+                self.blackboard.shared_content['curve'][nname][str(train)])
+        compare_curve(curves, datas, name=self.expname+str(train), root=root)
 
 
 class GenRecPropMultiGoal(GenRecProp):
@@ -581,6 +599,14 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
         self.prob = actionu
         # Id to reference the blackboard
         self.id = self.goalspec if id is None else id
+        # Numpy array to hold competency data
+        # print(self.epoch)
+        self.tdata = np.zeros((self.epoch, max_trace+4))
+        self.idata = np.zeros((self.epoch//10, max_trace+4))
+        self.blackboard.shared_content[
+            'ctdata'][self.id] = self.tdata
+        self.blackboard.shared_content[
+            'cidata'][self.id] = self.idata
 
     def env_action_dict(self, action):
         return action
@@ -790,9 +816,9 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
         # No need to propagate results after exciding the train epoch
         gkey = self.extract_key()
         # Update the data to compute competency
-        data = self.aggrigate_data(len(trace[gkey]), result)
-        self.blackboard.shared_content[
-            'ctdata'][self.id].append(data)
+        self.blackboard.shared_content['current'][self.id] = self.tcount
+        self.blackboard.shared_content['current']['done'] = self.env_done
+        self.update_data(result)
         # Progagrate the error generate from recognizer
         if (
                 self.env_done or
@@ -800,10 +826,14 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
                 result
                 ):
             self.propagate(result, trace)
+            # print('trace len', len(trace[gkey]), self.tcount, self.env_done, end=' ')
+            self.aggrigate_data(len(trace[gkey]), result)
             self.trace = dict()
-        # Increment the count
+            self.blackboard.shared_content['current'][self.id] = 0
+            self.tcount = 0
 
-        # self.tcount += 1
+        # Increment the count
+        self.tcount += 1
         return result
 
     def inference(self, render=False, verbose=False):
@@ -813,26 +843,46 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
             policy, self.max_trace_len, verbose=False)
         gkey = self.extract_key()
         # print('from inference', self.tcount, self.epoch)
-        # print(result, trace)
-        data = self.aggrigate_data(len(trace[gkey]), result)
-        self.blackboard.shared_content[
-            'cidata'][self.id].append(data)
-
-        if self.env_done or len(trace[gkey]) >= self.max_trace_len:
+        self.blackboard.shared_content['current'][self.id] = self.tcount
+        self.blackboard.shared_content['current']['done'] = self.env_done
+        self.update_data(result, train=False)
+        if (
+                self.env_done or
+                len(trace[gkey]) >= self.max_trace_len
+                or result):
             # if self.tcount <= self.epoch:
             # print(len(trace[gkey]))
-            self.env.reset()
+            self.aggrigate_data(len(trace[gkey]), result, train=False)
             self.itrace = dict()
-        # self.tcount += 1
+            self.blackboard.shared_content['current'][self.id] = 0
+            self.tcount = 0
+
+        self.tcount += 1
         return result
 
-    def aggrigate_data(self, size, result):
-        data = np.zeros((self.max_trace_len+4))
-        if result:
-            data[:size] = np.array(
-                data[size], dtype=np.float)
-            data[size:] = 1.0
-        return data
+    def aggrigate_data(self, indx, result, train=True):
+        epoch = self.blackboard.shared_content['current']['epoch']
+
+        def filldata(data, indx):
+            if result:
+                data[epoch][:indx] = np.array(
+                    data[epoch][indx], dtype=np.float)
+                data[epoch][indx:] = 1.0
+            return data
+        if train:
+            self.tdata = filldata(self.tdata, indx)
+        else:
+            self.idata = filldata(self.idata, indx)
+            print(self.idata[epoch])
+
+    def update_data(self, result, train=True):
+        epoch = self.blackboard.shared_content['current']['epoch']
+        trace = self.blackboard.shared_content['current'][self.id]
+        # print('update data', epoch, trace, end=' ')
+        if train:
+            self.tdata[epoch][trace] = result * 1.0
+        else:
+            self.idata[epoch][trace] = result * 1.0
 
     def extract_key(self):
         import re
@@ -863,5 +913,5 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
                     maxfev=800)
             except (RuntimeError, IndexError):
                 popt = np.array([0.99, 1., 1.])
-        self.blackboard.shared_content['curve'][self.id] = popt
+        self.blackboard.shared_content['curve'][self.id][str(train)] = popt
         return popt

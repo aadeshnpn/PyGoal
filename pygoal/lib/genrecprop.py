@@ -655,22 +655,23 @@ class GenRecPropUpdated(GenRecProp):
                 print('State does not exist in the policy', state)
             action = self.nprandom.choice(self.actionsidx)
 
-        try:
-            if len(self.itrace['A']) >= self.max_trace_len:
-                return self.trace
-        except KeyError:
-            self.itrace = dict(
-                zip(self.keys, [list() for k in range(len(self.keys))]))
-            self.itrace['A'] = [action]
-
         def updateTrace(trace, state):
             j = 0
             for k in self.keys:
                 trace[k].append(state[j])
                 j += 1
             return trace
+
+        try:
+            if len(self.itrace['A']) >= self.max_trace_len:
+                return self.itrace
+        except KeyError:
+            self.itrace = dict(
+                zip(self.keys, [list() for k in range(len(self.keys))]))
+            self.itrace['A'] = [action]
+            self.itrace = updateTrace(self.itrace, state)
         # print(self.itrace)
-        self.itrace = updateTrace(self.itrace, state)
+
         # j = 0
         result = False
         if verbose:

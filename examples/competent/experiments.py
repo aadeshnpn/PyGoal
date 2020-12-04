@@ -183,10 +183,11 @@ def updated_genrecprop(
         'LO', 'FW', 'KE']
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
-        actions=list(range(3)), seed=seed, maxtracelen=50,
-        epoch=50, trainc=train)
+        actions=list(range(3)), seed=seed, maxtracelen=20,
+        epoch=50, trainc=True)
     exp.run()
-    # exp.draw_plot(['F(P_[KE][1,none,==])'], train=False)
+    exp.draw_plot(['F(P_[KE][1,none,==])'], train=False)
+    exp.draw_plot(['F(P_[KE][1,none,==])'], train=True)
     # exp.save_data()
     # if train:
     #     return np.mean(
