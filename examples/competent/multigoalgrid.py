@@ -222,7 +222,7 @@ class MultiGoalGridUExp():
 
         # Inference
         recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        for i in range(self.epoch//10):
+        for i in range(self.epoch):
             self.env.reset()
             self.blackboard.shared_content['current']['epoch'] = i
             for j in range(self.maxtracelen):
@@ -602,7 +602,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
         # Numpy array to hold competency data
         # print(self.epoch)
         self.tdata = np.zeros((self.epoch, max_trace+4))
-        self.idata = np.zeros((self.epoch//10, max_trace+4))
+        self.idata = np.zeros((self.epoch, max_trace+4))
         self.blackboard.shared_content[
             'ctdata'][self.id] = self.tdata
         self.blackboard.shared_content[
@@ -780,7 +780,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
 
     def get_action_policy(self, policy, state):
         action = policy[tuple(state)]
-        # action = self.action_uncertainty(action)
+        action = self.action_uncertainty(action)
         return action
 
     def action_uncertainty(self, action):
@@ -873,7 +873,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
             self.tdata = filldata(self.tdata, indx)
         else:
             self.idata = filldata(self.idata, indx)
-            print(self.idata[epoch])
+            # print(self.idata[epoch])
 
     def update_data(self, result, train=True):
         epoch = self.blackboard.shared_content['current']['epoch']
