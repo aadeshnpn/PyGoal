@@ -64,7 +64,7 @@ def exp_find_key(expid, name='exp_find_key', train=False, seed=None):
 
 def exp_find_key_avoid_lava(
         expid, name='exp_find_key_avoid_lava', train=False, seed=None):
-    goalspec = '((F(P_[KE][1,none,==])) & G(P_[LV][0,none,==]))'
+    goalspec = '(F(P_[KE][1,none,==])) & (G(P_[LV][0,none,==]))'
     keys = [
         'LO', 'FW', 'KE', 'LV']
     exp = MultiGoalGridExp(
@@ -154,9 +154,9 @@ def main():
 
     # # Total Samples: 10 * 80(epoch) * 40 (states)
     # Experiment exp_find_key
-    run_experiments(
-        exp_find_key, name='exp_find_key_10_',
-        runs=10, parallel=True, seed=7, train=True)
+    # run_experiments(
+    #     exp_find_key, name='exp_find_key_10_',
+    #     runs=10, parallel=True, seed=7, train=True)
 
     # Total Samples: 50 * 80(epoch) * 80 (states)
     # run_experiments_seed_batch()
@@ -173,7 +173,7 @@ def main():
     # Experiment exp_find_key_avoid_lava
     run_experiments(
         exp_find_key_avoid_lava, name='exp_find_key_avoid_lava_10_',
-        runs=10, parallel=True, seed=7, train=True)
+        runs=1, parallel=True, seed=7, train=True)
 
 
 def updated_genrecprop(
@@ -201,5 +201,5 @@ def updated_genrecprop(
 
 
 if __name__ == "__main__":
-    # main()
-    updated_genrecprop()
+    main()
+    # updated_genrecprop()

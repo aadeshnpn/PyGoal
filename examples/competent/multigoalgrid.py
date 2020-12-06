@@ -84,8 +84,10 @@ class MultiGoalGridExp():
 
         # Setup planners
         recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
-        # py_trees.logging.level = py_trees.logging.Level.DEBUG
-        # py_trees.display.print_ascii_tree(self.behaviour_tree.root)
+        import py_trees
+        py_trees.logging.level = py_trees.logging.Level.DEBUG
+        py_trees.display.print_ascii_tree(self.behaviour_tree.root)
+        exit()
         # print(dir(self.behaviour_tree.root.children[0]))
         # print(self.behaviour_tree.root.children[0].parent.children)
         # Train

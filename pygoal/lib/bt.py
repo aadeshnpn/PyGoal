@@ -97,12 +97,19 @@ class CompetentNode(Behaviour):
         self.planner = planner
         self.train = train
         try:
-            self.blackboard.shared_content[
-                'curve'][name][str(train)] = [0, 0, 0]
+            self.blackboard.shared_content.keys()
         except AttributeError:
             self.blackboard.shared_content = dict()
             self.blackboard.shared_content['curve'] = dict()
+        try:
+            self.blackboard.shared_content[
+                 'curve'][name][str(train)] = [0, 0, 0]
+        except KeyError:
             self.blackboard.shared_content['curve'][name] = dict()
+            self.blackboard.shared_content[
+                'curve'][name][str(True)] = [0, 0, 0]
+            self.blackboard.shared_content[
+                'curve'][name][str(False)] = [0, 0, 0]
         try:
             self.blackboard.shared_content[
                 'ctdata'][name] = list()
