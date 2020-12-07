@@ -13,7 +13,7 @@ class GoalNode(Behaviour):
     the agents to execute the policy.
     """
 
-    def __init__(self, name, planner, train=True):
+    def __init__(self, name, planner, train=True, id=0):
         """Init method for the policy behavior."""
         super(GoalNode, self).__init__(name)
         self.blackboard = Blackboard()
@@ -90,38 +90,41 @@ class CompetentNode(Behaviour):
     the agents to execute the policy.
     """
 
-    def __init__(self, name, planner, train=True):
+    def __init__(self, name, planner, train=True, id=0):
         """Init method for the policy behavior."""
         super(CompetentNode, self).__init__(name)
         self.blackboard = Blackboard()
         self.planner = planner
         self.train = train
+        self.nodename = name + '_' + str(id)
         try:
             self.blackboard.shared_content.keys()
         except AttributeError:
             self.blackboard.shared_content = dict()
             self.blackboard.shared_content['curve'] = dict()
         try:
+            # print(self.blackboard.shared_content['curve'], name, str(train))
             self.blackboard.shared_content[
-                 'curve'][name][str(train)] = [0, 0, 0]
+                 'curve'][self.nodename]
         except KeyError:
-            self.blackboard.shared_content['curve'][name] = dict()
+            self.blackboard.shared_content['curve'][self.nodename] = dict()
             self.blackboard.shared_content[
-                'curve'][name][str(True)] = [0, 0, 0]
+                'curve'][self.nodename][str(True)] = [0, 0, 0]
             self.blackboard.shared_content[
-                'curve'][name][str(False)] = [0, 0, 0]
+                'curve'][self.nodename][str(False)] = [0, 0, 0]
+            # print(self.blackboard.shared_content['curve'])
         try:
             self.blackboard.shared_content[
-                'ctdata'][name] = list()
+                'ctdata'][self.nodename] = list()
             self.blackboard.shared_content[
-                'cidata'][name] = list()
+                'cidata'][self.nodename] = list()
         except KeyError:
             self.blackboard.shared_content['ctdata'] = dict()
             self.blackboard.shared_content['cidata'] = dict()
             self.blackboard.shared_content[
-                'ctdata'][name] = list()
+                'ctdata'][self.nodename] = list()
             self.blackboard.shared_content[
-                'cidata'][name] = list()
+                'cidata'][self.nodename] = list()
 
     def setup(
             self, timeout, planner=Planner.DEFAULT,

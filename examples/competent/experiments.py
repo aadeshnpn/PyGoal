@@ -67,21 +67,22 @@ def exp_find_key_avoid_lava(
     goalspec = '(F(P_[KE][1,none,==])) & (G(P_[LV][0,none,==]))'
     keys = [
         'LO', 'FW', 'KE', 'LV']
-    exp = MultiGoalGridExp(
+    exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=50,
-        epoch=150, trainc=train)
+        epoch=10, trainc=train)
     exp.run()
     # exp.draw_plot(['F(P_[KE][1,none,==])'], train=train)
     # exp.save_data()
+    namek = 'F(P_[KE][1,none,==])_0'
     if train:
         return np.mean(
             exp.blackboard.shared_content[
-             'ctdata']['F(P_[KE][1,none,==])'], axis=0)
+             'ctdata'][namek], axis=0)
     else:
         return np.mean(
             exp.blackboard.shared_content[
-             'cidata']['F(P_[KE][1,none,==])'], axis=0)
+             'cidata']['namek'], axis=0)
     # if train:
     #     popt = exp.blackboard.shared_content[
     #             'curve']['&']
@@ -173,7 +174,7 @@ def main():
     # Experiment exp_find_key_avoid_lava
     run_experiments(
         exp_find_key_avoid_lava, name='exp_find_key_avoid_lava_10_',
-        runs=1, parallel=True, seed=7, train=True)
+        runs=2, parallel=False, seed=7, train=True)
 
 
 def updated_genrecprop(

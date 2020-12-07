@@ -84,10 +84,10 @@ class MultiGoalGridExp():
 
         # Setup planners
         recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
-        import py_trees
-        py_trees.logging.level = py_trees.logging.Level.DEBUG
-        py_trees.display.print_ascii_tree(self.behaviour_tree.root)
-        exit()
+        # import py_trees
+        # py_trees.logging.level = py_trees.logging.Level.DEBUG
+        # py_trees.display.print_ascii_tree(self.behaviour_tree.root)
+        # exit()
         # print(dir(self.behaviour_tree.root.children[0]))
         # print(self.behaviour_tree.root.children[0].parent.children)
         # Train
@@ -184,8 +184,8 @@ class MultiGoalGridUExp():
         def fn_eset(child):
             planner = GenRecPropMultiGoalU(
                 self.env, self.keys, child.name, dict(), actions=self.actions,
-                max_trace=self.maxtracelen, epoch=50,
-                seed=None, allkeys=self.allkeys)
+                max_trace=self.maxtracelen, epoch=self.epoch,
+                seed=None, allkeys=self.allkeys, id=child.nodename)
 
             child.setup(0, planner, True, self.epoch)
 
