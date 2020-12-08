@@ -10,6 +10,7 @@ from gym_minigrid.minigrid import (     # noqa: F401
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard
 from py_trees import Status
+from py_trees.composites import Parallel
 from pygoal.utils.bt import goalspec2BT
 from gym_minigrid.wrappers import ReseedWrapper, FullyObsWrapper
 from pygoal.lib.genrecprop import GenRecProp, GenRecPropUpdated
@@ -197,6 +198,16 @@ class MultiGoalGridUExp():
         def fn_ecomp(child):
             child.planner.compute_competency(self.trainc)
 
+        def parallel_hack(node):
+            if (isinstance(node, Parallel)):
+                return node
+            elif node.children:
+                for c in node.children:
+                    if (isinstance(c, Parallel)):
+                        # Control nodes
+                        return c
+                    parallel_hack(c)
+
         # Save the environment to visualize
         # self.save_data(env=True)
 
@@ -207,6 +218,14 @@ class MultiGoalGridUExp():
         # print(dir(self.behaviour_tree.root.children[0]))
         # print(self.behaviour_tree.root.children[0].parent.children)
         # Train
+        node = parallel_hack(self.behaviour_tree.root)
+        combgoal = [node.name for node in node.children]
+        print(combgoal)
+        for n in node.children:
+            print(n)
+            n.planner.goalspec = combgoal
+        print([n.planner.goalspec for n in node.children])
+        exit()
         self.blackboard.shared_content['current'] = dict()
         for i in range(self.epoch):
             self.env.reset()
@@ -224,7 +243,7 @@ class MultiGoalGridUExp():
 
         # Inference
         recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        for i in range(self.epoch):
+        for i in range(1):
             self.env.reset()
             self.blackboard.shared_content['current']['epoch'] = i
             for j in range(self.maxtracelen):
@@ -782,7 +801,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
 
     def get_action_policy(self, policy, state):
         action = policy[tuple(state)]
-        action = self.action_uncertainty(action)
+        # action = self.action_uncertainty(action)
         return action
 
     def action_uncertainty(self, action):
@@ -828,6 +847,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
                 result
                 ):
             self.propagate(result, trace)
+            # print(result, self.id, trace['LV'])
             # print('trace len', len(trace[gkey]), self.tcount, self.env_done, end=' ')
             self.aggrigate_data(len(trace[gkey]), result)
             self.trace = dict()

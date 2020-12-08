@@ -37,6 +37,7 @@ def run_experiments(
     # print(datas, np.array(datas).shape)
     # Plot the data
     save_pickle(datas, name)
+    # print(datas)
     plot_competency_variance(datas, name)
     return np.mean(datas, axis=0)
 
@@ -45,7 +46,7 @@ def exp_find_key(expid, name='exp_find_key', train=False, seed=None):
     goalspec = 'F P_[KE][1,none,==]'
     keys = [
         'LO', 'FW', 'KE']
-    exp = MultiGoalGridExp(
+    exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=50,
         epoch=100, trainc=train)
@@ -55,11 +56,11 @@ def exp_find_key(expid, name='exp_find_key', train=False, seed=None):
     if train:
         return np.mean(
             exp.blackboard.shared_content[
-             'ctdata']['F(P_[KE][1,none,==])'], axis=0)
+             'ctdata']['F(P_[KE][1,none,==])_0'], axis=0)
     else:
         return np.mean(
             exp.blackboard.shared_content[
-             'cidata']['F(P_[KE][1,none,==])'], axis=0)
+             'cidata']['F(P_[KE][1,none,==])_0'], axis=0)
 
 
 def exp_find_key_avoid_lava(
@@ -70,9 +71,9 @@ def exp_find_key_avoid_lava(
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=50,
-        epoch=10, trainc=train)
+        epoch=100, trainc=train)
     exp.run()
-    # exp.draw_plot(['F(P_[KE][1,none,==])'], train=train)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=train)
     # exp.save_data()
     namek = 'F(P_[KE][1,none,==])_0'
     if train:
@@ -82,7 +83,7 @@ def exp_find_key_avoid_lava(
     else:
         return np.mean(
             exp.blackboard.shared_content[
-             'cidata']['namek'], axis=0)
+             'cidata'][namek], axis=0)
     # if train:
     #     popt = exp.blackboard.shared_content[
     #             'curve']['&']
@@ -157,7 +158,7 @@ def main():
     # Experiment exp_find_key
     # run_experiments(
     #     exp_find_key, name='exp_find_key_10_',
-    #     runs=10, parallel=True, seed=7, train=True)
+    #     runs=50, parallel=True, seed=7, train=True)
 
     # Total Samples: 50 * 80(epoch) * 80 (states)
     # run_experiments_seed_batch()
@@ -170,25 +171,25 @@ def main():
     #     expname='exp_carry_key', runs=30, train=True)
 
     # Experiment exp_find_key_avoid_lava
-    # exp_find_key_avoid_lava(1, seed=7, train=False)
+    exp_find_key_avoid_lava(1, seed=7, train=False)
     # Experiment exp_find_key_avoid_lava
-    run_experiments(
-        exp_find_key_avoid_lava, name='exp_find_key_avoid_lava_10_',
-        runs=2, parallel=False, seed=7, train=True)
+    # run_experiments(
+    #     exp_find_key_avoid_lava, name='exp_find_key_avoid_lava_10_',
+    #     runs=50, parallel=False, seed=7, train=True)
 
 
 def updated_genrecprop(
-        name='find_key_u', expid=1, seed=3, train=True):
+        name='find_key_u', expid=1, seed=7, train=True):
     goalspec = 'F P_[KE][1,none,==]'
     keys = [
         'LO', 'FW', 'KE']
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
-        actions=list(range(3)), seed=seed, maxtracelen=20,
-        epoch=50, trainc=True)
+        actions=list(range(3)), seed=seed, maxtracelen=50,
+        epoch=100, trainc=True)
     exp.run()
-    exp.draw_plot(['F(P_[KE][1,none,==])'], train=False)
-    exp.draw_plot(['F(P_[KE][1,none,==])'], train=True)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
     # exp.save_data()
     # if train:
     #     return np.mean(
