@@ -216,14 +216,20 @@ class MultiGoalGridUExp():
         # py_trees.logging.level = py_trees.logging.Level.DEBUG
         # py_trees.display.print_ascii_tree(self.behaviour_tree.root)
         # print(dir(self.behaviour_tree.root.children[0]))
-        # print(self.behaviour_tree.root.children[0].parent.children)
+        # print(self.behaviour_tree.find_labels())
         # Train
-        node = parallel_hack(self.behaviour_tree.root)
-        combgoal = [node.name for node in node.children]
-        for n in node.children:
-            # print(n)
-            n.planner.list_goalspec = combgoal
-            n.planner.parallel_node = True
+        # node = parallel_hack(self.behaviour_tree.root)
+        # combgoal = [node.name for node in node.children]
+        # print(self.behaviour_tree.root)
+        combgoal = ['F(P_[KE][1,none,==])', 'G(P_[LV][0,none,==])']
+        # for n in node.children:
+        #     print(n.goalspec)
+        #     n.planner.list_goalspec = combgoal
+        #     n.planner.parallel_node = True
+        #     if True:
+        #         break
+        self.behaviour_tree.root.planner.list_goalspec = combgoal
+        self.behaviour_tree.root.planner.parallel_node = True
         # print([n.planner.goalspec for n in node.children])
         # print([n.planner.org_goalspec for n in node.children])
         # exit()
@@ -243,24 +249,24 @@ class MultiGoalGridUExp():
             print(i, 'Training', self.behaviour_tree.root.status)
 
         # Inference
-        recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        for i in range(1):
-            self.env.reset()
-            self.blackboard.shared_content['current']['epoch'] = i
-            for j in range(self.maxtracelen):
-                self.behaviour_tree.tick(
-                    # pre_tick_handler=self.reset_env(self.env)
-                )
-                if self.behaviour_tree.root.status == Status.SUCCESS:
-                    break
-                if self.blackboard.shared_content['current']['done']:
-                    break
-            print(i, 'Inference', self.behaviour_tree.root.status)
-        # Recursive compute competency for execution nodes
-        recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
-        self.trainc = not self.trainc
-        # Recursive compute competency for execution nodes
-        recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
+        # recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
+        # for i in range(2):
+        #     self.env.reset()
+        #     self.blackboard.shared_content['current']['epoch'] = i
+        #     for j in range(self.maxtracelen):
+        #         self.behaviour_tree.tick(
+        #             # pre_tick_handler=self.reset_env(self.env)
+        #         )
+        #         if self.behaviour_tree.root.status == Status.SUCCESS:
+        #             break
+        #         if self.blackboard.shared_content['current']['done']:
+        #             break
+        #     print(i, 'Inference', self.behaviour_tree.root.status)
+        # # Recursive compute competency for execution nodes
+        # recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
+        # self.trainc = not self.trainc
+        # # Recursive compute competency for execution nodes
+        # recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
 
         # # Recursive compute competency for control nodes
         # recursive_com(self.behaviour_tree.root, self.blackboard)
@@ -834,7 +840,12 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
         # Generator
         trace = self.generator()
         # Recognizer
-        result, trace = self.recognizer(trace)
+        # result, trace = self.recognizer(trace)
+        results = self.recognizer(trace)
+        result = np.all([r[0] for r in list(results.values())])
+        trace = results[self.goalspec][1]
+        # result = np.all(results)
+        # print(result, self.goalspec, trace['KE'], trace['LV'], self.env_done)
         # No need to propagate results after exciding the train epoch
         gkey = self.extract_key()
         # Update the data to compute competency
@@ -847,7 +858,9 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
                 len(trace[gkey]) >= self.max_trace_len or
                 result
                 ):
-            self.propagate(result, trace)
+            # for r in results:
+            # print(r, )
+            self.propagate(results, trace)
             # print(result, self.id, trace['LV'])
             # print('trace len', len(trace[gkey]), self.tcount, self.env_done, end=' ')
             self.aggrigate_data(len(trace[gkey]), result)

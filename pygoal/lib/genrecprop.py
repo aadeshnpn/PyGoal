@@ -639,9 +639,10 @@ class GenRecPropUpdated(GenRecProp):
             parsed_formula = parser(goalspec)
             # Evaluate the trace
             result = parsed_formula.truth(t)
-            # print(result, parsed_formula)
-            if self.goalspec[0] == 'G':
+            print(result, goalspec, trace['KE'][-1], trace['LV'][-1])
+            if goalspec[0] == 'G':
                 if not result:
+                    self.env_done = True
                     return result, self.create_trace_dict(
                         trace, trace_len)
             else:
@@ -650,6 +651,7 @@ class GenRecPropUpdated(GenRecProp):
                         trace, trace_len)
             return result, self.create_trace_dict(
                 trace, trace_len)
+        # print(self.list_goalspec, self.parallel_node)
         if self.parallel_node:
             results = {goal: minirecognizer(
                 goal) for goal in self.list_goalspec}
@@ -657,8 +659,10 @@ class GenRecPropUpdated(GenRecProp):
             results = {goal: minirecognizer(
                 goal) for goal in [self.goalspec]}
         # print([r[0] for r in list(results.values())])
-        result = np.all([r[0] for r in list(results.values())])
-        return result, results[self.goalspec][1]
+        # result = np.all([r[0] for r in list(results.values())])
+        # result = [r[0] for r in list(results.values())]
+        # return result, results[self.goalspec][1]
+        return results
         # result = parsed_formula.truth(t)
         # if self.goalspec[0] == 'G':
         #     if not result:
@@ -668,6 +672,43 @@ class GenRecPropUpdated(GenRecProp):
         #     if result:
         #         return result, self.create_trace_dict(
         #             trace, trace_len)
+
+    def propagate(self, results, trace):
+        """Propagate the error to shape the probability."""
+        traces = [trace[k][::-1] for k in self.keys]
+        tracea = trace['A'][::-1]
+        action_struc = {'F': {True: 2, False: -1}, 'G': {True: 1, False: -2}}
+        goals = [r[0] for r in list(results.keys())]
+        vals = [r[0] for r in list(results.values())]
+        result = np.all([r[0] for r in list(results.values())])
+        gamma = np.sum(
+            [action_struc[goals[i]][vals[i]] for i in range(
+                len(goals))])
+        # psi = 0.9
+        psi = 1.0 / (1+np.exp(-1 * np.abs(gamma)))
+        j = 1
+        for i in range(0, len(traces[0])-1, 1):
+            a = tracea[i]
+            tempvals = [t[i+1] for t in traces]
+            ss = self.gtable_key(tempvals)
+            try:
+                prob = self.gtable[ss][a]
+            except KeyError:
+                self.create_gtable_indv(self.gtable_key(ss))
+                prob = self.gtable[ss][a]
+
+            Psi = pow(psi, j)
+            j += 1
+            if result is False:
+                new_prob = prob - (Psi * prob)
+            else:
+                new_prob = prob + (Psi * prob)
+
+            self.gtable[ss][a] = new_prob
+            probs = np.array(list(self.gtable[ss].values()))
+            probs = probs / probs.sum()
+
+            self.gtable[ss] = dict(zip(self.gtable[ss].keys(), probs))
 
     def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
