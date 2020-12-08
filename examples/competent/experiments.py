@@ -71,7 +71,7 @@ def exp_find_key_avoid_lava(
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=50,
-        epoch=100, trainc=train)
+        epoch=50, trainc=train)
     exp.run()
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=train)
     # exp.save_data()
@@ -171,7 +171,7 @@ def main():
     #     expname='exp_carry_key', runs=30, train=True)
 
     # Experiment exp_find_key_avoid_lava
-    exp_find_key_avoid_lava(1, seed=7, train=False)
+    exp_find_key_avoid_lava(1, seed=3, train=False)
     # Experiment exp_find_key_avoid_lava
     # run_experiments(
     #     exp_find_key_avoid_lava, name='exp_find_key_avoid_lava_10_',

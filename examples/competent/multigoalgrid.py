@@ -220,12 +220,13 @@ class MultiGoalGridUExp():
         # Train
         node = parallel_hack(self.behaviour_tree.root)
         combgoal = [node.name for node in node.children]
-        print(combgoal)
         for n in node.children:
-            print(n)
-            n.planner.goalspec = combgoal
-        print([n.planner.goalspec for n in node.children])
-        exit()
+            # print(n)
+            n.planner.list_goalspec = combgoal
+            n.planner.parallel_node = True
+        # print([n.planner.goalspec for n in node.children])
+        # print([n.planner.org_goalspec for n in node.children])
+        # exit()
         self.blackboard.shared_content['current'] = dict()
         for i in range(self.epoch):
             self.env.reset()

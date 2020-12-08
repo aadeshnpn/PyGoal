@@ -580,7 +580,8 @@ class GenRecPropUpdated(GenRecProp):
         self.trace = dict()
         self.itrace = dict()
         self.env_done = False
-        self.org_goalspec = copy.copy(goalspec)
+        self.parallel_node = False
+        self.list_goalspec = []
 
     # Override generator method
     def generator(self, env_reset=False):
@@ -624,7 +625,7 @@ class GenRecPropUpdated(GenRecProp):
         Which will reconize traces from the generator system."""
         results = dict()
 
-        def minirecognizer(goalspec, trace):
+        def minirecognizer(goalspec):
             # Change list of trace to set
             traceset = trace.copy()
             akey = list(traceset.keys())[0]
@@ -635,10 +636,10 @@ class GenRecPropUpdated(GenRecProp):
             # parse the formula
             parser = LTLfGParser()
             # Define goal formula/specification
-            parsed_formula = parser(self.goalspec)
+            parsed_formula = parser(goalspec)
             # Evaluate the trace
             result = parsed_formula.truth(t)
-
+            # print(result, parsed_formula)
             if self.goalspec[0] == 'G':
                 if not result:
                     return result, self.create_trace_dict(
@@ -647,7 +648,17 @@ class GenRecPropUpdated(GenRecProp):
                 if result:
                     return result, self.create_trace_dict(
                         trace, trace_len)
-
+            return result, self.create_trace_dict(
+                trace, trace_len)
+        if self.parallel_node:
+            results = {goal: minirecognizer(
+                goal) for goal in self.list_goalspec}
+        else:
+            results = {goal: minirecognizer(
+                goal) for goal in [self.goalspec]}
+        # print([r[0] for r in list(results.values())])
+        result = np.all([r[0] for r in list(results.values())])
+        return result, results[self.goalspec][1]
         # result = parsed_formula.truth(t)
         # if self.goalspec[0] == 'G':
         #     if not result:
@@ -657,9 +668,6 @@ class GenRecPropUpdated(GenRecProp):
         #     if result:
         #         return result, self.create_trace_dict(
         #             trace, trace_len)
-
-        return result, self.create_trace_dict(
-            trace, trace_len)
 
     def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)
