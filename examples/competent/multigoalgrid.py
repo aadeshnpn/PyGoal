@@ -253,7 +253,7 @@ class MultiGoalGridUExp():
 
         # Inference
         recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        for i in range(10):
+        for i in range(self.epoch):
             self.env.reset()
             self.blackboard.shared_content['current']['epoch'] = i
             for j in range(self.maxtracelen):
@@ -266,6 +266,7 @@ class MultiGoalGridUExp():
                     break
             print(i, 'Inference', self.behaviour_tree.root.status)
         # Recursive compute competency for execution nodes
+        print(self.behaviour_tree.root.planner.idata)
         recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
         self.trainc = not self.trainc
         # Recursive compute competency for execution nodes
@@ -894,7 +895,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
             # print(len(trace[gkey]))
             # print(result, self.idata[self.blackboard.shared_content['current']['epoch']])
             self.aggrigate_data(len(trace[gkey]), result, train=False)
-            print(result, self.idata[self.blackboard.shared_content['current']['epoch']])
+            # print(result, self.idata[self.blackboard.shared_content['current']['epoch']])
             self.itrace = dict()
             self.blackboard.shared_content['current'][self.id] = 0
             self.tcount = 0
