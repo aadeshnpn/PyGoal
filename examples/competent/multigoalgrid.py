@@ -812,7 +812,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
 
     def get_action_policy(self, policy, state):
         action = policy[tuple(state)]
-        # action = self.action_uncertainty(action)
+        action = self.action_uncertainty(action)
         return action
 
     def action_uncertainty(self, action):
@@ -892,7 +892,9 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
                 or result):
             # if self.tcount <= self.epoch:
             # print(len(trace[gkey]))
+            # print(result, self.idata[self.blackboard.shared_content['current']['epoch']])
             self.aggrigate_data(len(trace[gkey]), result, train=False)
+            print(result, self.idata[self.blackboard.shared_content['current']['epoch']])
             self.itrace = dict()
             self.blackboard.shared_content['current'][self.id] = 0
             self.tcount = 0

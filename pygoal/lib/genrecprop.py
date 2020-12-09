@@ -774,15 +774,32 @@ class GenRecPropUpdated(GenRecProp):
             self.itrace['A'].append(9)
         # Run the policy as long as the goal is not achieved or less than j
         # print(j, trace)
-        traceset = self.itrace.copy()
-        result = self.evaluate_trace(self.goalspec, traceset)
-        if self.goalspec[0] == 'G':
-            if not result:
-                return result, self.itrace
-        else:
-            if result:
-                return True, self.itrace
-        if len(self.itrace['A']) > max_trace_len:
-            return result, self.itrace
 
+        def minirecognizer(goalspec, trace):
+            # Change list of trace to set
+            traceset = trace.copy()
+            result = self.evaluate_trace(goalspec, traceset)
+            if self.goalspec[0] == 'G':
+                if not result:
+                    self.env_done = True
+                    return result, traceset
+            else:
+                if result:
+                    return True, traceset
+            if len(traceset['A']) > self.max_trace_len:
+                return result, traceset
+
+            return result, traceset
+
+        traceset = self.itrace.copy()
+        # result = self.evaluate_trace(self.goalspec, traceset)
+        # print(self.list_goalspec)
+        if self.parallel_node:
+            results = {goal: minirecognizer(
+                goal, traceset) for goal in self.list_goalspec}
+        else:
+            results = {goal: minirecognizer(
+                goal, traceset) for goal in [self.goalspec]}
+        # print(results)
+        result = np.all([r[0] for r in list(results.values())]).item()
         return result, self.itrace
