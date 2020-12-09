@@ -73,7 +73,7 @@ def exp_find_key_avoid_lava(
         actions=list(range(3)), seed=seed, maxtracelen=50,
         epoch=50, trainc=train)
     exp.run()
-    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=train)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
     # exp.save_data()
     namek = 'F(P_[KE][1,none,==])_0'
     if train:
@@ -171,7 +171,7 @@ def main():
     #     expname='exp_carry_key', runs=30, train=True)
 
     # Experiment exp_find_key_avoid_lava
-    exp_find_key_avoid_lava(1, seed=3, train=True)
+    exp_find_key_avoid_lava(1, seed=5, train=True)
     # Experiment exp_find_key_avoid_lava
     # run_experiments(
     #     exp_find_key_avoid_lava, name='exp_find_key_avoid_lava_10_',
@@ -210,7 +210,7 @@ def testing_new_prop_algo(
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=40,
-        epoch=80, trainc=True)
+        epoch=50, trainc=True)
     exp.run()
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)

@@ -220,22 +220,23 @@ class MultiGoalGridUExp():
         # py_trees.display.print_ascii_tree(self.behaviour_tree.root)
         # print(dir(self.behaviour_tree.root.children[0]))
         # print(self.behaviour_tree.find_labels())
+
         # Train
         # node = parallel_hack(self.behaviour_tree.root)
         # combgoal = [node.name for node in node.children]
         # print(self.behaviour_tree.root)
         combgoal = ['F(P_[KE][1,none,==])', 'G(P_[LV][0,none,==])']
+        # defplanner = node.children[0].planner
         # for n in node.children:
-        #     print(n.goalspec)
+        #     # print(n.goalspec)
+        #     n.planner.gtable = defplanner.gtable
         #     n.planner.list_goalspec = combgoal
         #     n.planner.parallel_node = True
         #     if True:
         #         break
         self.behaviour_tree.root.planner.list_goalspec = combgoal
         self.behaviour_tree.root.planner.parallel_node = True
-        # print([n.planner.goalspec for n in node.children])
-        # print([n.planner.org_goalspec for n in node.children])
-        # exit()
+
         self.blackboard.shared_content['current'] = dict()
         for i in range(self.epoch):
             self.env.reset()
@@ -266,7 +267,8 @@ class MultiGoalGridUExp():
                     break
             print(i, 'Inference', self.behaviour_tree.root.status)
         # Recursive compute competency for execution nodes
-        print(self.behaviour_tree.root.planner.idata)
+        # print(self.behaviour_tree.root.children[0].planner.idata[0])
+        # print(self.behaviour_tree.root.children[0].planner.tdata[0])
         recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
         self.trainc = not self.trainc
         # Recursive compute competency for execution nodes
@@ -869,6 +871,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
             # print(result, self.id, trace['LV'])
             # print('trace len', len(trace[gkey]), self.tcount, self.env_done, end=' ')
             self.aggrigate_data(len(trace[gkey]), result)
+            print(self.tdata[self.blackboard.shared_content['current']['epoch']])
             self.trace = dict()
             self.blackboard.shared_content['current'][self.id] = 0
             self.tcount = 0

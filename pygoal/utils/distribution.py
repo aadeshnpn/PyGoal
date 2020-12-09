@@ -203,18 +203,19 @@ def parallel(nodes):
     # Z = X * Y,
     # Z(meu) = mu1/std1**2 + mu2/std2**2 / (1/std1**2 + 1/std2**2)
     # z(std) = std1**2 * std2**2 / (std1**2 + std2**2)
+    # print(nodes)
     node = nodes[0]
-    for i in range(1, len(nodes)):
-        std1sqred = node[2]**2
-        std2sqred = nodes[i][2]**2
-        invstd1 = 1 / std1sqred
-        invstd2 = 1 / std2sqred
-        std = (std1sqred * std2sqred) / (std1sqred + std2sqred)
-        meannum = (node[1] * invstd1) + (nodes[i][1] * invstd2)
-        meandem = invstd1 + invstd2
-        mean = meannum / meandem
-        L = node[0] * nodes[i][0]
-        node = [L, mean, std]
+    # for i in range(1, len(nodes)):
+    #     std1sqred = node[2]**2
+    #     std2sqred = nodes[i][2]**2
+    #     invstd1 = 1 / std1sqred
+    #     invstd2 = 1 / std2sqred
+    #     std = (std1sqred * std2sqred) / (std1sqred + std2sqred)
+    #     meannum = (node[1] * invstd1) + (nodes[i][1] * invstd2)
+    #     meandem = invstd1 + invstd2
+    #     mean = meannum / meandem
+    #     L = node[0] * nodes[i][0]
+    #     node = [L, mean, std]
     return node
 
 
@@ -238,19 +239,19 @@ def recursive_com(node, blackboard):
         val = sequence(
             [recursive_com(child, blackboard) for child in node.children])
         blackboard.shared_content[
-            'curve'][node.nodename] = val
+            'curve'][node.name] = val
         return val
     elif isinstance(node, Selector):
         val = selector(
             [recursive_com(child, blackboard) for child in node.children])
         blackboard.shared_content[
-            'curve'][node.nodename] = val
+            'curve'][node.name] = val
         return val
     elif isinstance(node, Parallel):
         val = parallel(
             [recursive_com(child, blackboard) for child in node.children])
         blackboard.shared_content[
-            'curve'][node.nodename] = val
+            'curve'][node.name] = val
         return val
     else:
         # Execution nodes
