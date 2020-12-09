@@ -161,6 +161,9 @@ class MultiGoalGridUExp():
         self.env.max_steps = min(env.max_steps, maxtracelen-3)
         # self.env.agent_view_size = 1
         self.env.reset()
+        # self.env.render()
+        # import time
+        # time.sleep(10)
         self.expname = expname
         self.goalspecs = goalspecs
         self.epoch = epoch

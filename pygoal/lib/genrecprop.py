@@ -639,7 +639,7 @@ class GenRecPropUpdated(GenRecProp):
             parsed_formula = parser(goalspec)
             # Evaluate the trace
             result = parsed_formula.truth(t)
-            print(result, goalspec, trace['KE'][-1], trace['LV'][-1])
+            # print(result, goalspec, trace['KE'][-1], trace['LV'][-1])
             if goalspec[0] == 'G':
                 if not result:
                     self.env_done = True
@@ -676,20 +676,31 @@ class GenRecPropUpdated(GenRecProp):
     def propagate(self, results, trace):
         """Propagate the error to shape the probability."""
         traces = [trace[k][::-1] for k in self.keys]
+        print(traces[0])
         tracea = trace['A'][::-1]
         action_struc = {'F': {True: 2, False: -1}, 'G': {True: 1, False: -2}}
         goals = [r[0] for r in list(results.keys())]
         vals = [r[0] for r in list(results.values())]
-        result = np.all([r[0] for r in list(results.values())])
+        result = bool(np.all([r[0] for r in list(results.values())]))
         gamma = np.sum(
             [action_struc[goals[i]][vals[i]] for i in range(
                 len(goals))])
         # psi = 0.9
         psi = 1.0 / (1+np.exp(-1 * np.abs(gamma)))
+
+        def func1(p, j):
+            return pow(p, j)
+
+        def func2(p, j):
+            return pow(p, pow(j, j))
+
+        print([r[0] for r in results.values()], trace['KE'], trace['LV'], psi)
+        func_struc = {'F': func1, 'G': func2}
+
         j = 1
         for i in range(0, len(traces[0])-1, 1):
             a = tracea[i]
-            tempvals = [t[i+1] for t in traces]
+            tempvals = [t[i] for t in traces]
             ss = self.gtable_key(tempvals)
             try:
                 prob = self.gtable[ss][a]
@@ -697,18 +708,25 @@ class GenRecPropUpdated(GenRecProp):
                 self.create_gtable_indv(self.gtable_key(ss))
                 prob = self.gtable[ss][a]
 
-            Psi = pow(psi, j)
+            # Psi = pow(psi, j)
+            Psi = np.average(
+                    [func_struc[goals[i]](psi, j) for i in range(
+                        len(goals))])
             j += 1
+            # print(i, Psi, end=" ")
+            # if j == 2:
             if result is False:
                 new_prob = prob - (Psi * prob)
             else:
                 new_prob = prob + (Psi * prob)
-
+            print(j, type(result), self.gtable[ss], ss, a, Psi, prob, new_prob, end="\n")
             self.gtable[ss][a] = new_prob
             probs = np.array(list(self.gtable[ss].values()))
             probs = probs / probs.sum()
 
             self.gtable[ss] = dict(zip(self.gtable[ss].keys(), probs))
+            # if j == 2:
+            # print(j, prob, new_prob, probs, end='\n')
 
     def run_policy(self, policy, max_trace_len=20, verbose=False):
         state = self.get_curr_state(self.env)

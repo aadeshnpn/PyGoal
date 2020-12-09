@@ -209,8 +209,8 @@ def testing_new_prop_algo(
         'LO', 'FW', 'KE', 'LV']
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
-        actions=list(range(3)), seed=seed, maxtracelen=20,
-        epoch=10, trainc=True)
+        actions=list(range(3)), seed=seed, maxtracelen=40,
+        epoch=1, trainc=True)
     exp.run()
     # exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
     # exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
