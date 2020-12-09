@@ -48,10 +48,11 @@ def exp_find_key(expid, name='exp_find_key', train=False, seed=None):
         'LO', 'FW', 'KE']
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
-        actions=list(range(3)), seed=seed, maxtracelen=50,
-        epoch=100, trainc=train)
+        actions=list(range(3)), seed=seed, maxtracelen=40,
+        epoch=150, trainc=train)
     exp.run()
-    # exp.draw_plot(['F(P_[KE][1,none,==])'], train=train)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
     # exp.save_data()
     if train:
         return np.mean(
@@ -70,9 +71,10 @@ def exp_find_key_avoid_lava(
         'LO', 'FW', 'KE', 'LV']
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
-        actions=list(range(3)), seed=seed, maxtracelen=50,
-        epoch=50, trainc=train)
+        actions=list(range(3)), seed=seed, maxtracelen=40,
+        epoch=150, trainc=train)
     exp.run()
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
     # exp.save_data()
     namek = 'F(P_[KE][1,none,==])_0'
@@ -146,7 +148,7 @@ def run_experiments_seed_batch(
 
 
 def main():
-    # exp_find_key()
+    exp_find_key(1, seed=5, train=True)
     # exp_carry_key()
     # Folder naming pattern
     # exp_name_train/test_runs_epochs_tracelen_actionsSize
@@ -203,14 +205,14 @@ def updated_genrecprop(
 
 
 def testing_new_prop_algo(
-        name='find_key_u', expid=1, seed=5, train=True):
+        name='find_key_u', expid=1, seed=7, train=True):
     goalspec = 'F(P_[KE][1,none,==])'
     keys = [
         'LO', 'FW', 'KE', 'LV']
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=40,
-        epoch=50, trainc=True)
+        epoch=200, trainc=True)
     exp.run()
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)

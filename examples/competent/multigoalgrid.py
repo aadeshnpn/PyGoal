@@ -197,6 +197,7 @@ class MultiGoalGridUExp():
             child.train = False
             child.planner.epoch = 5
             child.planner.tcount = 0
+            # child.planner.verbose = True
 
         def fn_ecomp(child):
             child.planner.compute_competency(self.trainc)
@@ -218,21 +219,24 @@ class MultiGoalGridUExp():
         recursive_setup(self.behaviour_tree.root, fn_eset, fn_c)
         # py_trees.logging.level = py_trees.logging.Level.DEBUG
         # py_trees.display.print_ascii_tree(self.behaviour_tree.root)
-        # print(dir(self.behaviour_tree.root.children[0]))
-        # print(self.behaviour_tree.find_labels())
 
-        # Train
-        node = parallel_hack(self.behaviour_tree.root)
-        # print(node.children)
-        combgoal = [node.name for node in node.children]
-        othernodes = []
-        for i in range(len(node.children)):
-            if i == 0:
-                node.children[i].planner.list_goalspec = combgoal
-                node.children[i].planner.parallel_node = True
+        # Parallel node hack
+        def for_parallel_node(root):
+            node = parallel_hack(root)
+            if node:
+                combgoal = [node.name for node in node.children]
+                othernodes = []
+                for i in range(len(node.children)):
+                    if i == 0:
+                        node.children[i].planner.list_goalspec = combgoal
+                        node.children[i].planner.parallel_node = True
+                    else:
+                        othernodes.append(node.children[i])
+                        node.remove_child(node.children[i])
+                return node, othernodes
             else:
-                othernodes.append(node.children[i])
-                node.remove_child(node.children[i])
+                return None, None
+        pnode, othernodes = for_parallel_node(self.behaviour_tree.root)
         # print(self.behaviour_tree.root, self.behaviour_tree.root.children)
         # defplanner = node.children[0].planner
         # for n in node.children:
