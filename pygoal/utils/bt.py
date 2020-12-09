@@ -5,7 +5,7 @@ from flloat.syntax.ltlfg import (
     LTLfgAtomic, LTLfEventually, LTLfAlways)
 import py_trees
 from py_trees.composites import (
-    Sequence, Selector, Parallel, Decorator)
+    Sequence, Selector, Parallel)
 
 from pygoal.lib.bt import GoalNode
 from pygoal.lib.planner import Planner
@@ -70,8 +70,8 @@ def find_control_node(operator):
         control_node = Sequence(operator)
     elif operator == '&':
         # parallel
-        # control_node = Parallel(operator)
-        control_node = Deco
+        control_node = Parallel(operator)
+        # control_node = Deco
     elif operator == '|':
         # Selector
         control_node = Selector(operator)

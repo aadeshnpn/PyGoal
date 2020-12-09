@@ -222,10 +222,18 @@ class MultiGoalGridUExp():
         # print(self.behaviour_tree.find_labels())
 
         # Train
-        # node = parallel_hack(self.behaviour_tree.root)
-        # combgoal = [node.name for node in node.children]
-        # print(self.behaviour_tree.root)
-        combgoal = ['F(P_[KE][1,none,==])', 'G(P_[LV][0,none,==])']
+        node = parallel_hack(self.behaviour_tree.root)
+        # print(node.children)
+        combgoal = [node.name for node in node.children]
+        othernodes = []
+        for i in range(len(node.children)):
+            if i == 0:
+                node.children[i].planner.list_goalspec = combgoal
+                node.children[i].planner.parallel_node = True
+            else:
+                othernodes.append(node.children[i])
+                node.remove_child(node.children[i])
+        # print(self.behaviour_tree.root, self.behaviour_tree.root.children)
         # defplanner = node.children[0].planner
         # for n in node.children:
         #     # print(n.goalspec)
@@ -234,8 +242,10 @@ class MultiGoalGridUExp():
         #     n.planner.parallel_node = True
         #     if True:
         #         break
-        self.behaviour_tree.root.planner.list_goalspec = combgoal
-        self.behaviour_tree.root.planner.parallel_node = True
+
+        # combgoal = ['F(P_[KE][1,none,==])', 'G(P_[LV][0,none,==])']
+        # self.behaviour_tree.root.planner.list_goalspec = combgoal
+        # self.behaviour_tree.root.planner.parallel_node = True
 
         self.blackboard.shared_content['current'] = dict()
         for i in range(self.epoch):
@@ -871,7 +881,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
             # print(result, self.id, trace['LV'])
             # print('trace len', len(trace[gkey]), self.tcount, self.env_done, end=' ')
             self.aggrigate_data(len(trace[gkey]), result)
-            print(self.tdata[self.blackboard.shared_content['current']['epoch']])
+            # print(self.tdata[self.blackboard.shared_content['current']['epoch']])
             self.trace = dict()
             self.blackboard.shared_content['current'][self.id] = 0
             self.tcount = 0

@@ -217,6 +217,6 @@ def testing_new_prop_algo(
 
 
 if __name__ == "__main__":
-    # main()
+    main()
     # updated_genrecprop()
-    testing_new_prop_algo()
+    # testing_new_prop_algo()
