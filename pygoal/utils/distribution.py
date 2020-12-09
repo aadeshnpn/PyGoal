@@ -238,20 +238,20 @@ def recursive_com(node, blackboard):
         val = sequence(
             [recursive_com(child, blackboard) for child in node.children])
         blackboard.shared_content[
-            'curve'][node.name] = val
+            'curve'][node.nodename] = val
         return val
     elif isinstance(node, Selector):
         val = selector(
             [recursive_com(child, blackboard) for child in node.children])
         blackboard.shared_content[
-            'curve'][node.name] = val
+            'curve'][node.nodename] = val
         return val
     elif isinstance(node, Parallel):
         val = parallel(
             [recursive_com(child, blackboard) for child in node.children])
         blackboard.shared_content[
-            'curve'][node.name] = val
+            'curve'][node.nodename] = val
         return val
     else:
         # Execution nodes
-        return node.planner.blackboard.shared_content['curve'][node.name]
+        return node.planner.blackboard.shared_content['curve'][node.nodename]

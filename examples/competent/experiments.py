@@ -212,8 +212,8 @@ def testing_new_prop_algo(
         actions=list(range(3)), seed=seed, maxtracelen=40,
         epoch=80, trainc=True)
     exp.run()
-    # exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
-    # exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
+    exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
 
 
 if __name__ == "__main__":

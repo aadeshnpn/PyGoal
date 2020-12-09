@@ -161,7 +161,7 @@ class MultiGoalGridUExp():
         self.env.max_steps = min(env.max_steps, maxtracelen-3)
         # self.env.agent_view_size = 1
         self.env.reset()
-        # self.env.render()
+        #   self.env.render()
         # import time
         # time.sleep(10)
         self.expname = expname
@@ -252,27 +252,28 @@ class MultiGoalGridUExp():
             print(i, 'Training', self.behaviour_tree.root.status)
 
         # Inference
-        # recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
-        # for i in range(2):
-        #     self.env.reset()
-        #     self.blackboard.shared_content['current']['epoch'] = i
-        #     for j in range(self.maxtracelen):
-        #         self.behaviour_tree.tick(
-        #             # pre_tick_handler=self.reset_env(self.env)
-        #         )
-        #         if self.behaviour_tree.root.status == Status.SUCCESS:
-        #             break
-        #         if self.blackboard.shared_content['current']['done']:
-        #             break
-        #     print(i, 'Inference', self.behaviour_tree.root.status)
-        # # Recursive compute competency for execution nodes
-        # recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
-        # self.trainc = not self.trainc
-        # # Recursive compute competency for execution nodes
-        # recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
+        recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
+        for i in range(10):
+            self.env.reset()
+            self.blackboard.shared_content['current']['epoch'] = i
+            for j in range(self.maxtracelen):
+                self.behaviour_tree.tick(
+                    # pre_tick_handler=self.reset_env(self.env)
+                )
+                if self.behaviour_tree.root.status == Status.SUCCESS:
+                    break
+                if self.blackboard.shared_content['current']['done']:
+                    break
+            print(i, 'Inference', self.behaviour_tree.root.status)
+        # Recursive compute competency for execution nodes
+        recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
+        self.trainc = not self.trainc
+        # Recursive compute competency for execution nodes
+        recursive_setup(self.behaviour_tree.root, fn_ecomp, fn_c)
 
-        # # Recursive compute competency for control nodes
-        # recursive_com(self.behaviour_tree.root, self.blackboard)
+        print(self.blackboard.shared_content['curve'])
+        # Recursive compute competency for control nodes
+        recursive_com(self.behaviour_tree.root, self.blackboard)
 
     def reset_env(self):
         self.env.reset()
