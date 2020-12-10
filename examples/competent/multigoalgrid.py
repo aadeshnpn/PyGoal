@@ -255,7 +255,7 @@ class MultiGoalGridUExp():
                     break
                 if self.blackboard.shared_content['current']['done']:
                     break
-            print(i, 'Training', self.behaviour_tree.root.status)
+            # print(i, 'Training', self.behaviour_tree.root.status)
 
         # Inference
         recursive_setup(self.behaviour_tree.root, fn_einf, fn_c)
@@ -270,7 +270,7 @@ class MultiGoalGridUExp():
                     break
                 if self.blackboard.shared_content['current']['done']:
                     break
-            print(i, 'Inference', self.behaviour_tree.root.status)
+            # print(i, 'Inference', self.behaviour_tree.root.status)
         # Recursive compute competency for execution nodes
         # print(self.behaviour_tree.root.children[0].planner.idata[0])
         # print(self.behaviour_tree.root.children[0].planner.tdata[0])
