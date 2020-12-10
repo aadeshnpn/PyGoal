@@ -673,7 +673,7 @@ class GenRecPropUpdated(GenRecProp):
         #         return result, self.create_trace_dict(
         #             trace, trace_len)
 
-    def propagate(self, results, trace):
+    def propagatep(self, results, trace):
         """Propagate the error to shape the probability."""
         traces = [trace[k][::-1] for k in self.keys]
         # print(traces[0])
@@ -685,15 +685,19 @@ class GenRecPropUpdated(GenRecProp):
         gamma = np.sum(
             [action_struc[goals[i]][vals[i]] for i in range(
                 len(goals))])
+        weight = [action_struc[goals[i]][vals[i]] for i in range(
+                len(goals))]
+
         # psi = 0.9
-        psi = 1.0 / (1+np.exp(-1 * np.abs(gamma)))
+        def sigmoid(a):
+            return 1.0 / (1+np.exp(-1 * np.abs(a)))
 
         def func1(p, j):
             return pow(p, j)
 
         def func2(p, j):
             return pow(p, pow(j, j))
-
+        psi = sigmoid(gamma)
         # print([r[0] for r in results.values()], trace['KE'], trace['LV'], psi)
         func_struc = {'F': func1, 'G': func2}
 
@@ -709,12 +713,14 @@ class GenRecPropUpdated(GenRecProp):
                 prob = self.gtable[ss][a]
 
             # Psi = pow(psi, j)
-            Psi = np.average(
-                    [func_struc[goals[i]](psi, j) for i in range(
-                        len(goals))])
+            Psi = [func_struc[goals[i]](psi, j) for i in range(
+                        len(goals))]
             j += 1
             # print(i, Psi, end=" ")
             # if j == 2:
+            # for k in range(len(goals)):
+            Psi = np.dot(np.array(Psi), np.array(weight))
+            Psi = sigmoid(Psi)
             if result is False:
                 new_prob = prob - (Psi * prob)
             else:

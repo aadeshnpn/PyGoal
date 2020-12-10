@@ -237,15 +237,6 @@ class MultiGoalGridUExp():
             else:
                 return None, None
         pnode, othernodes = for_parallel_node(self.behaviour_tree.root)
-        # print(self.behaviour_tree.root, self.behaviour_tree.root.children)
-        # defplanner = node.children[0].planner
-        # for n in node.children:
-        #     # print(n.goalspec)
-        #     n.planner.gtable = defplanner.gtable
-        #     n.planner.list_goalspec = combgoal
-        #     n.planner.parallel_node = True
-        #     if True:
-        #         break
 
         # combgoal = ['F(P_[KE][1,none,==])', 'G(P_[LV][0,none,==])']
         # self.behaviour_tree.root.planner.list_goalspec = combgoal
@@ -881,7 +872,7 @@ class GenRecPropMultiGoalU(GenRecPropUpdated):
                 ):
             # for r in results:
             # print(r, )
-            self.propagate(results, trace)
+            self.propagatep(results, trace)
             # print(result, self.id, trace['LV'])
             # print('trace len', len(trace[gkey]), self.tcount, self.env_done, end=' ')
             self.aggrigate_data(len(trace[gkey]), result)

@@ -49,7 +49,7 @@ def exp_find_key(expid, name='exp_find_key', train=False, seed=None):
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=40,
-        epoch=150, trainc=train)
+        epoch=250, trainc=train)
     exp.run()
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
@@ -72,7 +72,7 @@ def exp_find_key_avoid_lava(
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=40,
-        epoch=150, trainc=train)
+        epoch=250, trainc=train)
     exp.run()
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
@@ -148,7 +148,7 @@ def run_experiments_seed_batch(
 
 
 def main():
-    exp_find_key(1, seed=5, train=True)
+    exp_find_key(1, seed=7, train=True)
     # exp_carry_key()
     # Folder naming pattern
     # exp_name_train/test_runs_epochs_tracelen_actionsSize
@@ -173,7 +173,7 @@ def main():
     #     expname='exp_carry_key', runs=30, train=True)
 
     # Experiment exp_find_key_avoid_lava
-    exp_find_key_avoid_lava(1, seed=5, train=True)
+    exp_find_key_avoid_lava(1, seed=7, train=True)
     # Experiment exp_find_key_avoid_lava
     # run_experiments(
     #     exp_find_key_avoid_lava, name='exp_find_key_avoid_lava_10_',
@@ -205,14 +205,14 @@ def updated_genrecprop(
 
 
 def testing_new_prop_algo(
-        name='find_key_u', expid=1, seed=7, train=True):
+        name='find_key_lava_upd', expid=1, seed=7, train=True):
     goalspec = 'F(P_[KE][1,none,==])'
     keys = [
         'LO', 'FW', 'KE', 'LV']
     exp = MultiGoalGridUExp(
         name+str(expid), goalspec, keys,
         actions=list(range(3)), seed=seed, maxtracelen=40,
-        epoch=200, trainc=True)
+        epoch=250, trainc=True)
     exp.run()
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=False)
     exp.draw_plot(['F(P_[KE][1,none,==])_0'], train=True)
