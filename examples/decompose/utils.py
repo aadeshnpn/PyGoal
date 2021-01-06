@@ -147,20 +147,23 @@ def recursive_until(node):
             fchild = node.children[0]
             schild = node.children[1]
             # print(len(node.children))
-            clist_remove = [fchild, schild]
+            # clist_remove = [fchild, schild]
+            clist_remove = []
             for i in range(len(node.children)-1):
                 # schild = node.children[i+1]
                 subtree = create_until_node(copy.copy(fchild), copy.copy(schild))
+                clist_remove += [fchild, schild]
                 # node.remove_child(fchild)
                 # node.remove_child(schild)
                 node.add_children([subtree])
                 fchild = subtree
                 schild = node.children[i+2]
-                clist_remove.append(schild)
+
+                # clist_remove.append(fchild)
                 if (isinstance(node.children[i], Sequence) and node.children[i].name == 'U'):
                     # Control nodes
                     # fn_c(c)
-                    print(node.children[i].name)
+                    # print(node.children[i].name)
                     recursive_until(node.children[i])
             [node.remove_child(child) for child in clist_remove]
             # recursive_setup(c, fn_e, fn_c)
@@ -208,7 +211,7 @@ def rparser(formula, root, planner, node, nid):
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[1].operator_symbol)
             root.add_children(
-                [rparser(formula[0].formulas, op, planner, node, nid)])
+                [rparser(formula[1].formulas, op, planner, node, nid)])
         else:
             root.add_children([node(get_name(formula[1]), planner, id=nid)])
             nid += 1

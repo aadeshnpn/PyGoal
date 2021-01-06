@@ -36,7 +36,7 @@ def rparser(formula, root, planner, node, nid):
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[1].operator_symbol)
             root.add_children(
-                [rparser(formula[0].formulas, op, planner, node, nid)])
+                [rparser(formula[1].formulas, op, planner, node, nid)])
         else:
             root.add_children([node(get_name(formula[1]), planner, id=nid)])
             nid += 1
