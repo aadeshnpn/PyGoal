@@ -124,6 +124,43 @@ def get_name(formula):
     return str(formula)
 
 
+def create_until_node(a, b):
+    root = Sequence('Seq')
+    selec = Selector('Se')
+    p2 = CondNode('C' + b.name)
+    p1 = CondNode('C' + a.name)
+    goal1 = a
+    goal2 = b
+    selec.add_children([p2, goal1])
+    seq = Sequence('S')
+    seq.add_children([p1, goal2])
+    root.add_children([selec, seq])
+    return root
+
+
+def recursive_until(node):
+    if node.children:
+        if (isinstance(node, Sequence) and node.name == 'U'):
+            fchild = node.children[0]
+            for i in range(len(node.children)-1):
+                schild = node.children[i+1]
+                subtree = create_until_node(fchild, schild)
+                node.remove_child(fchild)
+                node.remove_child(schild)
+                node.add_children([subtree])
+                fchild = subtree
+                if (isinstance(node.children[i], Sequence) and node.children[i].name == 'U'):
+                    # Control nodes
+                    # fn_c(c)
+                    print(node.children[i].name)
+                    recursive_until(node.children[i])
+            # recursive_setup(c, fn_e, fn_c)
+
+
+def recursive_fix_until(root):
+    pass
+
+
 def until_subtree_fix2(child, formula, planner, node, id):
     if child.name == 'p2':
         par = child.parent
@@ -152,47 +189,20 @@ def rparser(formula, root, planner, node, nid):
         if type(formula[0]) not in [
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[0].operator_symbol)
-            try:
-                root.add_children(
-                    [rparser(formula[0].formulas, op, planner, node, nid)])
-            except AttributeError:
-                senode = [i for i in root.bt.root.iterate if i.name == 'Se'][0]
-
+            root.add_children(
+                [rparser(formula[0].formulas, op, planner, node, nid)])
         else:
             # Creat BT execution node
-            try:
-                root.add_children(
-                    [node(get_name(formula[0]), planner, id=nid)])
-                nid += 1
-            except AttributeError:
-                # print(dir(root.bt.root))
-                # print(root.bt.root.children, root.bt.root.current_child)
-                for i in root.bt.root.iterate():
-                    print(i.id, i.name)
-                    until_subtree_fix2(i, formula, planner, node, nid)
-                    nid += 1
-                # print('until fixed')
-
+            root.add_children([node(get_name(formula[0]), planner, id=nid)])
+            nid += 1
         if type(formula[1]) not in [
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[1].operator_symbol)
             root.add_children(
                 [rparser(formula[0].formulas, op, planner, node, nid)])
         else:
-            try:
-                root.add_children(
-                    [node(get_name(formula[1]), planner, id=nid)])
-                nid += 1
-            except AttributeError:
-                for i in root.bt.root.iterate():
-                    print(i.id, i.name)
-                    until_subtree_fix2(i, formula, planner, node, nid)
-                    nid += 1
-
-        try:
-            root = root.bt.root
-        except AttributeError:
-            pass
+            root.add_children([node(get_name(formula[1]), planner, id=nid)])
+            nid += 1
     elif len(formula) == 1:
         root.add_children([node(get_name(formula), planner, id=nid)])
         nid += 1

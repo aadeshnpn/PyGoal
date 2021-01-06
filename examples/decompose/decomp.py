@@ -1,6 +1,6 @@
 """Verifying the decomposition of LTL into BT."""
 
-from utils import goalspec2BT, UntilNode
+from utils import goalspec2BT, UntilNode, recursive_until
 from py_trees.trees import BehaviourTree
 import py_trees
 
@@ -10,11 +10,14 @@ def decompose():
     # goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==]'
     goalspec = '(P_[KA][1,none,==] & P_[KB][1,none,==]) U (P_[KC][1,none,==] & P_[KD][1,none,==])'
     root = goalspec2BT(goalspec, planner=None)
-    for i in root.iterate():
-        print(i.id, i.name)
+    # for i in root.iterate():
+    #     print(i.id, i.name)
     behaviour_tree = BehaviourTree(root)
     # bt = UntilNode('U')
     py_trees.logging.level = py_trees.logging.Level.DEBUG
+    output = py_trees.display.ascii_tree(behaviour_tree.root)
+    print(output)
+    recursive_until(root)
     output = py_trees.display.ascii_tree(behaviour_tree.root)
     print(output)
 
