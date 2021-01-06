@@ -1,9 +1,11 @@
+"""Note for this test to run it requires the latest flloat library"""
+
 from flloat.parser.ltlf import LTLfParser
 
 from py_trees.composites import Sequence, Selector
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard, Status, Behaviour
-import py_trees
+# import py_trees
 
 
 class CondNode(Behaviour):
@@ -163,8 +165,13 @@ def main():
         {'a': True, 'b': False},
         {'a': True, 'b': True}
         ]
-    t = [t1, t2, t3, t4, t5, t6]
-    name = ['one', 'two', 'three', ' four', 'five', 'six']
+
+    t7 = [
+        {'a': False, 'b': False},
+        {'a': True, 'b': True}
+        ]
+    t = [t1, t2, t3, t4, t5, t6, t7]
+    name = ['one', 'two', 'three', ' four', 'five', 'six', 'seven']
     for i in range(len(t)):
         testuntil(t[i], name[i])
 
