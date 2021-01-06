@@ -20,6 +20,7 @@ class CondNode(Behaviour):
             self.blackboard.nodes[name] = self
         except AttributeError:
             self.blackboard.nodes = dict()
+            self.blackboard.nodes[name] = self
         self.value = True
 
     def setup(self, timeout, value):
@@ -59,6 +60,7 @@ class LTLNode(Behaviour):
             self.blackboard.nodes[name] = self
         except KeyError:
             self.blackboard.nodes = dict()
+            self.blackboard.nodes[name] = self
         self.goalspec = None
 
     def setup(self, timeout, goalspec, value=False):
@@ -108,6 +110,7 @@ def setup_nodes(val1, val2, goal1, goal2):
 
 def post_handler(p1, p2, goal1, goal2):
     blackboard = Blackboard()
+    # print(blackboard.nodes)
     blackboard.nodes[p1.name].value = blackboard.nodes[goal2.name].value
     blackboard.nodes[p2.name].value = blackboard.nodes[goal1.name].value
 
@@ -120,17 +123,87 @@ def testone():
     t1 = [{
         'a': False, 'b': False
     }]
+    print('Test One')
+    print('-' * 50)
     print(ltlformula.truth(t1), t1)
 
     setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
-    root.tick(
-       post_tick_handler=post_handler(p1, p2, goal1, goal2)
-    )
-    print(root.root.status)
+    root.tick()
+    if root.root.status == Status.FAILURE:
+        print(False, Status.FAILURE)
+    else:
+        print(True, Status.SUCCESS)
+    print('-' * 50)
+
+
+def testtwo():
+    root, p1, p2, goal1, goal2 = skeleton()
+    parser = LTLfParser()
+    goalspec = 'a U b'
+    ltlformula = parser(goalspec)
+    t1 = [{
+        'a': False, 'b': True
+    }]
+    print('Test Two')
+    print('-' * 50)
+    print(ltlformula.truth(t1), t1)
+
+    setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
+    root.tick()
+    if root.root.status == Status.FAILURE:
+        print(False, Status.FAILURE)
+    else:
+        print(True, Status.SUCCESS)
+    print('-' * 50)
+
+
+def testthree():
+    root, p1, p2, goal1, goal2 = skeleton()
+    parser = LTLfParser()
+    goalspec = 'a U b'
+    ltlformula = parser(goalspec)
+    t1 = [{
+        'a': True, 'b': False
+    }]
+    print('Test Three')
+    print('-' * 50)
+    print(ltlformula.truth(t1), t1)
+
+    setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
+    root.tick()
+    if root.root.status == Status.FAILURE:
+        print(False, Status.FAILURE)
+    else:
+        print(True, Status.SUCCESS)
+    print('-' * 50)
+
+
+def testfour():
+    root, p1, p2, goal1, goal2 = skeleton()
+    parser = LTLfParser()
+    goalspec = 'a U b'
+    ltlformula = parser(goalspec)
+    t1 = [{
+        'a': True, 'b': True
+    }]
+    print('Test Four')
+    print('-' * 50)
+    print(ltlformula.truth(t1), t1)
+
+    setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
+    root.tick()
+    if root.root.status == Status.FAILURE:
+        print(False, Status.FAILURE)
+    else:
+        print(True, Status.SUCCESS)
+    print('-' * 50)
 
 
 def main():
     testone()
+    testtwo()
+    testthree()
+    testfour()
 
 
 if __name__ == "__main__":
