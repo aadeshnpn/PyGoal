@@ -139,21 +139,30 @@ def create_until_node(a, b):
 
 
 def recursive_until(node):
+    import copy
     if node.children:
         if (isinstance(node, Sequence) and node.name == 'U'):
+            # rnode = copy.copy(node)
+            # rnode.remove_all_children()
             fchild = node.children[0]
+            schild = node.children[1]
+            # print(len(node.children))
+            clist_remove = [fchild, schild]
             for i in range(len(node.children)-1):
-                schild = node.children[i+1]
-                subtree = create_until_node(fchild, schild)
-                node.remove_child(fchild)
-                node.remove_child(schild)
+                # schild = node.children[i+1]
+                subtree = create_until_node(copy.copy(fchild), copy.copy(schild))
+                # node.remove_child(fchild)
+                # node.remove_child(schild)
                 node.add_children([subtree])
                 fchild = subtree
+                schild = node.children[i+2]
+                clist_remove.append(schild)
                 if (isinstance(node.children[i], Sequence) and node.children[i].name == 'U'):
                     # Control nodes
                     # fn_c(c)
                     print(node.children[i].name)
                     recursive_until(node.children[i])
+            [node.remove_child(child) for child in clist_remove]
             # recursive_setup(c, fn_e, fn_c)
 
 
