@@ -15,16 +15,17 @@
 # import matplotlib.pyplot as plt     # noqa: E402
 # # matplotlib.rc('text', usetex=True)
 
+from py_trees import Behaviour, Blackboard, Status, BehaviourTree
 
-from flloat.parser.ltlf import LTLfGParser
-from flloat.ltlf import (
-    LTLfAtomic, LTLfEventually, LTLfAlways)
+from flloat.parser.ltlfg import LTLfGParser
+from flloat.syntax.ltlfg import (
+    LTLfgAtomic, LTLfEventually, LTLfAlways)
 import py_trees
+from py_trees.composites import (
+    Sequence, Selector, Parallel)
 
-from py_trees.composites import Sequence, Selector, Parallel
-
-
-from py_trees import Behaviour, Blackboard
+from pygoal.lib.bt import GoalNode
+from pygoal.lib.planner import Planner
 
 
 class DummyNode(Behaviour):
@@ -63,41 +64,148 @@ class DummyNode(Behaviour):
         pass
 
 
+class UntilNode(Behaviour):
+    """Until Sub-tree.
+    Until sub-tree is eqivalent to the Until LTL operator.
+    """
+
+    def __init__(self, name):
+        """Init method for the Until sub-tree.
+        Until sub-tree has following structure
+        Sequence
+         - Selector
+            -p_2
+            -\\phi_1
+         - Sequence
+            -p_1
+            -\\phi_2
+        """
+        super(UntilNode, self).__init__(name)
+        self.blackboard = Blackboard()
+        self.blackboard.shared_content = dict()
+
+        # Define a sequence to combine the primitive behavior
+        root = Sequence('U')
+        selec = Selector('Se')
+        p2 = DummyNode('p2')
+        p1 = DummyNode('p1')
+        goal1 = DummyNode('g1')
+        goal2 = DummyNode('g2')
+        selec.add_children([p2, goal1])
+        seq = Sequence('S')
+        seq.add_children([p1, goal2])
+        root.add_children([selec, seq])
+        self.bt = BehaviourTree(root)
+
+    def setup(self, timeout):
+        """Have defined the setup method.
+        This method defines the other objects required for the
+        behavior. Agent is the actor in the environment,
+        item is the name of the item we are trying to find in the
+        environment and timeout defines the execution time for the
+        behavior.
+        """
+        pass
+
+    def initialise(self):
+        """Everytime initialization. Not required for now."""
+        pass
+
+    def update(self):
+        """Just call the tick method for the sequence.
+        This will execute the primitive behaviors defined in the sequence
+        """
+        self.bt.tick()
+        return self.bt.root.status
+
+
+def get_name(formula):
+    # return [''.join(a) for a in list(formula.find_labels())][0]
+    return str(formula)
+
+
+def until_subtree_fix2(i, formula):
+    if i.name == 'p2':
+        par = i.parent
+        par.replace_child(i, CondNode('C' + get_name(formula[1])))
+
+    elif i.name == 'g1':
+        par = i.parent
+        par.replace_child(i, LTLNode(get_name(formula[0])))
+
+    elif i.name == 'p1':
+        par = i.parent
+        par.replace_child(i, CondNode('C' + get_name(formula[0])))
+
+    elif i.name == 'g2':
+        par = i.parent
+        par.replace_child(i, LTLNode(get_name(formula[1])))
+
+
 # Recursive script to build a BT from LTL specs
-def rparser(formula, root, planner):
+def rparser(formula, root, planner, node, nid):
     if len(formula) > 2:
         for i in range(len(formula)):
-            root.add_children([DummyNode(str(formula[i]))])
+            root.add_children([node(get_name(formula[i]), planner, id=nid)])
+            nid += 1
     elif len(formula) == 2:
         if type(formula[0]) not in [
-                LTLfEventually, LTLfAlways, LTLfAtomic]:
+                LTLfEventually, LTLfAlways, LTLfgAtomic]:
+            # print(type(formula[0]))
             op = find_control_node(formula[0].operator_symbol)
-            root.add_children([rparser(formula[0].formulas, op)])
+            root.add_children(
+                [rparser(formula[0].formulas, op, planner, node, nid)])
         else:
             # Creat BT execution node
-            root.add_children([DummyNode(str(formula[0]))])
+            try:
+                root.add_children(
+                    [node(get_name(formula[0]), planner, id=nid)])
+            except AttributeError:
+                # print(dir(root.bt.root))
+                # print(root.bt.root.children, root.bt.root.current_child)
+                for i in root.bt.root.iterate():
+                    print(i.id, i.name)
+                    until_subtree_fix2(i, formula)
+                # print('until fixed')
+            nid += 1
         if type(formula[1]) not in [
-                LTLfEventually, LTLfAlways, LTLfAtomic]:
+                LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[1].operator_symbol)
-            root.add_children([rparser(formula[0].formulas, op)])
+            root.add_children(
+                [rparser(formula[0].formulas, op, planner, node, nid)])
         else:
-            root.add_children([DummyNode(str(formula[1]))])
-
+            try:
+                root.add_children(
+                    [node(get_name(formula[1]), planner, id=nid)])
+            except AttributeError:
+                for i in root.bt.root.iterate():
+                    print(i.id, i.name)
+                    until_subtree_fix2(i, formula)
+            nid += 1
+        try:
+            root = root.bt.root
+        except AttributeError:
+            pass
     elif len(formula) == 1:
-        root.add_children([DummyNode(str(formula))])
+        root.add_children([node(get_name(formula), planner, id=nid)])
+        nid += 1
     return root
 
 
-def goalspec2BT(goalspec):
+def goalspec2BT(goalspec, planner=Planner.DEFAULT, node=GoalNode):
     parser = LTLfGParser()
     ltlformula = parser(goalspec)
+    # nodeid for unique naming to the nodes
+    nid = 0
     # If the specification is already atomic no need to call his
-    if type(ltlformula) in [LTLfAtomic, LTLfEventually, LTLfAlways]:
+    if type(ltlformula) in [LTLfgAtomic, LTLfEventually, LTLfAlways]:
         # root = DummyNode(str(ltlformula), planner)
-        root = DummyNode(str(ltlformula))
+        root = node(get_name(ltlformula), planner, id=nid)
+        nid += 1
     else:
         rootnode = find_control_node(ltlformula.operator_symbol)
-        root = rparser(ltlformula.formulas, rootnode)
+        print(ltlformula.formulas)
+        root = rparser(ltlformula.formulas, rootnode, planner, node, nid)
 
     return root
 
@@ -106,16 +214,17 @@ def find_control_node(operator):
     # print(operator, type(operator))
     if operator in ['U']:
         # sequence
-        control_node = Sequence(operator)
+        control_node = UntilNode(operator)
     elif operator == '&':
         # parallel
-        control_node = Parallel(operator)
-    elif operator == '|':
-        # Selector
-        control_node = Selector(operator)
-    else:
-        # decorator
-        control_node = Selector(operator)
+        control_node = Sequence(operator)
+        # control_node = Deco
+    # elif operator == '|':
+    #     # Selector
+    #     control_node = Selector(operator)
+    # else:
+    #     # decorator
+    #     control_node = Selector(operator)
     return control_node
 
 
@@ -129,3 +238,89 @@ def display_bt(behaviour_tree, save=False):
             py_trees.common.VisibilityLevel.DETAIL,
             name='/tmp/'+behaviour_tree.root.name)
 
+
+def reset_env(env):
+    env.restart()
+
+
+class CondNode(Behaviour):
+    """Condition node for the proving decomposition.
+
+    Inherits the Behaviors class from py_trees. This
+    behavior implements the condition node for the Until LTL.
+    """
+
+    def __init__(self, name):
+        """Init method for the condition node."""
+        super(CondNode, self).__init__(name)
+        self.blackboard = Blackboard()
+        try:
+            self.blackboard.nodes[name] = self
+        except AttributeError:
+            self.blackboard.nodes = dict()
+            self.blackboard.nodes[name] = self
+        self.value = True
+
+    def setup(self, timeout, value):
+        """Have defined the setup method.
+
+        This method defines the other objects required for the
+        condition node. value is the only property.
+        """
+        self.value = value
+
+    def initialise(self):
+        """Everytime initialization. Not required for now."""
+        pass
+
+    def update(self):
+        """
+        Return the value.
+        """
+        if self.value:
+            return Status.SUCCESS
+        else:
+            return Status.FAILURE
+
+
+class LTLNode(Behaviour):
+    """LTL node for the proving decomposition.
+
+    Inherits the Behaviors class from py_trees. This
+    behavior implements the LTL node for the Until LTL.
+    """
+
+    def __init__(self, name):
+        """Init method for the LTL node."""
+        super(LTLNode, self).__init__(name)
+        self.blackboard = Blackboard()
+        try:
+            self.blackboard.nodes[name] = self
+        except KeyError:
+            self.blackboard.nodes = dict()
+            self.blackboard.nodes[name] = self
+        self.goalspec = None
+
+    def setup(self, timeout, goalspec, value=False):
+        """Have defined the setup method.
+
+        This method defines the other objects required for the
+        LTL node. LTL specfication is the only property.
+        """
+        self.goalspec = goalspec
+        self.value = value
+
+    def initialise(self):
+        """Everytime initialization. Not required for now."""
+        pass
+
+    def update(self):
+        """
+        Return the value.
+        """
+        # parser = LTLfParser()
+        # ltlformula = parser(self.goalspec)
+        if self.value:
+            return Status.SUCCESS
+        else:
+            return Status.FAILURE
