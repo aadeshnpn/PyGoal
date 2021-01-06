@@ -3,6 +3,7 @@ from flloat.parser.ltlf import LTLfParser
 from py_trees.composites import Sequence, Selector
 from py_trees.trees import BehaviourTree
 from py_trees import Blackboard, Status, Behaviour
+import py_trees
 
 
 class CondNode(Behaviour):
@@ -111,87 +112,29 @@ def setup_nodes(val1, val2, goal1, goal2):
 def post_handler(p1, p2, goal1, goal2):
     blackboard = Blackboard()
     # print(blackboard.nodes)
-    blackboard.nodes[p1.name].value = blackboard.nodes[goal2.name].value
-    blackboard.nodes[p2.name].value = blackboard.nodes[goal1.name].value
+    blackboard.nodes[p1.name].value = blackboard.nodes[goal1.name].value
+    blackboard.nodes[p2.name].value = blackboard.nodes[goal2.name].value
 
 
-def testone():
+def testuntil(t1, name):
     root, p1, p2, goal1, goal2 = skeleton()
     parser = LTLfParser()
     goalspec = 'a U b'
     ltlformula = parser(goalspec)
-    t1 = [{
-        'a': False, 'b': False
-    }]
-    print('Test One')
+    # t1 = [{
+    #     'a': False, 'b': False
+    # }]
+    print(name)
     print('-' * 50)
     print(ltlformula.truth(t1), t1)
-
-    setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
-    root.tick()
-    if root.root.status == Status.FAILURE:
-        print(False, Status.FAILURE)
-    else:
-        print(True, Status.SUCCESS)
-    print('-' * 50)
-
-
-def testtwo():
-    root, p1, p2, goal1, goal2 = skeleton()
-    parser = LTLfParser()
-    goalspec = 'a U b'
-    ltlformula = parser(goalspec)
-    t1 = [{
-        'a': False, 'b': True
-    }]
-    print('Test Two')
-    print('-' * 50)
-    print(ltlformula.truth(t1), t1)
-
-    setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
-    root.tick()
-    if root.root.status == Status.FAILURE:
-        print(False, Status.FAILURE)
-    else:
-        print(True, Status.SUCCESS)
-    print('-' * 50)
-
-
-def testthree():
-    root, p1, p2, goal1, goal2 = skeleton()
-    parser = LTLfParser()
-    goalspec = 'a U b'
-    ltlformula = parser(goalspec)
-    t1 = [{
-        'a': True, 'b': False
-    }]
-    print('Test Three')
-    print('-' * 50)
-    print(ltlformula.truth(t1), t1)
-
-    setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
-    root.tick()
-    if root.root.status == Status.FAILURE:
-        print(False, Status.FAILURE)
-    else:
-        print(True, Status.SUCCESS)
-    print('-' * 50)
-
-
-def testfour():
-    root, p1, p2, goal1, goal2 = skeleton()
-    parser = LTLfParser()
-    goalspec = 'a U b'
-    ltlformula = parser(goalspec)
-    t1 = [{
-        'a': True, 'b': True
-    }]
-    print('Test Four')
-    print('-' * 50)
-    print(ltlformula.truth(t1), t1)
-
-    setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
-    root.tick()
+    # py_trees.logging.level = py_trees.logging.Level.DEBUG
+    # output = py_trees.display.ascii_tree(root.root)
+    # print(output)
+    # setup_nodes(t1[0]['a'], t1[0]['b'], goal1, goal2)
+    for k in range(len(t1)):
+        setup_nodes(t1[k]['a'], t1[k]['b'], goal1, goal2)
+        root.tick()
+        post_handler(p1, p2, goal1, goal2)
     if root.root.status == Status.FAILURE:
         print(False, Status.FAILURE)
     else:
@@ -200,10 +143,30 @@ def testfour():
 
 
 def main():
-    testone()
-    testtwo()
-    testthree()
-    testfour()
+    t1 = [{
+        'a': False, 'b': False
+    }]
+    t2 = [{
+        'a': False, 'b': True
+    }]
+    t3 = [{
+        'a': True, 'b': False
+    }]
+    t4 = [{
+        'a': True, 'b': True
+    }]
+    t5 = [
+        {'a': False, 'b': False},
+        {'a': True, 'b': True}
+        ]
+    t6 = [
+        {'a': True, 'b': False},
+        {'a': True, 'b': True}
+        ]
+    t = [t1, t2, t3, t4, t5, t6]
+    name = ['one', 'two', 'three', ' four', 'five', 'six']
+    for i in range(len(t)):
+        testuntil(t[i], name[i])
 
 
 if __name__ == "__main__":
