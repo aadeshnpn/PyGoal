@@ -124,22 +124,22 @@ def get_name(formula):
     return str(formula)
 
 
-def until_subtree_fix2(i, formula):
-    if i.name == 'p2':
-        par = i.parent
-        par.replace_child(i, CondNode('C' + get_name(formula[1])))
+def until_subtree_fix2(child, formula, planner, node, id):
+    if child.name == 'p2':
+        par = child.parent
+        par.replace_child(child, CondNode('C' + get_name(formula[1])))
 
-    elif i.name == 'g1':
-        par = i.parent
-        par.replace_child(i, LTLNode(get_name(formula[0])))
+    elif child.name == 'g1':
+        par = child.parent
+        par.replace_child(child, node(get_name(formula[0]), planner, id=id))
 
-    elif i.name == 'p1':
-        par = i.parent
-        par.replace_child(i, CondNode('C' + get_name(formula[0])))
+    elif child.name == 'p1':
+        par = child.parent
+        par.replace_child(child, CondNode('C' + get_name(formula[0])))
 
-    elif i.name == 'g2':
-        par = i.parent
-        par.replace_child(i, LTLNode(get_name(formula[1])))
+    elif child.name == 'g2':
+        par = child.parent
+        par.replace_child(child, node(get_name(formula[1]), planner, id=id))
 
 
 # Recursive script to build a BT from LTL specs
@@ -151,23 +151,28 @@ def rparser(formula, root, planner, node, nid):
     elif len(formula) == 2:
         if type(formula[0]) not in [
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
-            # print(type(formula[0]))
             op = find_control_node(formula[0].operator_symbol)
-            root.add_children(
-                [rparser(formula[0].formulas, op, planner, node, nid)])
+            try:
+                root.add_children(
+                    [rparser(formula[0].formulas, op, planner, node, nid)])
+            except AttributeError:
+                senode = [i for i in root.bt.root.iterate if i.name == 'Se'][0]
+
         else:
             # Creat BT execution node
             try:
                 root.add_children(
                     [node(get_name(formula[0]), planner, id=nid)])
+                nid += 1
             except AttributeError:
                 # print(dir(root.bt.root))
                 # print(root.bt.root.children, root.bt.root.current_child)
                 for i in root.bt.root.iterate():
                     print(i.id, i.name)
-                    until_subtree_fix2(i, formula)
+                    until_subtree_fix2(i, formula, planner, node, nid)
+                    nid += 1
                 # print('until fixed')
-            nid += 1
+
         if type(formula[1]) not in [
                 LTLfEventually, LTLfAlways, LTLfgAtomic]:
             op = find_control_node(formula[1].operator_symbol)
@@ -177,11 +182,13 @@ def rparser(formula, root, planner, node, nid):
             try:
                 root.add_children(
                     [node(get_name(formula[1]), planner, id=nid)])
+                nid += 1
             except AttributeError:
                 for i in root.bt.root.iterate():
                     print(i.id, i.name)
-                    until_subtree_fix2(i, formula)
-            nid += 1
+                    until_subtree_fix2(i, formula, planner, node, nid)
+                    nid += 1
+
         try:
             root = root.bt.root
         except AttributeError:
@@ -214,7 +221,8 @@ def find_control_node(operator):
     # print(operator, type(operator))
     if operator in ['U']:
         # sequence
-        control_node = UntilNode(operator)
+        # control_node = UntilNode(operator)
+        control_node = Sequence(operator)
     elif operator == '&':
         # parallel
         control_node = Sequence(operator)
@@ -252,7 +260,7 @@ class CondNode(Behaviour):
 
     def __init__(self, name):
         """Init method for the condition node."""
-        super(CondNode, self).__init__(name)
+        super(CondNode, self).__init__(name, id=0)
         self.blackboard = Blackboard()
         try:
             self.blackboard.nodes[name] = self
@@ -260,6 +268,7 @@ class CondNode(Behaviour):
             self.blackboard.nodes = dict()
             self.blackboard.nodes[name] = self
         self.value = True
+        self.id = id
 
     def setup(self, timeout, value):
         """Have defined the setup method.
