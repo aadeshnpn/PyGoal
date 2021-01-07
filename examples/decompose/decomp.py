@@ -10,8 +10,8 @@ def decompose():
     # goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==] U P_[KB][1,none,==]'
     # goalspec = 'P_[KA][1,none,==] U P_[KB][1,none,==] U P_[KC][1,none,==] U P_[KD][1,none,==], U P_[KE][1,none,==]'
     # goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==]'
-    # goalspec = '(P_[KA][1,none,==] & P_[KB][1,none,==]) U (P_[KC][1,none,==] & P_[KD][1,none,==])'
-    goalspec = '((P_[KA][1,none,==] U P_[KB][1,none,==]) & (P_[KC][1,none,==] U P_[KD][1,none,==])) & (P_[KE][1,none,==] & P_[KF][1,none,==])'
+    goalspec = '(P_[KA][1,none,==] & P_[KB][1,none,==]) U (P_[KC][1,none,==] & P_[KD][1,none,==])'
+    # goalspec = '((P_[KA][1,none,==] U P_[KB][1,none,==]) & (P_[KC][1,none,==] U P_[KD][1,none,==])) & (P_[KE][1,none,==] & P_[KF][1,none,==])'
     root = goalspec2BT(goalspec, planner=None)
     # for i in root.iterate():
     #     print(i.id, i.name)

@@ -192,6 +192,47 @@ class CompetentNode(Behaviour):
             return Status.FAILURE
 
 
+class ConditionNode(Behaviour):
+    """Condition node for the proving decomposition.
+
+    Inherits the Behaviors class from py_trees. This
+    behavior implements the condition node for the Until LTL.
+    """
+
+    def __init__(self, name):
+        """Init method for the condition node."""
+        super(ConditionNode, self).__init__(name, id=0)
+        self.blackboard = Blackboard()
+        try:
+            self.blackboard.nodes[name] = self
+        except AttributeError:
+            self.blackboard.nodes = dict()
+            self.blackboard.nodes[name] = self
+        self.value = True
+        self.id = id
+
+    def setup(self, timeout, value):
+        """Have defined the setup method.
+
+        This method defines the other objects required for the
+        condition node. value is the only property.
+        """
+        self.value = value
+
+    def initialise(self):
+        """Everytime initialization. Not required for now."""
+        pass
+
+    def update(self):
+        """
+        Return the value.
+        """
+        if self.value:
+            return Status.SUCCESS
+        else:
+            return Status.FAILURE
+
+
 class DummyNode(Behaviour):
     """Policy exection for the agents.
 

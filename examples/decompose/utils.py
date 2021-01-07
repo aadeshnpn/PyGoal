@@ -168,7 +168,9 @@ def recursive_until(node):
             [node.remove_child(child) for child in clist_remove]
             # recursive_setup(c, fn_e, fn_c)
         else:
-            print([node.name for node in node.children])
+            # print([node.name for node in node.children])
+            for node in node.children:
+                recursive_until(node)
 
 
 def recursive_fix_until(root):
@@ -195,11 +197,6 @@ def until_subtree_fix2(child, formula, planner, node, id):
 
 # Recursive script to build a BT from LTL specs
 def rparser(formula, root, planner, node, nid):
-    # if len(formula) > 2:
-    #     for i in range(len(formula)):
-    #         root.add_children([node(get_name(formula[i]), planner, id=nid)])
-    #         nid += 1
-    # elif len(formula) == 2:
     if len(formula) >= 2:
         for i in range(len(formula)):
             if type(formula[i]) not in [
@@ -211,14 +208,6 @@ def rparser(formula, root, planner, node, nid):
                 # Creat BT execution node
                 root.add_children([node(get_name(formula[i]), planner, id=nid)])
                 nid += 1
-        # if type(formula[1]) not in [
-        #         LTLfEventually, LTLfAlways, LTLfgAtomic]:
-        #     op = find_control_node(formula[1].operator_symbol)
-        #     root.add_children(
-        #         [rparser(formula[1].formulas, op, planner, node, nid)])
-        # else:
-        #     root.add_children([node(get_name(formula[1]), planner, id=nid)])
-        #     nid += 1
     elif len(formula) == 1:
         root.add_children([node(get_name(formula), planner, id=nid)])
         nid += 1
@@ -277,7 +266,7 @@ def reset_env(env):
     env.restart()
 
 
-class CondNode(Behaviour):
+class ConditionNode(Behaviour):
     """Condition node for the proving decomposition.
 
     Inherits the Behaviors class from py_trees. This
@@ -286,7 +275,7 @@ class CondNode(Behaviour):
 
     def __init__(self, name):
         """Init method for the condition node."""
-        super(CondNode, self).__init__(name, id=0)
+        super(ConditionNode, self).__init__(name, id=0)
         self.blackboard = Blackboard()
         try:
             self.blackboard.nodes[name] = self
