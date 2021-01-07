@@ -167,6 +167,8 @@ def recursive_until(node):
                     recursive_until(node.children[i])
             [node.remove_child(child) for child in clist_remove]
             # recursive_setup(c, fn_e, fn_c)
+        else:
+            print([node.name for node in node.children])
 
 
 def recursive_fix_until(root):
@@ -193,28 +195,30 @@ def until_subtree_fix2(child, formula, planner, node, id):
 
 # Recursive script to build a BT from LTL specs
 def rparser(formula, root, planner, node, nid):
-    if len(formula) > 2:
+    # if len(formula) > 2:
+    #     for i in range(len(formula)):
+    #         root.add_children([node(get_name(formula[i]), planner, id=nid)])
+    #         nid += 1
+    # elif len(formula) == 2:
+    if len(formula) >= 2:
         for i in range(len(formula)):
-            root.add_children([node(get_name(formula[i]), planner, id=nid)])
-            nid += 1
-    elif len(formula) == 2:
-        if type(formula[0]) not in [
-                LTLfEventually, LTLfAlways, LTLfgAtomic]:
-            op = find_control_node(formula[0].operator_symbol)
-            root.add_children(
-                [rparser(formula[0].formulas, op, planner, node, nid)])
-        else:
-            # Creat BT execution node
-            root.add_children([node(get_name(formula[0]), planner, id=nid)])
-            nid += 1
-        if type(formula[1]) not in [
-                LTLfEventually, LTLfAlways, LTLfgAtomic]:
-            op = find_control_node(formula[1].operator_symbol)
-            root.add_children(
-                [rparser(formula[1].formulas, op, planner, node, nid)])
-        else:
-            root.add_children([node(get_name(formula[1]), planner, id=nid)])
-            nid += 1
+            if type(formula[i]) not in [
+                    LTLfEventually, LTLfAlways, LTLfgAtomic]:
+                op = find_control_node(formula[i].operator_symbol)
+                root.add_children(
+                    [rparser(formula[i].formulas, op, planner, node, nid)])
+            else:
+                # Creat BT execution node
+                root.add_children([node(get_name(formula[i]), planner, id=nid)])
+                nid += 1
+        # if type(formula[1]) not in [
+        #         LTLfEventually, LTLfAlways, LTLfgAtomic]:
+        #     op = find_control_node(formula[1].operator_symbol)
+        #     root.add_children(
+        #         [rparser(formula[1].formulas, op, planner, node, nid)])
+        # else:
+        #     root.add_children([node(get_name(formula[1]), planner, id=nid)])
+        #     nid += 1
     elif len(formula) == 1:
         root.add_children([node(get_name(formula), planner, id=nid)])
         nid += 1
