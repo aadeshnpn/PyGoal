@@ -72,7 +72,14 @@ def test_multiple_ticks():
         [True, False],
         [True, False]
         ]
-    ticks = [ticks1, ticks2, ticks3, ticks4]
+    ticks5 = [
+        [True, False],
+        [False, False],
+        [True, False],
+        [True, True],
+        ]
+
+    ticks = [ticks1, ticks2, ticks3, ticks4, ticks5]
     for tick in ticks:
         behavior_tree = test_decompose_tick()
         ltlnode = [

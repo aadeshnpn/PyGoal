@@ -50,6 +50,7 @@ def goalspec2BT(goalspec, planner=Planner.DEFAULT, node=GoalNode):
         rootnode = find_control_node(ltlformula.operator_symbol)
         root = rparser(ltlformula.formulas, rootnode, planner, node, nid)
 
+    recursive_until(root)
     return root
 
 

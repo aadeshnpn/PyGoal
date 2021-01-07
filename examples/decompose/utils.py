@@ -270,10 +270,14 @@ def reset_env(env):
 def post_tick_until(root):
     condition_nodes = [
         node for node in root.iterate() if isinstance(node, ConditionNode)]
+    postconditionskip = False
     for node in condition_nodes:
         # print(node.value, node.obj.status)
         # node.value = True if node.obj.status == Status.SUCCESS else False
-        node.value = node.obj.value
+        if not postconditionskip:
+            if node.obj.value is False:
+                postconditionskip = True
+                node.value = node.obj.value
         # print(node.value)
     # print('from condition ndoes', [node.value for node in condition_nodes])
 
@@ -296,6 +300,7 @@ class ConditionNode(Behaviour):
         #     self.blackboard.nodes[name] = self
         self.obj = obj
         self.value = True
+        self.count = 0
 
     def setup(self, timeout, value):
         """Have defined the setup method.
@@ -315,6 +320,7 @@ class ConditionNode(Behaviour):
         """
         if isinstance(self.parent, Selector):
             self.value = self.obj.value
+        self.count += 1
         if self.value:
             return Status.SUCCESS
         else:
