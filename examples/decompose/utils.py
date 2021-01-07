@@ -135,7 +135,7 @@ def create_until_node(a, b):
     selec.add_children([p2, goal1])
     seq = Sequence('S')
     seq.add_children([p1, goal2])
-    root.add_children([selec, seq])
+    root.add_children([seq, selec])
     return root
 
 
@@ -273,7 +273,7 @@ def post_tick_until(root):
     for node in condition_nodes:
         # print(node.value, node.obj.status)
         # node.value = True if node.obj.status == Status.SUCCESS else False
-        node.value = True if node.obj.value is True else False
+        node.value = node.obj.value
         # print(node.value)
     # print('from condition ndoes', [node.value for node in condition_nodes])
 
@@ -313,6 +313,8 @@ class ConditionNode(Behaviour):
         """
         Return the value.
         """
+        if isinstance(self.parent, Selector):
+            self.value = self.obj.value
         if self.value:
             return Status.SUCCESS
         else:
@@ -336,7 +338,7 @@ class LTLNode(Behaviour):
         #     self.blackboard.nodes = dict()
         #     self.blackboard.nodes[name] = self
         self.goalspec = None
-        self.value = False
+        # self.value = False
 
     def setup(self, timeout, goalspec, value=False):
         """Have defined the setup method.

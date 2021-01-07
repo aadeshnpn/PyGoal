@@ -29,29 +29,32 @@ def decompose():
 def test_decompose_tick():
     goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==]'
     root = goalspec2BT(goalspec, planner=None, node=LTLNode)
-    py_trees.logging.level = py_trees.logging.Level.DEBUG
+    # py_trees.logging.level = py_trees.logging.Level.DEBUG
     behaviour_tree = BehaviourTree(root)
     recursive_until(root)
-    # py_trees.display.ascii_tree(behaviour_tree.root)
+    # output = py_trees.display.ascii_tree(behaviour_tree.root)
+    # print(output)
     return behaviour_tree
 
 
 def test_multiple_ticks():
-    # ticks = [
-    #     [False, True],
-    #     [False, False],
-    #     [True, False],
-    #     [True, True]
-    #     ]
-    # for tick in ticks:
-    #     behavior_tree = test_decompose_tick()
-    #     ltlnode = [
-    #         node for node in behavior_tree.root.iterate() if isinstance(
-    #             node, LTLNode)]
-    #     # Now we have a behavior tree. Lets define the tick
-    #     ltlnode[0].value, ltlnode[1].value = tick[0], tick[1]
-    #     behavior_tree.tick()
-    #     print(behavior_tree.root.status, tick)
+    ticks = [
+        [False, True],
+        [False, False],
+        [True, False],
+        [True, True]
+        ]
+    for tick in ticks:
+        behavior_tree = test_decompose_tick()
+        ltlnode = [
+            node for node in behavior_tree.root.iterate() if isinstance(
+                node, LTLNode)]
+        # Now we have a behavior tree. Lets define the tick
+        # This order is important for testing only. In real
+        # setting the status of the node is used
+        ltlnode[0].value, ltlnode[1].value = tick[1], tick[0]
+        behavior_tree.tick()
+        print(behavior_tree.root.status, tick)
 
     ticks1 = [
         [True, False],
@@ -69,7 +72,7 @@ def test_multiple_ticks():
         [True, False],
         [True, False]
         ]
-    ticks = [ticks2]    # , ticks2, ticks3, ticks4]
+    ticks = [ticks1, ticks2, ticks3, ticks4]
     for tick in ticks:
         behavior_tree = test_decompose_tick()
         ltlnode = [
@@ -77,7 +80,7 @@ def test_multiple_ticks():
                 node, LTLNode)]
         # Now we have a behavior tree. Lets define the tick
         for i in range(len(tick)):
-            ltlnode[0].value, ltlnode[1].value = tick[i][0], tick[i][1]
+            ltlnode[0].value, ltlnode[1].value = tick[i][1], tick[i][0]
             # print(ltlnode[0].value, ltlnode[1].value)
             behavior_tree.tick()
             # print(i, behavior_tree.root.status, tick[i])
