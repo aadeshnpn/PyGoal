@@ -2,7 +2,7 @@
 
 from py_trees import Behaviour, Blackboard, Status
 from pygoal.lib.planner import Planner
-from py_trees.composites import Parallel
+from py_trees.composites import Parallel, Selector
 
 
 class GoalNode(Behaviour):
@@ -199,17 +199,11 @@ class ConditionNode(Behaviour):
     behavior implements the condition node for the Until LTL.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, obj):
         """Init method for the condition node."""
-        super(ConditionNode, self).__init__(name, id=0)
-        self.blackboard = Blackboard()
-        try:
-            self.blackboard.nodes[name] = self
-        except AttributeError:
-            self.blackboard.nodes = dict()
-            self.blackboard.nodes[name] = self
+        super(ConditionNode, self).__init__(name)
         self.value = True
-        self.id = id
+        self.obj = obj
 
     def setup(self, timeout, value):
         """Have defined the setup method.
@@ -227,6 +221,8 @@ class ConditionNode(Behaviour):
         """
         Return the value.
         """
+        if isinstance(self.parent, Selector):
+            self.value = self.obj.value
         if self.value:
             return Status.SUCCESS
         else:

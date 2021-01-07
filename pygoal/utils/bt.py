@@ -56,14 +56,14 @@ def goalspec2BT(goalspec, planner=Planner.DEFAULT, node=GoalNode):
 def create_until_node(a, b):
     root = Sequence('Seq')
     selec = Selector('Se')
-    p2 = ConditionNode(str(b.id))
-    p1 = ConditionNode(str(a.id))
+    p2 = ConditionNode(str(b.id), b)
+    p1 = ConditionNode(str(a.id), a)
     goal1 = a
     goal2 = b
     selec.add_children([p2, goal1])
     seq = Sequence('S')
     seq.add_children([p1, goal2])
-    root.add_children([selec, seq])
+    root.add_children([seq, selec])
     return root
 
 
@@ -96,6 +96,13 @@ def recursive_until(node):
         else:
             for node in node.children:
                 recursive_until(node)
+
+
+def post_tick_until(root):
+    condition_nodes = [
+        node for node in root.iterate() if isinstance(node, ConditionNode)]
+    for node in condition_nodes:
+        node.value = node.obj.value
 
 
 def find_control_node(operator):
