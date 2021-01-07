@@ -1,6 +1,7 @@
 """Verifying the decomposition of LTL into BT."""
 
-from utils import goalspec2BT, UntilNode, recursive_until
+from utils import goalspec2BT, recursive_until, LTLNode
+# from pygoal.utils.bt import goalspec2BT, recursive_until
 from py_trees.trees import BehaviourTree
 import py_trees
 
@@ -9,8 +10,8 @@ def decompose():
     # goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==]'
     # goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==] U P_[KB][1,none,==]'
     # goalspec = 'P_[KA][1,none,==] U P_[KB][1,none,==] U P_[KC][1,none,==] U P_[KD][1,none,==], U P_[KE][1,none,==]'
-    # goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==]'
-    goalspec = '(P_[KA][1,none,==] & P_[KB][1,none,==]) U (P_[KC][1,none,==] & P_[KD][1,none,==])'
+    goalspec = '(F(P_[KE][1,none,==]) U G(P_[KA][1,none,==]))'
+    # goalspec = '(P_[KA][1,none,==] & P_[KB][1,none,==]) U (P_[KC][1,none,==] & P_[KD][1,none,==])'
     # goalspec = '((P_[KA][1,none,==] U P_[KB][1,none,==]) & (P_[KC][1,none,==] U P_[KD][1,none,==])) & (P_[KE][1,none,==] & P_[KF][1,none,==])'
     root = goalspec2BT(goalspec, planner=None)
     # for i in root.iterate():
@@ -25,8 +26,39 @@ def decompose():
     print(output)
 
 
+def test_decompose_tick():
+    goalspec = 'P_[KE][1,none,==] U P_[KA][1,none,==]'
+    root = goalspec2BT(goalspec, planner=None, node=LTLNode)
+    py_trees.logging.level = py_trees.logging.Level.DEBUG
+    behaviour_tree = BehaviourTree(root)
+    recursive_until(root)
+    # py_trees.display.ascii_tree(behaviour_tree.root)
+    return behaviour_tree
+
+
+def test_multiple_ticks():
+    ticks = [
+        [False, True],
+        [False, False],
+        [True, False],
+        [True, True]
+        ]
+    for tick in ticks:
+        behavior_tree = test_decompose_tick()
+        ltlnode = [
+            node for node in behavior_tree.root.iterate() if isinstance(
+                node, LTLNode)]
+        # Now we have a behavior tree. Lets define the tick
+
+        ltlnode[0].value, ltlnode[1].value = tick[0], ticks[0]
+        behavior_tree.tick()
+        print(behavior_tree.root.status, tick)
+
+
 def main():
-    decompose()
+    # decompose()
+    # test_decompose_tick()
+    test_multiple_ticks()
 
 
 def older():

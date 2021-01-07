@@ -22,10 +22,11 @@ from flloat.syntax.ltlfg import (
     LTLfgAtomic, LTLfEventually, LTLfAlways)
 import py_trees
 from py_trees.composites import (
-    Sequence, Selector, Parallel)
+    Sequence, Selector)
 
-from pygoal.lib.bt import GoalNode
+from pygoal.lib.bt import GoalNode, CompetentNode
 from pygoal.lib.planner import Planner
+# from pygoal.utils.bt import rparser, recursive_until,
 
 
 class DummyNode(Behaviour):
@@ -127,8 +128,8 @@ def get_name(formula):
 def create_until_node(a, b):
     root = Sequence('Seq')
     selec = Selector('Se')
-    p2 = CondNode('C' + b.name)
-    p1 = CondNode('C' + a.name)
+    p2 = ConditionNode(str(b.id), b)
+    p1 = ConditionNode(str(a.id), a)
     goal1 = a
     goal2 = b
     selec.add_children([p2, goal1])
@@ -180,7 +181,7 @@ def recursive_fix_until(root):
 def until_subtree_fix2(child, formula, planner, node, id):
     if child.name == 'p2':
         par = child.parent
-        par.replace_child(child, CondNode('C' + get_name(formula[1])))
+        par.replace_child(child, ConditionNode('C' + get_name(formula[1])))
 
     elif child.name == 'g1':
         par = child.parent
@@ -188,7 +189,7 @@ def until_subtree_fix2(child, formula, planner, node, id):
 
     elif child.name == 'p1':
         par = child.parent
-        par.replace_child(child, CondNode('C' + get_name(formula[0])))
+        par.replace_child(child, ConditionNode('C' + get_name(formula[0])))
 
     elif child.name == 'g2':
         par = child.parent
@@ -266,6 +267,14 @@ def reset_env(env):
     env.restart()
 
 
+def post_tick_until(root):
+    condition_nodes = [
+        node for node in root.iterate if isinstance(node, ConditionNode)]
+
+    for node in condition_nodes:
+        node.value = True if node.obj.status == Status.SUCCESS else False
+
+
 class ConditionNode(Behaviour):
     """Condition node for the proving decomposition.
 
@@ -273,17 +282,17 @@ class ConditionNode(Behaviour):
     behavior implements the condition node for the Until LTL.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, obj):
         """Init method for the condition node."""
-        super(ConditionNode, self).__init__(name, id=0)
-        self.blackboard = Blackboard()
-        try:
-            self.blackboard.nodes[name] = self
-        except AttributeError:
-            self.blackboard.nodes = dict()
-            self.blackboard.nodes[name] = self
+        super(ConditionNode, self).__init__(name)
+        # self.blackboard = Blackboard()
+        # try:
+        #     self.blackboard.nodes[name] = self
+        # except AttributeError:
+        #     self.blackboard.nodes = dict()
+        #     self.blackboard.nodes[name] = self
+        self.obj = obj
         self.value = True
-        self.id = id
 
     def setup(self, timeout, value):
         """Have defined the setup method.
@@ -314,15 +323,15 @@ class LTLNode(Behaviour):
     behavior implements the LTL node for the Until LTL.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, planner=None, id=0):
         """Init method for the LTL node."""
         super(LTLNode, self).__init__(name)
-        self.blackboard = Blackboard()
-        try:
-            self.blackboard.nodes[name] = self
-        except KeyError:
-            self.blackboard.nodes = dict()
-            self.blackboard.nodes[name] = self
+        # self.blackboard = Blackboard()
+        # try:
+        #     self.blackboard.nodes[name] = self
+        # except KeyError:
+        #     self.blackboard.nodes = dict()
+        #     self.blackboard.nodes[name] = self
         self.goalspec = None
 
     def setup(self, timeout, goalspec, value=False):

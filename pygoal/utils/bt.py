@@ -56,8 +56,8 @@ def goalspec2BT(goalspec, planner=Planner.DEFAULT, node=GoalNode):
 def create_until_node(a, b):
     root = Sequence('Seq')
     selec = Selector('Se')
-    p2 = ConditionNode('C' + b.name)
-    p1 = ConditionNode('C' + a.name)
+    p2 = ConditionNode(str(b.id))
+    p1 = ConditionNode(str(a.id))
     goal1 = a
     goal2 = b
     selec.add_children([p2, goal1])
