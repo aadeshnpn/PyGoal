@@ -227,7 +227,7 @@ def goalspec2BT(goalspec, planner=Planner.DEFAULT, node=GoalNode):
         nid += 1
     else:
         rootnode = find_control_node(ltlformula.operator_symbol)
-        print(ltlformula.formulas)
+        # print(ltlformula.formulas)
         root = rparser(ltlformula.formulas, rootnode, planner, node, nid)
 
     return root
@@ -269,10 +269,13 @@ def reset_env(env):
 
 def post_tick_until(root):
     condition_nodes = [
-        node for node in root.iterate if isinstance(node, ConditionNode)]
-
+        node for node in root.iterate() if isinstance(node, ConditionNode)]
     for node in condition_nodes:
-        node.value = True if node.obj.status == Status.SUCCESS else False
+        # print(node.value, node.obj.status)
+        # node.value = True if node.obj.status == Status.SUCCESS else False
+        node.value = True if node.obj.value is True else False
+        # print(node.value)
+    # print('from condition ndoes', [node.value for node in condition_nodes])
 
 
 class ConditionNode(Behaviour):
@@ -333,6 +336,7 @@ class LTLNode(Behaviour):
         #     self.blackboard.nodes = dict()
         #     self.blackboard.nodes[name] = self
         self.goalspec = None
+        self.value = False
 
     def setup(self, timeout, goalspec, value=False):
         """Have defined the setup method.
@@ -353,6 +357,7 @@ class LTLNode(Behaviour):
         """
         # parser = LTLfParser()
         # ltlformula = parser(self.goalspec)
+        # print('from ltl node', self.value)
         if self.value:
             return Status.SUCCESS
         else:

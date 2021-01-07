@@ -1,6 +1,6 @@
 """Verifying the decomposition of LTL into BT."""
 
-from utils import goalspec2BT, recursive_until, LTLNode
+from utils import goalspec2BT, recursive_until, LTLNode, post_tick_until
 # from pygoal.utils.bt import goalspec2BT, recursive_until
 from py_trees.trees import BehaviourTree
 import py_trees
@@ -37,21 +37,51 @@ def test_decompose_tick():
 
 
 def test_multiple_ticks():
-    ticks = [
-        [False, True],
-        [False, False],
+    # ticks = [
+    #     [False, True],
+    #     [False, False],
+    #     [True, False],
+    #     [True, True]
+    #     ]
+    # for tick in ticks:
+    #     behavior_tree = test_decompose_tick()
+    #     ltlnode = [
+    #         node for node in behavior_tree.root.iterate() if isinstance(
+    #             node, LTLNode)]
+    #     # Now we have a behavior tree. Lets define the tick
+    #     ltlnode[0].value, ltlnode[1].value = tick[0], tick[1]
+    #     behavior_tree.tick()
+    #     print(behavior_tree.root.status, tick)
+
+    ticks1 = [
         [True, False],
         [True, True]
         ]
+    ticks2 = [
+        [True, False],
+        [False, True]
+        ]
+    ticks3 = [
+        [True, False],
+        [False, False]
+        ]
+    ticks4 = [
+        [True, False],
+        [True, False]
+        ]
+    ticks = [ticks2]    # , ticks2, ticks3, ticks4]
     for tick in ticks:
         behavior_tree = test_decompose_tick()
         ltlnode = [
             node for node in behavior_tree.root.iterate() if isinstance(
                 node, LTLNode)]
         # Now we have a behavior tree. Lets define the tick
-
-        ltlnode[0].value, ltlnode[1].value = tick[0], ticks[0]
-        behavior_tree.tick()
+        for i in range(len(tick)):
+            ltlnode[0].value, ltlnode[1].value = tick[i][0], tick[i][1]
+            # print(ltlnode[0].value, ltlnode[1].value)
+            behavior_tree.tick()
+            # print(i, behavior_tree.root.status, tick[i])
+            post_tick_until(behavior_tree.root)
         print(behavior_tree.root.status, tick)
 
 

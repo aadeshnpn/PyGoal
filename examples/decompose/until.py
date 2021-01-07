@@ -15,16 +15,17 @@ class CondNode(Behaviour):
     behavior implements the condition node for the Until LTL.
     """
 
-    def __init__(self, name):
+    def __init__(self, name, obj):
         """Init method for the condition node."""
         super(CondNode, self).__init__(name)
-        self.blackboard = Blackboard()
-        try:
-            self.blackboard.nodes[name] = self
-        except AttributeError:
-            self.blackboard.nodes = dict()
-            self.blackboard.nodes[name] = self
+        # self.blackboard = Blackboard()
+        # try:
+        #     self.blackboard.nodes[name] = self
+        # except AttributeError:
+        #     self.blackboard.nodes = dict()
+        #     self.blackboard.nodes[name] = self
         self.value = True
+        self.obj = obj
 
     def setup(self, timeout, value):
         """Have defined the setup method.
@@ -42,6 +43,9 @@ class CondNode(Behaviour):
         """
         Return the value.
         """
+        if isinstance(self.parent, Selector):
+            # self.value = self.parent.value
+            self.value = self.obj.value
         if self.value:
             return Status.SUCCESS
         else:
@@ -58,13 +62,14 @@ class LTLNode(Behaviour):
     def __init__(self, name):
         """Init method for the LTL node."""
         super(LTLNode, self).__init__(name)
-        self.blackboard = Blackboard()
-        try:
-            self.blackboard.nodes[name] = self
-        except KeyError:
-            self.blackboard.nodes = dict()
-            self.blackboard.nodes[name] = self
+        # self.blackboard = Blackboard()
+        # try:
+        #     self.blackboard.nodes[name] = self
+        # except KeyError:
+        #     self.blackboard.nodes = dict()
+        #     self.blackboard.nodes[name] = self
         self.goalspec = None
+        # self.value = True
 
     def setup(self, timeout, goalspec, value=False):
         """Have defined the setup method.
@@ -94,14 +99,14 @@ class LTLNode(Behaviour):
 def skeleton():
     main = Sequence('1')
     selec = Selector('2')
-    p2 = CondNode('p2')
-    p1 = CondNode('p1')
     goal1 = LTLNode('g1')
     goal2 = LTLNode('g2')
+    p2 = CondNode(str(goal2.id), goal2)
+    p1 = CondNode(str(goal1.id), goal1)
     selec.add_children([p2, goal1])
     seq = Sequence('3')
     seq.add_children([p1, goal2])
-    main.add_children([selec, seq])
+    main.add_children([seq, selec])
     root = BehaviourTree(main)
     return [root, p1, p2, goal1, goal2]
 
@@ -112,10 +117,12 @@ def setup_nodes(val1, val2, goal1, goal2):
 
 
 def post_handler(p1, p2, goal1, goal2):
-    blackboard = Blackboard()
+    # blackboard = Blackboard()
     # print(blackboard.nodes)
-    blackboard.nodes[p1.name].value = blackboard.nodes[goal1.name].value
-    blackboard.nodes[p2.name].value = blackboard.nodes[goal2.name].value
+    # blackboard.nodes[p1.name].value = blackboard.nodes[goal1.name].value
+    # blackboard.nodes[p2.name].value = blackboard.nodes[goal2.name].value
+    p1.value = p1.obj.value
+    p2.value = p2.obj.value
 
 
 def testuntil(t1, name):
@@ -170,8 +177,12 @@ def main():
         {'a': False, 'b': False},
         {'a': True, 'b': True}
         ]
-    t = [t1, t2, t3, t4, t5, t6, t7]
-    name = ['one', 'two', 'three', ' four', 'five', 'six', 'seven']
+    t8 = [
+        {'a': True, 'b': False},
+        {'a': False, 'b': True}
+        ]
+    t = [t1, t2, t3, t4, t5, t6, t7, t8]
+    name = ['one', 'two', 'three', ' four', 'five', 'six', 'seven', 'eight']
     for i in range(len(t)):
         testuntil(t[i], name[i])
 
